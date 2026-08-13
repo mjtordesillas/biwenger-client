@@ -11,6 +11,6 @@
     "deploy": "serverless deploy"
   },
   "devDependencies": {
-    "serverless": "^3.40.0"
+    "serverless": "^4.33.0"
   }
 }

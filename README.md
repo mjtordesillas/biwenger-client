@@ -63,6 +63,7 @@ later):
 | `BIWENGER_PASSWORD` | Biwenger account password |
 | `AWS_ACCESS_KEY_ID` | AWS credentials used by `serverless deploy` |
 | `AWS_SECRET_ACCESS_KEY` | AWS credentials used by `serverless deploy` |
+| `SERVERLESS_ACCESS_KEY` | Serverless Framework v4 access key (non-interactive auth for CI) |
 
 Currently using root AWS credentials for deploys, by explicit choice, while
 this is a single-service personal project — see

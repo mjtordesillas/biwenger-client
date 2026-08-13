@@ -1,4 +1,5 @@
 service: biwenger-client
+frameworkVersion: '4'
 
 provider:
   name: aws
