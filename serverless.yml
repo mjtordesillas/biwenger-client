@@ -1,0 +1,18 @@
+service: biwenger-client
+
+provider:
+  name: aws
+  runtime: nodejs22.x
+  region: eu-west-1
+  stage: production
+  environment:
+    BIWENGER_EMAIL: ${env:BIWENGER_EMAIL}
+    BIWENGER_PASSWORD: ${env:BIWENGER_PASSWORD}
+
+functions:
+  squad:
+    handler: src/index.squad
+    events:
+      - httpApi:
+          method: GET
+          path: /

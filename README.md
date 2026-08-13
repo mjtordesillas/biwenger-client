@@ -28,6 +28,49 @@ Currently building **Slice 1**: open a URL, see your current squad, no ads.
 
 See [`AGENT.md`](AGENT.md) for working conventions.
 
+## First-time setup
+
+### Environment files
+
+- `.env` — gitignored, local only. Real secrets: `BIWENGER_EMAIL`, `BIWENGER_PASSWORD`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`.
+- `.env.production` — committed. Non-secret config only (currently empty — nothing non-secret to configure yet).
+
+Never put a secret in `.env.production`.
+
+### Local development
+
+```sh
+npm ci
+npm test
+```
+
+To deploy manually from your machine, create `.env` with the secrets above, then:
+
+```sh
+set -a; source .env; set +a
+npm run deploy
+```
+
+### GitHub Actions secrets
+
+Add these in **Settings → Secrets and variables → Actions** (repository
+secrets, or under a `production` environment if you want an approval gate
+later):
+
+| Secret | Description |
+|--------|--------------|
+| `BIWENGER_EMAIL` | Biwenger account email used server-side to fetch the squad |
+| `BIWENGER_PASSWORD` | Biwenger account password |
+| `AWS_ACCESS_KEY_ID` | AWS credentials used by `serverless deploy` |
+| `AWS_SECRET_ACCESS_KEY` | AWS credentials used by `serverless deploy` |
+
+Currently using root AWS credentials for deploys, by explicit choice, while
+this is a single-service personal project — see
+`docs/concerns/root-aws-credentials-for-ci-deploys.md`. Revisit before this
+account holds anything else of value.
+
+Push to `main` after these are set and CI will run tests then deploy.
+
 ## Repo layout (evolves as slices are added)
 
 ```

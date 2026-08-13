@@ -1,0 +1,16 @@
+{
+  "name": "biwenger-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "deploy": "serverless deploy"
+  },
+  "devDependencies": {
+    "serverless": "^3.40.0"
+  }
+}
