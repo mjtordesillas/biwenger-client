@@ -26,9 +26,15 @@ Currently building **Slice 1**: open a URL, see your current squad, no ads.
 - No abstractions before the second use case demands them.
 - Read-only first. No automated bidding. No credentials in source control.
 
+See [`AGENT.md`](AGENT.md) for working conventions.
+
 ## Repo layout (evolves as slices are added)
 
 ```
-docs/     RAT notes, decisions
-scripts/  small experiment/ops scripts (e.g. the RAT script)
+docs/
+  rat.md                 RAT write-up
+  adrs/                   Architecture Decision Records (Nygard format)
+  concerns/               deferred design/workflow issues (empty for now)
+  ways-of-working/        git workflow, concerns guide
+scripts/                  small experiment/ops scripts (e.g. the RAT script)
 ```
