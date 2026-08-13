@@ -15,10 +15,10 @@ by this list's order.
 - View useful rival context (balance, positional needs) where available
 - Add price history/trends
 - Add recommendations
-- Access my data in a secure manner — the app itself has no access
-  control right now (see `docs/concerns/unprotected-squad-endpoint.md`);
-  likely resolved by a PWA/app decision rather than a header/query hack
-  bolted onto a server-rendered page
+- Access my data in a secure manner — backend now protected by a native
+  API Gateway key (`docs/adrs/002-native-api-gateway-key-for-squad-endpoint.md`);
+  in progress: a native Android app (separate `biwenger-client-android`
+  repo) is the client that can actually hold that key
 
 ## Done
 

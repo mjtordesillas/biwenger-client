@@ -10,6 +10,7 @@ Status, Context, Decision, Consequences.
 | ADR | Title | Status |
 |-----|-------|--------|
 | [001](./001-unofficial-biwenger-v2-api-over-browser-automation.md) | Use Biwenger's Unofficial v2 HTTP API Directly | Accepted |
+| [002](./002-native-api-gateway-key-for-squad-endpoint.md) | Native API Gateway Key for the Squad Endpoint | Accepted |
 
 ## Adding a New ADR
 

@@ -9,11 +9,17 @@ provider:
   environment:
     BIWENGER_EMAIL: ${env:BIWENGER_EMAIL}
     BIWENGER_PASSWORD: ${env:BIWENGER_PASSWORD}
+  apiGateway:
+    apiKeys:
+      - name: biwenger-client-${self:provider.stage}-mobile-key
+        value: ${env:BIWENGER_CLIENT_MOBILE_API_KEY}
+    usagePlan: {}
 
 functions:
   squad:
     handler: src/index.squad
     events:
-      - httpApi:
+      - http:
           method: GET
-          path: /
+          path: /squad
+          private: true
