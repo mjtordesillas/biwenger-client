@@ -2,34 +2,9 @@
 
 A small, fast, ad-free alternative client for [Biwenger](https://biwenger.as.com).
 
-Not a rebuild of Biwenger. A thin client that exposes only the parts of our
-league we actually use, built as a sequence of tiny, independently
-deployable vertical slices (Lean/Agile, Trunk-Based Development, Elephant
-Carpaccio — see `docs/`).
+See [`AGENT.md`](AGENT.md) for ways of working and [`docs/backlog.md`](docs/backlog.md) for candidate features.
 
-## Status
-
-**Riskiest Assumption Test (RAT): PASSED.** Details and the experiment
-script are in [`docs/rat.md`](docs/rat.md).
-
-**Shipped**: view my squad — open the URL, see your current squad (name,
-position, market value), no ads.
-
-See [`docs/backlog.md`](docs/backlog.md) for candidate next features —
-it's a backlog, not a roadmap; the next one gets picked from actually
-using what's live, not from list order.
-
-## Principles
-
-- Every commit to `main` should be deployable.
-- Every slice is a complete, tiny piece of user value — not a layer of
-  architecture.
-- No abstractions before the second use case demands them.
-- Read-only first. No automated bidding. No credentials in source control.
-
-See [`AGENT.md`](AGENT.md) for working conventions.
-
-## First-time setup
+## Setup
 
 ### Environment files
 
@@ -38,25 +13,9 @@ See [`AGENT.md`](AGENT.md) for working conventions.
 
 Never put a secret in `.env.production`.
 
-### Local development
-
-```sh
-npm ci
-npm test
-```
-
-To deploy manually from your machine, create `.env` with the secrets above, then:
-
-```sh
-set -a; source .env; set +a
-npm run deploy
-```
-
 ### GitHub Actions secrets
 
-Add these in **Settings → Secrets and variables → Actions** (repository
-secrets, or under a `production` environment if you want an approval gate
-later):
+Add these in **Settings → Secrets and variables → Actions**:
 
 | Secret | Description |
 |--------|--------------|
@@ -66,24 +25,22 @@ later):
 | `AWS_SECRET_ACCESS_KEY` | AWS credentials used by `serverless deploy` |
 | `SERVERLESS_ACCESS_KEY` | Serverless Framework v4 access key (non-interactive auth for CI) |
 
-Currently using root AWS credentials for deploys, by explicit choice, while
-this is a single-service personal project — see
-`docs/concerns/root-aws-credentials-for-ci-deploys.md`. Revisit before this
-account holds anything else of value.
+## Run
 
-Push to `main` after these are set and CI will run tests then deploy.
-
-## Repo layout (evolves as slices are added)
-
+```sh
+npm ci
+npm test
 ```
-src/                      Lambda handlers and the Biwenger client
-test/                     unit tests (node:test)
-docs/
-  backlog.md              candidate features (not a roadmap)
-  rat.md                  RAT write-up
-  adrs/                   Architecture Decision Records (Nygard format)
-  concerns/               deferred design/workflow issues
-  ways-of-working/        git workflow, testing strategy, concerns guide
-  coding-conventions/     naming, factory functions, handler pattern, etc.
-scripts/                  small experiment/ops scripts (e.g. the RAT script)
+
+## Deploy
+
+Push to `main` with the secrets above set — GitHub Actions runs the tests,
+then deploys on green.
+
+To deploy manually from your machine instead, create `.env` with the
+secrets above, then:
+
+```sh
+set -a; source .env; set +a
+npm run deploy
 ```
