@@ -24,6 +24,7 @@
 
 ## Documentation
 
+- `docs/backlog.md` — candidate features (not a roadmap); pick the next one from actually using the current slice in production
 - `docs/rat.md` — the Riskiest Assumption Test: how we authenticate against Biwenger and what the API looks like
 - `docs/adrs/` — Architecture Decision Records (Nygard format); index at `docs/adrs/README.md`
 - `docs/concerns/` — deferred design/workflow issues; usage guide at `docs/ways-of-working/concerns.md`

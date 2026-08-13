@@ -9,14 +9,15 @@ Carpaccio — see `docs/`).
 
 ## Status
 
-**Riskiest Assumption Test (RAT): PASSED.**
+**Riskiest Assumption Test (RAT): PASSED.** Details and the experiment
+script are in [`docs/rat.md`](docs/rat.md).
 
-We confirmed we can authenticate against the current Biwenger v2 HTTP API
-with email/password and retrieve the authenticated user's squad (player
-name, position, market value) using 4 reproducible HTTP calls. Details and
-the experiment script are in [`docs/rat.md`](docs/rat.md).
+**Shipped**: view my squad — open the URL, see your current squad (name,
+position, market value), no ads.
 
-Currently building **Slice 1**: open a URL, see your current squad, no ads.
+See [`docs/backlog.md`](docs/backlog.md) for candidate next features —
+it's a backlog, not a roadmap; the next one gets picked from actually
+using what's live, not from list order.
 
 ## Principles
 
@@ -75,10 +76,14 @@ Push to `main` after these are set and CI will run tests then deploy.
 ## Repo layout (evolves as slices are added)
 
 ```
+src/                      Lambda handlers and the Biwenger client
+test/                     unit tests (node:test)
 docs/
-  rat.md                 RAT write-up
+  backlog.md              candidate features (not a roadmap)
+  rat.md                  RAT write-up
   adrs/                   Architecture Decision Records (Nygard format)
-  concerns/               deferred design/workflow issues (empty for now)
-  ways-of-working/        git workflow, concerns guide
+  concerns/               deferred design/workflow issues
+  ways-of-working/        git workflow, testing strategy, concerns guide
+  coding-conventions/     naming, factory functions, handler pattern, etc.
 scripts/                  small experiment/ops scripts (e.g. the RAT script)
 ```
