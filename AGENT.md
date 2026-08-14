@@ -26,6 +26,7 @@
 
 - `docs/backlog/{to-do,in-progress,done}/` — one file per candidate feature, organized by state (not a roadmap); usage guide at `docs/ways-of-working/backlog.md`
 - `docs/rat.md` — the Riskiest Assumption Test: how we authenticate against Biwenger and what the API looks like
+- `docs/biwenger-api-notes.md` — ongoing Biwenger API discoveries made outside the original RAT; explorable via `requests/` (JetBrains HTTP Client — `.rest` files + `http-client.env.json`/gitignored `http-client.private.env.json` per directory)
 - `docs/adrs/` — Architecture Decision Records (Nygard format); index at `docs/adrs/README.md`
 - `docs/concerns/` — deferred design/workflow issues; usage guide at `docs/ways-of-working/concerns.md`
 - `docs/ways-of-working/` — git workflow, vertical slicing, backlog, testing strategy, test-refactoring, concerns guide

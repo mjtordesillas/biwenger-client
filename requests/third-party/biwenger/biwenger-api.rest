@@ -1,0 +1,42 @@
+### Login — captures {{token}} for the requests below
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+> {%
+    client.global.set("token", response.body.token);
+%}
+
+### Account — captures {{leagueId}} / {{userId}}
+# @name account
+GET {{baseUrl}}/account
+Authorization: Bearer {{token}}
+Accept: application/json
+
+> {%
+    client.global.set("leagueId", response.body.data.leagues[0].id);
+    client.global.set("userId", response.body.data.leagues[0].user.id);
+%}
+
+### My squad — player ids only, see docs/rat.md for why
+GET {{baseUrl}}/user?fields=players(id,owner)
+Authorization: Bearer {{token}}
+X-League: {{leagueId}}
+X-User: {{userId}}
+Accept: application/json
+
+### Catalogue — name/position/price/altPositions/priceIncrement/points for every player, keyed by id. No auth required.
+GET {{baseUrl}}/competitions/la-liga/data?lang=es&score=5
+Accept: application/json
+
+### Player photo — see docs/biwenger-api-notes.md (not an API response, a static asset)
+GET https://cdn.biwenger.com/i/p/{{playerId}}.png
+
+### Team crest — see docs/biwenger-api-notes.md
+GET https://cdn.biwenger.com/i/t/{{teamId}}.png

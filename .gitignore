@@ -3,3 +3,7 @@ dist/
 .env
 .serverless/
 *.log
+
+# JetBrains HTTP Client env files carrying secrets (api keys, credentials)
+/requests/biwenger-client/http-client.private.env.json
+/requests/third-party/biwenger/http-client.private.env.json

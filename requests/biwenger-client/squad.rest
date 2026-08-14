@@ -1,0 +1,4 @@
+### Get my squad (protected — native API Gateway key, see docs/adrs/002-native-api-gateway-key-for-squad-endpoint.md)
+GET {{baseUrl}}/squad
+x-api-key: {{mobileApiKey}}
+Accept: application/json
