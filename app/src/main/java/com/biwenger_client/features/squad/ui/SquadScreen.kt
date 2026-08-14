@@ -42,7 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -67,6 +66,7 @@ import com.biwenger_client.features.squad.domain.models.PricePoint
 import com.biwenger_client.ui.theme.ColorDivider
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
+import com.biwenger_client.ui.theme.Neutral700
 import com.biwenger_client.ui.theme.Neutral800
 import com.biwenger_client.ui.theme.Neutral900
 import com.biwenger_client.ui.theme.NocturneRadius
@@ -382,8 +382,7 @@ private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColo
                 .padding(top = 12.dp)
                 .height(132.dp)
                 .clip(RoundedCornerShape(NocturneRadius.md))
-                .background(Neutral800)
-                .alpha(rememberPulseAlpha())
+                .background(rememberShimmerBrush())
         )
         return
     }
@@ -462,18 +461,22 @@ private fun PriceHistoryTabButton(label: String, selected: Boolean, onClick: () 
 }
 
 @Composable
-private fun rememberPulseAlpha(): Float {
+private fun rememberShimmerBrush(): Brush {
     val transition = rememberInfiniteTransition(label = "priceHistorySkeleton")
-    val alpha by transition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 1f,
+    val translate by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 400f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 700, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
+            animation = tween(durationMillis = 1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
         ),
-        label = "pulseAlpha"
+        label = "shimmerTranslate"
     )
-    return alpha
+    return Brush.linearGradient(
+        colors = listOf(Neutral800, Neutral700, Neutral800),
+        start = Offset(translate - 200f, 0f),
+        end = Offset(translate, 0f)
+    )
 }
 
 @Composable
