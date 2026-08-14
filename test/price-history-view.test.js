@@ -4,8 +4,8 @@ import { toPriceHistoryView } from '../src/price-history-view.js'
 
 test('returns the full trailing window as-is, plus where the current season starts', () => {
   const prices = [
-    [250630, 100], // last day of prior season
-    [250701, 105], // season start
+    [250630, 100],
+    [250701, 105],
     [251215, 120],
   ]
 
