@@ -47,11 +47,45 @@ class SquadViewModelTest {
     }
 
     @Test
+    fun `subscribes to squad_selectedPosition`() {
+        verify(store).subscribe(eq("squad.selectedPosition"), any<(Int?) -> Unit>())
+    }
+
+    @Test
+    fun `subscribes to squad_selectedPlayerId`() {
+        verify(store).subscribe(eq("squad.selectedPlayerId"), any<(Int?) -> Unit>())
+    }
+
+    @Test
     fun `registers squad_on-load handler`() {
         verify(store).registerEventHandler(
             eq("squad.on-load"),
             any<List<com.biwenger_client.core.coeffects.Coeffect<*>>>(),
             any<suspend (Event<Unit>, Coeffects) -> List<Effect>>()
+        )
+    }
+
+    @Test
+    fun `registers squad_position-filter-changed handler`() {
+        verify(store).registerEventHandler(
+            eq("squad.position-filter-changed"),
+            any<suspend (Event<Int?>) -> List<Effect>>()
+        )
+    }
+
+    @Test
+    fun `registers squad_player-tapped handler`() {
+        verify(store).registerEventHandler(
+            eq("squad.player-tapped"),
+            any<suspend (Event<Int>) -> List<Effect>>()
+        )
+    }
+
+    @Test
+    fun `registers squad_sheet-closed handler`() {
+        verify(store).registerEventHandler(
+            eq("squad.sheet-closed"),
+            any<suspend (Event<Unit>) -> List<Effect>>()
         )
     }
 
@@ -75,12 +109,75 @@ class SquadViewModelTest {
     }
 
     @Test
-    fun `removes on-load handler on cleared`() {
+    fun `handlePositionFilterChanged returns UpdateState with the new position`() {
+        val effects = viewModel.handlePositionFilterChanged(event(name = "squad.position-filter-changed", payload = 3))
+
+        assertThat(effects).contains(UpdateState(path = "squad.selectedPosition", value = 3))
+    }
+
+    @Test
+    fun `handlePositionFilterChanged with null payload clears the filter`() {
+        val effects = viewModel.handlePositionFilterChanged(
+            Event(name = "squad.position-filter-changed", payload = null)
+        )
+
+        assertThat(effects).contains(UpdateState(path = "squad.selectedPosition", value = null))
+    }
+
+    @Test
+    fun `handlePlayerTapped returns UpdateState with the tapped player id`() {
+        val effects = viewModel.handlePlayerTapped(event(name = "squad.player-tapped", payload = 42))
+
+        assertThat(effects).contains(UpdateState(path = "squad.selectedPlayerId", value = 42))
+    }
+
+    @Test
+    fun `handleSheetClosed clears the selected player id`() {
+        val effects = viewModel.handleSheetClosed(event(name = "squad.sheet-closed"))
+
+        assertThat(effects).contains(UpdateState(path = "squad.selectedPlayerId", value = null))
+    }
+
+    @Test
+    fun `positionFilterChanged dispatches position-filter-changed event`() {
+        viewModel.positionFilterChanged(position = 2)
+
+        verify(store).dispatch(event = event(name = "squad.position-filter-changed", payload = 2))
+    }
+
+    @Test
+    fun `playerTapped dispatches player-tapped event`() {
+        viewModel.playerTapped(playerId = 7)
+
+        verify(store).dispatch(event = event(name = "squad.player-tapped", payload = 7))
+    }
+
+    @Test
+    fun `sheetClosed dispatches sheet-closed event`() {
+        viewModel.sheetClosed()
+
+        verify(store).dispatch(event = event(name = "squad.sheet-closed"))
+    }
+
+    @Test
+    fun `removes all handlers on cleared`() {
         viewModelStore.clear()
 
         verify(store).removeEventHandler(
             eq("squad.on-load"),
             any<suspend (Event<Unit>, Coeffects) -> List<Effect>>()
+        )
+        verify(store).removeEventHandler(
+            eq("squad.position-filter-changed"),
+            any<suspend (Event<Int?>) -> List<Effect>>()
+        )
+        verify(store).removeEventHandler(
+            eq("squad.player-tapped"),
+            any<suspend (Event<Int>) -> List<Effect>>()
+        )
+        verify(store).removeEventHandler(
+            eq("squad.sheet-closed"),
+            any<suspend (Event<Unit>) -> List<Effect>>()
         )
     }
 }

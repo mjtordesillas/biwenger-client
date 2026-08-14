@@ -3,7 +3,9 @@ package com.biwenger_client
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -23,7 +25,9 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     Scaffold { innerPadding ->
-                        SquadScreen()
+                        Box(modifier = Modifier.padding(innerPadding)) {
+                            SquadScreen()
+                        }
                     }
                 }
             }
