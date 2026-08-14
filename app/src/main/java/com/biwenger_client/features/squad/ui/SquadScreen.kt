@@ -2,27 +2,39 @@ package com.biwenger_client.features.squad.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.features.squad.domain.models.Player
 import java.text.NumberFormat
 import java.util.Locale
 
 private val POSITION_LABELS = mapOf(1 to "GK", 2 to "DF", 3 to "MF", 4 to "FW")
+private val PriceUp = Color(0xFF2E7D32)
+private val PriceDown = Color(0xFFC62828)
 
 @Composable
 fun SquadScreen(
@@ -62,15 +74,60 @@ private fun PlayerList(players: List<Player>) {
 private fun PlayerRow(player: Player) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = player.name)
-        Row {
-            Text(text = POSITION_LABELS[player.position] ?: player.position.toString())
-            Text(text = "  " + formatPrice(player.price))
+        Box {
+            AsyncImage(
+                model = player.photoUrl,
+                contentDescription = player.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(48.dp).clip(CircleShape)
+            )
+            AsyncImage(
+                model = player.teamCrestUrl,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp).align(Alignment.BottomEnd)
+            )
+        }
+
+        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+            Text(text = player.name)
+            Text(
+                text = positionLabel(player),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Column(horizontalAlignment = Alignment.End) {
+            Text(text = formatPrice(player.price))
+            Row {
+                Text(
+                    text = formatPriceIncrement(player.priceIncrement),
+                    fontSize = 12.sp,
+                    color = if (player.priceIncrement < 0) PriceDown else PriceUp
+                )
+                Text(
+                    text = "  ${player.points} pts",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(56.dp)
+                )
+            }
         }
     }
 }
 
+private fun positionLabel(player: Player): String {
+    val main = POSITION_LABELS[player.position] ?: player.position.toString()
+    val secondary = player.secondaryPosition?.let { POSITION_LABELS[it] ?: it.toString() }
+    return if (secondary != null) "$main / $secondary" else main
+}
+
 private fun formatPrice(price: Long): String =
     NumberFormat.getCurrencyInstance(Locale("es", "ES")).format(price)
+
+private fun formatPriceIncrement(priceIncrement: Long): String {
+    val formatted = NumberFormat.getCurrencyInstance(Locale("es", "ES")).format(priceIncrement)
+    return if (priceIncrement >= 0) "+$formatted" else formatted
+}

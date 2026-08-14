@@ -12,6 +12,7 @@ import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
 import com.biwenger_client.features.squad.domain.models.Player
+import com.biwenger_client.helpers.builders.aPlayer
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
 import org.junit.Test
@@ -61,7 +62,7 @@ class SquadViewModelTest {
 
     @Test
     fun `handleOnLoad returns UpdateState with loaded players`() {
-        val players = listOf(Player(id = 1, name = "Brugué", position = 4, price = 280000))
+        val players = listOf(aPlayer())
         val coeffects = Coeffects(
             values = mapOf(FetchSquadCoeffect to Loadable.Success(players))
         )
