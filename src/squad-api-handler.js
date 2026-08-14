@@ -1,4 +1,5 @@
 import { createBiwengerClient } from './biwenger-client.js'
+import { toPlayerView } from './player-view.js'
 
 // Protection is enforced by API Gateway itself (native API key + usage
 // plan — private: true in serverless.yml), not in this handler. See
@@ -16,7 +17,7 @@ export const createSquadApiHandler = (dependencies = {}) => {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ players }),
+        body: JSON.stringify({ players: players.map(toPlayerView) }),
       }
     } catch {
       // Never leak upstream error details — they could echo back
