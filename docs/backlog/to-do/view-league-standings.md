@@ -1,0 +1,1 @@
+View league standings.

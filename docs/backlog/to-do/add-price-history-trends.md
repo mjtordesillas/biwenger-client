@@ -1,0 +1,1 @@
+Add price history/trends.

@@ -2,7 +2,7 @@
 
 A small, fast, ad-free alternative client for [Biwenger](https://biwenger.as.com).
 
-See [`AGENT.md`](AGENT.md) for ways of working and [`docs/backlog.md`](docs/backlog.md) for candidate features.
+See [`AGENT.md`](AGENT.md) for ways of working and [`docs/backlog/`](docs/backlog) for candidate features, organized by state.
 
 ## Setup
 
