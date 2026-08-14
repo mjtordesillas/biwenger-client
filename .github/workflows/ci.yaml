@@ -30,6 +30,7 @@ jobs:
       SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
       BIWENGER_EMAIL: ${{ secrets.BIWENGER_EMAIL }}
       BIWENGER_PASSWORD: ${{ secrets.BIWENGER_PASSWORD }}
+      BIWENGER_CLIENT_MOBILE_API_KEY: ${{ secrets.BIWENGER_CLIENT_MOBILE_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
