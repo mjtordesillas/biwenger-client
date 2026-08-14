@@ -11,3 +11,4 @@
 | [007](ADR-007-feature-based-package-organisation.md) | Feature-Based Package Organisation | Accepted |
 | [008](ADR-008-infallible-coeffects-via-loadable.md) | Coeffects Deliver `Loadable<T>` | Accepted |
 | [009](ADR-009-event-parameterized-coeffects.md) | Event-Parameterized Coeffects | Accepted |
+| [010](ADR-010-dispatch-chaining-for-slow-coeffects.md) | Dispatch-Chaining to Unblock Fast State Updates from Slow Coeffects | Accepted |

@@ -6,9 +6,6 @@ import com.biwenger_client.features.squad.domain.models.PriceHistory
 import com.biwenger_client.features.squad.infrastructure.PriceHistoryService
 import com.biwenger_client.infrastructure.network.Response
 
-// A data class, not an object like FetchSquadCoeffect — which player id
-// to fetch varies per dispatch. See
-// docs/adrs/ADR-009-event-parameterized-coeffects.md.
 data class FetchPriceHistoryCoeffect(val playerId: Int) : Coeffect<PriceHistory>
 
 class PriceHistoryFetchException(

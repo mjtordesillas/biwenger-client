@@ -13,7 +13,6 @@ interface Store {
         coeffects: List<Coeffect<*>>,
         handler: suspend (Event<T>, Coeffects) -> List<Effect>
     )
-    // See docs/adrs/ADR-009-event-parameterized-coeffects.md.
     fun <T> registerEventHandler(
         name: String,
         coeffects: (Event<T>) -> List<Coeffect<*>>,

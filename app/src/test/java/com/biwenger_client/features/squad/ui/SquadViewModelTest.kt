@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import com.biwenger_client.core.coeffects.Coeffects
+import com.biwenger_client.core.effects.DispatchEvent
 import com.biwenger_client.core.effects.Effect
 import com.biwenger_client.core.events.Event
 import com.biwenger_client.core.events.event
@@ -87,6 +88,14 @@ class SquadViewModelTest {
     fun `registers squad_player-tapped handler`() {
         verify(store).registerEventHandler(
             eq("squad.player-tapped"),
+            any<suspend (Event<Int>) -> List<Effect>>()
+        )
+    }
+
+    @Test
+    fun `registers squad_price-history-requested handler`() {
+        verify(store).registerEventHandler(
+            eq("squad.price-history-requested"),
             any<(Event<Int>) -> List<com.biwenger_client.core.coeffects.Coeffect<*>>>(),
             any<suspend (Event<Int>, Coeffects) -> List<Effect>>()
         )
@@ -136,17 +145,30 @@ class SquadViewModelTest {
     }
 
     @Test
-    fun `handlePlayerTapped returns UpdateState with the tapped player id and loaded price history`() {
+    fun `handlePlayerTapped sets the selected player id, marks price history loading, and requests it`() {
+        val effects = viewModel.handlePlayerTapped(event(name = "squad.player-tapped", payload = 42))
+
+        assertThat(effects).contains(
+            UpdateState(path = "squad.selectedPlayerId", value = 42),
+            UpdateState(path = "squad.priceHistory", value = Loadable.Loading),
+            DispatchEvent(event = event(name = "squad.price-history-requested", payload = 42)),
+        )
+    }
+
+    @Test
+    fun `handlePriceHistoryRequested returns UpdateState with the loaded price history`() {
         val history = aPriceHistory()
         val coeffects = Coeffects(
             values = mapOf(FetchPriceHistoryCoeffect(playerId = 42) to Loadable.Success(history))
         )
 
-        val effects = viewModel.handlePlayerTapped(event(name = "squad.player-tapped", payload = 42), coeffects)
+        val effects = viewModel.handlePriceHistoryRequested(
+            event(name = "squad.price-history-requested", payload = 42),
+            coeffects
+        )
 
         assertThat(effects).contains(
-            UpdateState(path = "squad.selectedPlayerId", value = 42),
-            UpdateState(path = "squad.priceHistory", value = Loadable.Success(history)),
+            UpdateState(path = "squad.priceHistory", value = Loadable.Success(history))
         )
     }
 
@@ -195,6 +217,10 @@ class SquadViewModelTest {
         )
         verify(store).removeEventHandler(
             eq("squad.player-tapped"),
+            any<suspend (Event<Int>) -> List<Effect>>()
+        )
+        verify(store).removeEventHandler(
+            eq("squad.price-history-requested"),
             any<suspend (Event<Int>, Coeffects) -> List<Effect>>()
         )
         verify(store).removeEventHandler(

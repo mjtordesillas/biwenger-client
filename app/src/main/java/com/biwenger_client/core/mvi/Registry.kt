@@ -16,10 +16,6 @@ interface Registry {
         coeffects: List<Coeffect<*>>,
         handler: suspend (Event<T>, Coeffects) -> List<Effect>
     )
-    // For coeffects whose value depends on the event's own payload (e.g.
-    // which player id to fetch price history for) — the coeffects list
-    // can't be fixed at registration time like the overload above. See
-    // docs/adrs/ADR-009-event-parameterized-coeffects.md.
     fun <T> registerEventHandler(
         name: String,
         coeffects: (Event<T>) -> List<Coeffect<*>>,

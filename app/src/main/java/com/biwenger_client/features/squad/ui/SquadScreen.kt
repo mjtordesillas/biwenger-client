@@ -2,6 +2,12 @@
 
 package com.biwenger_client.features.squad.ui
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -60,6 +66,8 @@ import com.biwenger_client.features.squad.domain.models.PricePoint
 import com.biwenger_client.ui.theme.ColorDivider
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
+import com.biwenger_client.ui.theme.Neutral700
+import com.biwenger_client.ui.theme.Neutral800
 import com.biwenger_client.ui.theme.Neutral900
 import com.biwenger_client.ui.theme.NocturneRadius
 import java.text.NumberFormat
@@ -287,8 +295,6 @@ private fun PriceTrend(priceIncrement: Long) {
     )
 }
 
-// Shared with the price history chart below — one trend color per player,
-// not recomputed per place it's shown.
 private fun priceTrend(priceIncrement: Long): Pair<String, Color> = when {
     priceIncrement > 0 -> "↑" to TrendUp
     priceIncrement < 0 -> "↓" to TrendDown
@@ -379,6 +385,11 @@ private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColo
             .background(MaterialTheme.colorScheme.background)
             .padding(14.dp)
     ) {
+        if (priceHistory == null || priceHistory is Loadable.Loading) {
+            PriceHistoryCardSkeleton()
+            return@Column
+        }
+
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
             PriceHistoryTabButton(
                 label = "Current season",
@@ -395,12 +406,6 @@ private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColo
         }
 
         when (priceHistory) {
-            null, is Loadable.Loading -> Box(
-                modifier = Modifier.fillMaxWidth().height(62.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(modifier = Modifier.size(18.dp))
-            }
             is Loadable.Failed -> Text(
                 text = "Could not load price history right now.",
                 fontSize = 12.sp,
@@ -415,6 +420,7 @@ private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColo
                 }
                 PriceHistoryChart(points = points, trendColor = trendColor)
             }
+            is Loadable.Loading -> Unit
         }
     }
 }
@@ -445,6 +451,65 @@ private fun PriceHistoryTabButton(label: String, selected: Boolean, onClick: () 
             modifier = Modifier.fillMaxWidth()
         )
     }
+}
+
+@Composable
+private fun PriceHistoryCardSkeleton() {
+    val shimmer = rememberShimmerBrush()
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        ShimmerBlock(shimmer = shimmer, height = 13.dp, modifier = Modifier.weight(1f))
+        ShimmerBlock(shimmer = shimmer, height = 13.dp, modifier = Modifier.weight(1f))
+    }
+    Row(modifier = Modifier.fillMaxWidth()) {
+        ShimmerBlock(shimmer = shimmer, height = 62.dp, modifier = Modifier.weight(1f))
+        Column(
+            modifier = Modifier.width(46.dp).height(62.dp).padding(start = 6.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            ShimmerBlock(shimmer = shimmer, height = 8.dp, modifier = Modifier.width(28.dp))
+            Spacer(modifier = Modifier.weight(1f))
+            ShimmerBlock(shimmer = shimmer, height = 8.dp, modifier = Modifier.width(28.dp))
+        }
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 46.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        repeat(4) { ShimmerBlock(shimmer = shimmer, height = 7.dp, modifier = Modifier.width(20.dp)) }
+    }
+}
+
+@Composable
+private fun ShimmerBlock(shimmer: Brush, height: Dp, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .height(height)
+            .clip(RoundedCornerShape(NocturneRadius.sm))
+            .background(shimmer)
+    )
+}
+
+@Composable
+private fun rememberShimmerBrush(): Brush {
+    val transition = rememberInfiniteTransition(label = "priceHistorySkeleton")
+    val translate by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 400f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1100, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerTranslate"
+    )
+    return Brush.linearGradient(
+        colors = listOf(Neutral800, Neutral700, Neutral800),
+        start = Offset(translate - 200f, 0f),
+        end = Offset(translate, 0f)
+    )
 }
 
 @Composable
@@ -515,9 +580,6 @@ private fun PriceHistoryChart(points: List<PricePoint>, trendColor: Color) {
     }
 }
 
-// Evenly spaced label positions across the series — real daily data has
-// no natural "6m/3m/1m" ticks to hang labels on the way the design mock's
-// placeholder data did, so this samples the date axis instead.
 private fun xAxisLabelIndices(count: Int, labelCount: Int = 4): List<Int> {
     if (count <= labelCount) return (0 until count).toList()
     return (0 until labelCount).map { i -> (i * (count - 1)) / (labelCount - 1) }
@@ -525,9 +587,6 @@ private fun xAxisLabelIndices(count: Int, labelCount: Int = 4): List<Int> {
 
 private val MonthAbbreviations = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
-// Manual parsing, not java.time — the date is always our own ISO
-// yyyy-MM-dd (biwenger-client's price-history-view.js), no locale/parsing
-// edge cases to hand off to a date library for.
 private fun formatAxisDate(isoDate: String): String {
     val parts = isoDate.split("-")
     val month = parts.getOrNull(1)?.toIntOrNull() ?: return isoDate
