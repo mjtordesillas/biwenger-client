@@ -375,6 +375,18 @@ private enum class PriceHistoryTab { LAST_YEAR, CURRENT_SEASON }
 
 @Composable
 private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColor: Color) {
+    if (priceHistory == null || priceHistory is Loadable.Loading) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .height(132.dp)
+                .clip(RoundedCornerShape(NocturneRadius.md))
+                .background(rememberShimmerBrush())
+        )
+        return
+    }
+
     var tab by remember { mutableStateOf(PriceHistoryTab.CURRENT_SEASON) }
 
     Column(
@@ -385,11 +397,6 @@ private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColo
             .background(MaterialTheme.colorScheme.background)
             .padding(14.dp)
     ) {
-        if (priceHistory == null || priceHistory is Loadable.Loading) {
-            PriceHistoryCardSkeleton()
-            return@Column
-        }
-
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
             PriceHistoryTabButton(
                 label = "Current season",
@@ -451,17 +458,6 @@ private fun PriceHistoryTabButton(label: String, selected: Boolean, onClick: () 
             modifier = Modifier.fillMaxWidth()
         )
     }
-}
-
-@Composable
-private fun PriceHistoryCardSkeleton() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(104.dp)
-            .clip(RoundedCornerShape(NocturneRadius.sm))
-            .background(rememberShimmerBrush())
-    )
 }
 
 @Composable
