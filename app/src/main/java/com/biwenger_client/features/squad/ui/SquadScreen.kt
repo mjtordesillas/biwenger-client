@@ -87,7 +87,7 @@ private fun SquadScreen(
         SquadHeader()
         PositionFilterRow(selectedPosition = selectedPosition, onPositionSelected = onPositionSelected)
 
-        Box(modifier = Modifier.weight(1f)) {
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (players) {
                 is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 is Loadable.Failed -> Text(
