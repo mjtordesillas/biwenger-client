@@ -62,5 +62,15 @@ export const createBiwengerClient = (dependencies = {}) => {
     return playerIds.map((id) => catalogue[String(id)]).filter(Boolean)
   }
 
-  return { getMySquad }
+  // See docs/biwenger-api-notes.md — "Historical market value". No auth
+  // required; the numeric player id works directly, no slug lookup needed.
+  const getPlayerPrices = async ({ playerId }) => {
+    const response = await httpFetch(`${baseUrl}/players/la-liga/${playerId}?fields=id,name,prices`, {
+      headers: { Accept: 'application/json' },
+    })
+    const { data } = await response.json()
+    return data.prices
+  }
+
+  return { getMySquad, getPlayerPrices }
 }

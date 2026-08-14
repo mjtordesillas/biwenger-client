@@ -23,3 +23,10 @@ functions:
           method: GET
           path: /squad
           private: true
+  priceHistory:
+    handler: src/index.priceHistory
+    events:
+      - http:
+          method: GET
+          path: /players/{playerId}/price-history
+          private: true
