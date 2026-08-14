@@ -316,7 +316,12 @@ private fun PlayerDetailSheet(player: Player, priceHistory: Loadable<PriceHistor
                 modifier = Modifier.fillMaxWidth().padding(top = 22.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                DetailStat(label = "Price", value = formatPrice(player.price), modifier = Modifier.weight(1f))
+                DetailStat(
+                    label = "Price",
+                    value = formatPrice(player.price),
+                    modifier = Modifier.weight(1f),
+                    subtitle = { PriceTrend(priceIncrement = player.priceIncrement) }
+                )
                 DetailStat(label = "Points", value = "${player.points}", modifier = Modifier.weight(1f))
             }
 
@@ -324,28 +329,17 @@ private fun PlayerDetailSheet(player: Player, priceHistory: Loadable<PriceHistor
                 priceHistory = priceHistory,
                 trendColor = priceTrend(player.priceIncrement).second
             )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp)
-                    .clip(RoundedCornerShape(NocturneRadius.md))
-                    .border(1.dp, ColorDivider, RoundedCornerShape(NocturneRadius.md))
-                    .padding(vertical = 10.dp),
-            ) {
-                Text(
-                    text = "Transfers open next matchday",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun DetailStat(label: String, value: String, modifier: Modifier = Modifier) {
+private fun DetailStat(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    subtitle: @Composable () -> Unit = { Text(text = " ", fontSize = 11.5.sp) },
+) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(NocturneRadius.md))
@@ -354,12 +348,13 @@ private fun DetailStat(label: String, value: String, modifier: Modifier = Modifi
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(text = value, style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp))
+        Box(modifier = Modifier.padding(top = 1.dp)) { subtitle() }
         Text(
             text = label.uppercase(),
             fontSize = 10.sp,
             letterSpacing = 0.6.sp,
             color = Neutral500,
-            modifier = Modifier.padding(top = 4.dp)
+            modifier = Modifier.padding(top = 2.dp)
         )
     }
 }
@@ -374,7 +369,7 @@ private enum class PriceHistoryTab { LAST_YEAR, CURRENT_SEASON }
 
 @Composable
 private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColor: Color) {
-    var tab by remember { mutableStateOf(PriceHistoryTab.LAST_YEAR) }
+    var tab by remember { mutableStateOf(PriceHistoryTab.CURRENT_SEASON) }
 
     Column(
         modifier = Modifier
@@ -386,15 +381,15 @@ private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColo
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
             PriceHistoryTabButton(
-                label = "Last Year",
-                selected = tab == PriceHistoryTab.LAST_YEAR,
-                onClick = { tab = PriceHistoryTab.LAST_YEAR },
-                modifier = Modifier.weight(1f)
-            )
-            PriceHistoryTabButton(
                 label = "Current season",
                 selected = tab == PriceHistoryTab.CURRENT_SEASON,
                 onClick = { tab = PriceHistoryTab.CURRENT_SEASON },
+                modifier = Modifier.weight(1f)
+            )
+            PriceHistoryTabButton(
+                label = "Last Year",
+                selected = tab == PriceHistoryTab.LAST_YEAR,
+                onClick = { tab = PriceHistoryTab.LAST_YEAR },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -441,7 +436,14 @@ private fun PriceHistoryTabButton(label: String, selected: Boolean, onClick: () 
             }
             .padding(bottom = 9.dp)
     ) {
-        Text(text = label, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = color)
+        Text(
+            text = label,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = color,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
