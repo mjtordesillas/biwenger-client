@@ -1,0 +1,7 @@
+package com.biwenger_client.infrastructure.network
+
+import com.google.gson.reflect.TypeToken
+
+interface HttpClient {
+    suspend fun <T> get(url: String, typeToken: TypeToken<T>): Response<T>
+}
