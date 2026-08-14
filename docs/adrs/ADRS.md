@@ -10,3 +10,4 @@
 | [006](ADR-006-coeffects-for-pure-event-handlers.md) | Coeffects for Pure Event Handlers | Accepted |
 | [007](ADR-007-feature-based-package-organisation.md) | Feature-Based Package Organisation | Accepted |
 | [008](ADR-008-infallible-coeffects-via-loadable.md) | Coeffects Deliver `Loadable<T>` | Accepted |
+| [009](ADR-009-event-parameterized-coeffects.md) | Event-Parameterized Coeffects | Accepted |

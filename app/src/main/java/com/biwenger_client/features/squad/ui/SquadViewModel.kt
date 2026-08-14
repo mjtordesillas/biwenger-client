@@ -10,8 +10,10 @@ import com.biwenger_client.core.events.event
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
+import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
 import com.biwenger_client.features.squad.domain.models.Player
+import com.biwenger_client.features.squad.domain.models.PriceHistory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -31,12 +33,16 @@ class SquadViewModel @Inject constructor(
     private val _selectedPlayerId = mutableStateOf<Int?>(null)
     val selectedPlayerId: State<Int?> = _selectedPlayerId
 
+    private val _priceHistory = mutableStateOf<Loadable<PriceHistory>?>(null)
+    val priceHistory: State<Loadable<PriceHistory>?> = _priceHistory
+
     init {
         store.subscribe<Loadable<List<Player>>?>(path = "squad.players") {
             it?.let { v -> _players.value = v }
         }
         store.subscribe<Int?>(path = "squad.selectedPosition") { _selectedPosition.value = it }
         store.subscribe<Int?>(path = "squad.selectedPlayerId") { _selectedPlayerId.value = it }
+        store.subscribe<Loadable<PriceHistory>?>(path = "squad.priceHistory") { _priceHistory.value = it }
 
         store.registerEventHandler(
             name = ON_LOAD_EVENT,
@@ -44,7 +50,11 @@ class SquadViewModel @Inject constructor(
             handler = ::handleOnLoad
         )
         store.registerEventHandler(name = POSITION_FILTER_CHANGED_EVENT, handler = ::handlePositionFilterChanged)
-        store.registerEventHandler(name = PLAYER_TAPPED_EVENT, handler = ::handlePlayerTapped)
+        store.registerEventHandler(
+            name = PLAYER_TAPPED_EVENT,
+            coeffects = { tappedEvent -> listOf(FetchPriceHistoryCoeffect(playerId = requireNotNull(tappedEvent.payload))) },
+            handler = ::handlePlayerTapped
+        )
         store.registerEventHandler(name = SHEET_CLOSED_EVENT, handler = ::handleSheetClosed)
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
@@ -64,11 +74,20 @@ class SquadViewModel @Inject constructor(
     fun handlePositionFilterChanged(event: Event<Int?>): List<Effect> =
         listOf(UpdateState(path = "squad.selectedPosition", value = event.payload))
 
-    fun handlePlayerTapped(event: Event<Int>): List<Effect> =
-        listOf(UpdateState(path = "squad.selectedPlayerId", value = event.payload))
+    fun handlePlayerTapped(event: Event<Int>, coeffects: Coeffects): List<Effect> =
+        listOf(
+            UpdateState(path = "squad.selectedPlayerId", value = event.payload),
+            UpdateState(
+                path = "squad.priceHistory",
+                value = coeffects.load(coeffect = FetchPriceHistoryCoeffect(playerId = requireNotNull(event.payload)))
+            ),
+        )
 
     fun handleSheetClosed(event: Event<Unit>): List<Effect> =
-        listOf(UpdateState(path = "squad.selectedPlayerId", value = null))
+        listOf(
+            UpdateState(path = "squad.selectedPlayerId", value = null),
+            UpdateState(path = "squad.priceHistory", value = null),
+        )
 
     fun positionFilterChanged(position: Int?) =
         store.dispatch(event = event(name = POSITION_FILTER_CHANGED_EVENT, payload = position))

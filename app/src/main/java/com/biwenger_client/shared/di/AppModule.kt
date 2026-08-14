@@ -7,7 +7,9 @@ import com.biwenger_client.core.mvi.Registry
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Database
 import com.biwenger_client.features.squad.SquadStateInitializer
+import com.biwenger_client.features.squad.infrastructure.HttpPriceHistoryService
 import com.biwenger_client.features.squad.infrastructure.HttpSquadService
+import com.biwenger_client.features.squad.infrastructure.PriceHistoryService
 import com.biwenger_client.features.squad.infrastructure.SquadService
 import com.biwenger_client.shared.CoeffectsHandlerRegistration
 import com.biwenger_client.shared.EffectsHandlerRegistration
@@ -71,13 +73,24 @@ object AppModule {
     fun provideCoeffectsHandlerRegistration(
         registry: Registry,
         squadService: SquadService,
+        priceHistoryService: PriceHistoryService,
     ): CoeffectsHandlerRegistration {
-        return CoeffectsHandlerRegistration(registry = registry, squadService = squadService)
+        return CoeffectsHandlerRegistration(
+            registry = registry,
+            squadService = squadService,
+            priceHistoryService = priceHistoryService,
+        )
     }
 
     @Provides
     @Singleton
     fun provideSquadService(): SquadService {
         return HttpSquadService(baseUrl = BASE_URL, apiKey = BuildConfig.API_KEY)
+    }
+
+    @Provides
+    @Singleton
+    fun providePriceHistoryService(): PriceHistoryService {
+        return HttpPriceHistoryService(baseUrl = BASE_URL, apiKey = BuildConfig.API_KEY)
     }
 }

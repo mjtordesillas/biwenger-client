@@ -36,3 +36,28 @@ The framework catches, calls `onFailure`, delivers `Loadable.Failed`.
 1. Create the coeffect and handler in `features/<name>/domain/coeffects/`.
 2. Register in `<Feature>CoeffectsHandlerRegistration`.
 3. Add the service to that registration's constructor, wire it up in `AppModule`.
+
+## When the coeffect needs data from the event itself
+
+Use a `data class` coeffect (not an `object`) and the event-parameterized
+`registerEventHandler` overload — see
+`docs/adrs/ADR-009-event-parameterized-coeffects.md`:
+
+```kotlin
+data class FetchPriceHistoryCoeffect(val playerId: Int) : Coeffect<PriceHistory>
+
+store.registerEventHandler(
+    name = PLAYER_TAPPED_EVENT,
+    coeffects = { event -> listOf(FetchPriceHistoryCoeffect(playerId = event.payload)) },
+    handler = ::handlePlayerTapped
+)
+
+fun handlePlayerTapped(event: Event<Int>, coeffects: Coeffects): List<Effect> =
+    listOf(UpdateState(
+        path = "squad.priceHistory",
+        value = coeffects.load(coeffect = FetchPriceHistoryCoeffect(playerId = event.payload))
+    ))
+```
+
+Structural equality (`data class`) is what lets `coeffects.load(...)`
+find the value resolved from the equivalent instance the selector built.

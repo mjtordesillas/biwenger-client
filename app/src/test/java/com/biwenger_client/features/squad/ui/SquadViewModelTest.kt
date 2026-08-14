@@ -10,9 +10,11 @@ import com.biwenger_client.core.events.event
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
+import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
 import com.biwenger_client.features.squad.domain.models.Player
 import com.biwenger_client.helpers.builders.aPlayer
+import com.biwenger_client.helpers.builders.aPriceHistory
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
 import org.junit.Test
@@ -57,6 +59,14 @@ class SquadViewModelTest {
     }
 
     @Test
+    fun `subscribes to squad_priceHistory`() {
+        verify(store).subscribe(
+            eq("squad.priceHistory"),
+            any<(Loadable<com.biwenger_client.features.squad.domain.models.PriceHistory>?) -> Unit>()
+        )
+    }
+
+    @Test
     fun `registers squad_on-load handler`() {
         verify(store).registerEventHandler(
             eq("squad.on-load"),
@@ -77,7 +87,8 @@ class SquadViewModelTest {
     fun `registers squad_player-tapped handler`() {
         verify(store).registerEventHandler(
             eq("squad.player-tapped"),
-            any<suspend (Event<Int>) -> List<Effect>>()
+            any<(Event<Int>) -> List<com.biwenger_client.core.coeffects.Coeffect<*>>>(),
+            any<suspend (Event<Int>, Coeffects) -> List<Effect>>()
         )
     }
 
@@ -125,17 +136,28 @@ class SquadViewModelTest {
     }
 
     @Test
-    fun `handlePlayerTapped returns UpdateState with the tapped player id`() {
-        val effects = viewModel.handlePlayerTapped(event(name = "squad.player-tapped", payload = 42))
+    fun `handlePlayerTapped returns UpdateState with the tapped player id and loaded price history`() {
+        val history = aPriceHistory()
+        val coeffects = Coeffects(
+            values = mapOf(FetchPriceHistoryCoeffect(playerId = 42) to Loadable.Success(history))
+        )
 
-        assertThat(effects).contains(UpdateState(path = "squad.selectedPlayerId", value = 42))
+        val effects = viewModel.handlePlayerTapped(event(name = "squad.player-tapped", payload = 42), coeffects)
+
+        assertThat(effects).contains(
+            UpdateState(path = "squad.selectedPlayerId", value = 42),
+            UpdateState(path = "squad.priceHistory", value = Loadable.Success(history)),
+        )
     }
 
     @Test
-    fun `handleSheetClosed clears the selected player id`() {
+    fun `handleSheetClosed clears the selected player id and price history`() {
         val effects = viewModel.handleSheetClosed(event(name = "squad.sheet-closed"))
 
-        assertThat(effects).contains(UpdateState(path = "squad.selectedPlayerId", value = null))
+        assertThat(effects).contains(
+            UpdateState(path = "squad.selectedPlayerId", value = null),
+            UpdateState(path = "squad.priceHistory", value = null),
+        )
     }
 
     @Test
@@ -173,7 +195,7 @@ class SquadViewModelTest {
         )
         verify(store).removeEventHandler(
             eq("squad.player-tapped"),
-            any<suspend (Event<Int>) -> List<Effect>>()
+            any<suspend (Event<Int>, Coeffects) -> List<Effect>>()
         )
         verify(store).removeEventHandler(
             eq("squad.sheet-closed"),

@@ -18,6 +18,11 @@ class AppStore(
         coeffects: List<Coeffect<*>>,
         handler: suspend (Event<T>, Coeffects) -> List<Effect>
     ) = registry.registerEventHandler(name = name, coeffects = coeffects, handler = handler)
+    override fun <T> registerEventHandler(
+        name: String,
+        coeffects: (Event<T>) -> List<Coeffect<*>>,
+        handler: suspend (Event<T>, Coeffects) -> List<Effect>
+    ) = registry.registerEventHandler(name = name, coeffects = coeffects, handler = handler)
     override fun <T> removeEventHandler(name: String, handler: suspend (Event<T>) -> List<Effect>) =
         registry.removeEventHandler(name = name, handler = handler)
     override fun <T> removeEventHandler(

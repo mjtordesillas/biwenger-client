@@ -63,6 +63,21 @@ class ChannelRegistry(
         eventHandlers.getOrPut(key = name) { mutableListOf() }.add(wrapper)
     }
 
+    override fun <T> registerEventHandler(
+        name: String,
+        coeffects: (Event<T>) -> List<Coeffect<*>>,
+        handler: suspend (Event<T>, Coeffects) -> List<Effect>
+    ) {
+        val wrapper: suspend (Event<*>) -> List<Effect> = { event ->
+            @Suppress("UNCHECKED_CAST")
+            val typedEvent = event as Event<T>
+            val resolvedValues = coeffects(typedEvent).associateWith { resolveCoeffect(it) }
+            handler(typedEvent, Coeffects(values = resolvedValues as Map<Coeffect<*>, Any?>))
+        }
+        handlerWrappers[Pair(name, handler)] = wrapper
+        eventHandlers.getOrPut(key = name) { mutableListOf() }.add(wrapper)
+    }
+
     override fun <T> removeEventHandler(
         name: String,
         handler: suspend (Event<T>) -> List<Effect>
