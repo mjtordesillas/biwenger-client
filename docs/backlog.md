@@ -15,11 +15,12 @@ by this list's order.
 - View useful rival context (balance, positional needs) where available
 - Add price history/trends
 - Add recommendations
-- Access my data in a secure manner — backend now protected by a native
-  API Gateway key (`docs/adrs/002-native-api-gateway-key-for-squad-endpoint.md`);
-  in progress: a native Android app (separate `biwenger-client-android`
-  repo) is the client that can actually hold that key
 
 ## Done
 
 - View my squad — shipped; see `docs/rat.md` for the RAT behind it.
+- Access my data in a secure manner — squad endpoint protected by a
+  native API Gateway key (`docs/adrs/002-native-api-gateway-key-for-squad-endpoint.md`),
+  consumed by a native Android app (`biwenger-client-android`) that holds
+  and sends it as `x-api-key`. Verified working end to end on a physical
+  device.
