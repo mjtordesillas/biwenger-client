@@ -1,8 +1,10 @@
 // Shapes the raw `prices` array from the player detail endpoint (see
 // docs/biwenger-api-notes.md — "Historical market value") into what
-// clients actually need: entries for the current season only, including
-// preseason. Biwenger returns a trailing ~1 year window with no season
-// concept of its own — the season-start rule below is ours, not theirs.
+// clients actually need: the full trailing window (client shows this as
+// "Last Year") plus where the current season starts within it (client
+// scopes to this for "Current season"). Biwenger returns the trailing
+// window with no season concept of its own — the season-start rule below
+// is ours, not theirs.
 
 // Our season starts July 1. Computed from `today` rather than a
 // hardcoded year, so the cutoff moves forward on its own every July
@@ -25,8 +27,8 @@ const toIsoDate = (timestamp) => new Date(timestamp).toISOString().slice(0, 10)
 
 export const toPriceHistoryView = (prices, dependencies = {}) => {
   const { today = new Date() } = dependencies
-  const cutoff = seasonStart(today)
-  return prices
-    .filter(([yymmdd]) => parseYYMMDD(yymmdd) >= cutoff)
-    .map(([yymmdd, price]) => ({ date: toIsoDate(parseYYMMDD(yymmdd)), price }))
+  return {
+    seasonStart: toIsoDate(seasonStart(today)),
+    prices: prices.map(([yymmdd, price]) => ({ date: toIsoDate(parseYYMMDD(yymmdd)), price })),
+  }
 }

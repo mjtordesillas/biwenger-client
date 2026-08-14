@@ -3,7 +3,7 @@ GET {{baseUrl}}/squad
 x-api-key: {{mobileApiKey}}
 Accept: application/json
 
-### Get a player's price history for the current season (protected — same native API Gateway key)
+### Get a player's price history — full trailing window + current-season start marker (protected — same native API Gateway key)
 GET {{baseUrl}}/players/15396/price-history
 x-api-key: {{mobileApiKey}}
 Accept: application/json

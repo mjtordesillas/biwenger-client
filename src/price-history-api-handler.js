@@ -16,7 +16,7 @@ export const createPriceHistoryApiHandler = (dependencies = {}) => {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ prices: toPriceHistoryView(prices) }),
+        body: JSON.stringify(toPriceHistoryView(prices)),
       }
     } catch {
       // Never leak upstream error details.

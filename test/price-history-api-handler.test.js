@@ -9,22 +9,19 @@ const fakeBiwengerClient = (prices) => ({
   },
 })
 
-test('returns a 200 JSON body with this season\'s prices, shaped via toPriceHistoryView', async () => {
+test('returns a 200 JSON body with the price history, shaped via toPriceHistoryView', async () => {
   const handler = createPriceHistoryApiHandler({
     biwengerClient: fakeBiwengerClient([[250701, 105], [251215, 120]]),
   })
 
-  const response = await handler({
-    pathParameters: { playerId: '15396' },
-    // Freezing "today" isn't wired through the handler — this test just
-    // checks the endpoint returns *some* season-scoped array, the season
-    // math itself is covered by price-history-view.test.js.
-  })
+  const response = await handler({ pathParameters: { playerId: '15396' } })
 
   assert.equal(response.statusCode, 200)
   assert.equal(response.headers['Content-Type'], 'application/json; charset=utf-8')
   assert.equal(fakeBiwengerClient.lastPlayerId, '15396')
-  assert.ok(Array.isArray(JSON.parse(response.body).prices))
+  const body = JSON.parse(response.body)
+  assert.ok(typeof body.seasonStart === 'string')
+  assert.ok(Array.isArray(body.prices))
 })
 
 test('returns a 502 with no upstream details when the Biwenger client fails', async () => {
