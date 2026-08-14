@@ -35,6 +35,10 @@ Accept: application/json
 GET {{baseUrl}}/competitions/la-liga/data?lang=es&score=5
 Accept: application/json
 
+### Player historical market value — see docs/biwenger-api-notes.md (trailing ~1 year, no auth)
+GET {{baseUrl}}/players/la-liga/{{playerId}}?fields=id,name,prices
+Accept: application/json
+
 ### Player photo — see docs/biwenger-api-notes.md (not an API response, a static asset)
 GET https://cdn.biwenger.com/i/p/{{playerId}}.png
 
