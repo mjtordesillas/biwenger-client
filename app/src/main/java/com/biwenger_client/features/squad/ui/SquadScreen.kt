@@ -455,41 +455,12 @@ private fun PriceHistoryTabButton(label: String, selected: Boolean, onClick: () 
 
 @Composable
 private fun PriceHistoryCardSkeleton() {
-    val shimmer = rememberShimmerBrush()
-
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
-    ) {
-        ShimmerBlock(shimmer = shimmer, height = 13.dp, modifier = Modifier.weight(1f))
-        ShimmerBlock(shimmer = shimmer, height = 13.dp, modifier = Modifier.weight(1f))
-    }
-    Row(modifier = Modifier.fillMaxWidth()) {
-        ShimmerBlock(shimmer = shimmer, height = 62.dp, modifier = Modifier.weight(1f))
-        Column(
-            modifier = Modifier.width(46.dp).height(62.dp).padding(start = 6.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            ShimmerBlock(shimmer = shimmer, height = 8.dp, modifier = Modifier.width(28.dp))
-            Spacer(modifier = Modifier.weight(1f))
-            ShimmerBlock(shimmer = shimmer, height = 8.dp, modifier = Modifier.width(28.dp))
-        }
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, end = 46.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        repeat(4) { ShimmerBlock(shimmer = shimmer, height = 7.dp, modifier = Modifier.width(20.dp)) }
-    }
-}
-
-@Composable
-private fun ShimmerBlock(shimmer: Brush, height: Dp, modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier
-            .height(height)
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(104.dp)
             .clip(RoundedCornerShape(NocturneRadius.sm))
-            .background(shimmer)
+            .background(rememberShimmerBrush())
     )
 }
 
