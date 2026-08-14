@@ -23,6 +23,14 @@ decisions this was ported from.
 1. Create `local.properties` in the project root (already git-ignored).
 2. Add your API key — the same value as biwenger-client's
    `BIWENGER_CLIENT_MOBILE_API_KEY`: `API_KEY=<value>`.
+3. In Android Studio, set **Gradle JDK** (Settings → Build, Execution,
+   Deployment → Build Tools → Gradle) to **"Use Gradle from 'JAVA_HOME'
+   environment variable"** — matching interest-tracker-android's
+   `#GRADLE_LOCAL_JAVA_HOME` setup — rather than Android Studio's bundled
+   JDK. The bundled JDK has been ahead of what the Gradle wrapper version
+   supports (symptom: *"The project's Gradle version ... is incompatible
+   with the Gradle JVM version ..."* on sync); `JAVA_HOME` here resolves
+   (via SDKMAN) to a compatible JDK 17.
 
 ## Commands
 
