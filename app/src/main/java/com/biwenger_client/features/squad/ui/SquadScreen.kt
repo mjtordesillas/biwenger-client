@@ -1,5 +1,3 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-
 package com.biwenger_client.features.squad.ui
 
 import androidx.compose.animation.core.LinearEasing
@@ -32,9 +30,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -112,24 +109,27 @@ private fun SquadScreen(
     val filteredPlayers = allPlayers.filter { selectedPosition == null || it.position == selectedPosition }
     val selectedPlayer = allPlayers.find { it.id == selectedPlayerId }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        SquadHeader()
-        PositionFilterRow(selectedPosition = selectedPosition, onPositionSelected = onPositionSelected)
+    // Exclusive, not overlaid: only one of the two screens is ever
+    // composed at a time, so there's nothing behind the detail screen for
+    // an unclaimed tap to fall through to.
+    if (selectedPlayer != null) {
+        PlayerDetailScreen(player = selectedPlayer, priceHistory = priceHistory, onBack = onSheetDismissed)
+    } else {
+        Column(modifier = Modifier.fillMaxSize()) {
+            SquadHeader()
+            PositionFilterRow(selectedPosition = selectedPosition, onPositionSelected = onPositionSelected)
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when (players) {
-                is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                is Loadable.Failed -> Text(
-                    text = "Could not load your squad right now.",
-                    modifier = Modifier.align(Alignment.Center).padding(16.dp)
-                )
-                is Loadable.Success -> PlayerList(players = filteredPlayers, onPlayerTapped = onPlayerTapped)
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when (players) {
+                    is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    is Loadable.Failed -> Text(
+                        text = "Could not load your squad right now.",
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp)
+                    )
+                    is Loadable.Success -> PlayerList(players = filteredPlayers, onPlayerTapped = onPlayerTapped)
+                }
             }
         }
-    }
-
-    if (selectedPlayer != null) {
-        PlayerDetailSheet(player = selectedPlayer, priceHistory = priceHistory, onDismissed = onSheetDismissed)
     }
 }
 
@@ -303,19 +303,29 @@ private fun priceTrend(priceIncrement: Long): Pair<String, Color> = when {
 }
 
 @Composable
-private fun PlayerDetailSheet(player: Player, priceHistory: Loadable<PriceHistory>?, onDismissed: () -> Unit) {
-    val sheetState = rememberModalBottomSheetState()
-    ModalBottomSheet(
-        onDismissRequest = onDismissed,
-        sheetState = sheetState,
-        containerColor = ColorSurface,
+private fun PlayerDetailScreen(player: Player, priceHistory: Loadable<PriceHistory>?, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "‹",
+                fontSize = 22.sp,
+                modifier = Modifier.clickable(onClick = onBack).padding(end = 10.dp)
+            )
+            Text(text = player.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+        }
+
         Column(modifier = Modifier.padding(horizontal = 22.dp).padding(bottom = 24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PlayerAvatar(player = player, size = 68.dp)
                 Column(modifier = Modifier.padding(start = 16.dp)) {
-                    Text(text = player.name, style = MaterialTheme.typography.titleMedium)
-                    Row(modifier = Modifier.padding(top = 6.dp)) { PositionTag(player = player) }
+                    PositionTag(player = player)
                 }
             }
 
@@ -349,8 +359,9 @@ private fun DetailStat(
 ) {
     Column(
         modifier = modifier
+            .shadow(elevation = 4.dp, shape = RoundedCornerShape(NocturneRadius.md))
             .clip(RoundedCornerShape(NocturneRadius.md))
-            .background(MaterialTheme.colorScheme.background)
+            .background(ColorSurface)
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -395,8 +406,9 @@ private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColo
             .fillMaxWidth()
             .padding(top = 12.dp)
             .height(PriceHistoryCardHeight)
+            .shadow(elevation = 4.dp, shape = RoundedCornerShape(NocturneRadius.md))
             .clip(RoundedCornerShape(NocturneRadius.md))
-            .background(MaterialTheme.colorScheme.background)
+            .background(ColorSurface)
             .padding(14.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
