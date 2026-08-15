@@ -76,6 +76,7 @@ import kotlin.math.abs
 
 private val PositionLabels = mapOf(1 to "GK", 2 to "DF", 3 to "MF", 4 to "FW")
 private val FilterPositions = listOf(null, 1, 2, 3, 4) // null = All
+private val PriceHistoryCardHeight = 158.dp
 
 @Composable
 fun SquadScreen(
@@ -380,7 +381,7 @@ private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColo
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 12.dp)
-                .height(132.dp)
+                .height(PriceHistoryCardHeight)
                 .clip(RoundedCornerShape(NocturneRadius.md))
                 .background(rememberShimmerBrush())
         )
@@ -393,6 +394,7 @@ private fun PriceHistorySection(priceHistory: Loadable<PriceHistory>?, trendColo
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 12.dp)
+            .height(PriceHistoryCardHeight)
             .clip(RoundedCornerShape(NocturneRadius.md))
             .background(MaterialTheme.colorScheme.background)
             .padding(14.dp)
