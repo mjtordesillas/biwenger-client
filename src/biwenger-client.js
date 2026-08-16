@@ -70,18 +70,21 @@ export const createBiwengerClient = (dependencies = {}) => {
     return data.prices
   }
 
-  const getCurrentSeasonId = async ({ playerId }) => {
+  const getSeasonIds = async ({ playerId }) => {
     const response = await httpFetch(`${baseUrl}/players/la-liga/${playerId}?fields=id,name,seasons`, {
       headers: { Accept: 'application/json' },
     })
     const { data } = await response.json()
-    const laLigaSeasonIds = data.seasons.filter((season) => !season.competition).map((season) => Number(season.id))
-    return Math.max(...laLigaSeasonIds)
+    return data.seasons
+      .filter((season) => !season.competition)
+      .map((season) => Number(season.id))
+      .sort((a, b) => b - a)
   }
 
-  const getPlayerGameweekPoints = async ({ playerId }) => {
-    const season = await getCurrentSeasonId({ playerId })
-    const response = await httpFetch(`${baseUrl}/players/la-liga/${playerId}?fields=id,name,reports&season=${season}`, {
+  const getPlayerGameweekPoints = async ({ playerId, season = 'current' }) => {
+    const [currentSeasonId, previousSeasonId] = await getSeasonIds({ playerId })
+    const seasonId = season === 'previous' ? previousSeasonId : currentSeasonId
+    const response = await httpFetch(`${baseUrl}/players/la-liga/${playerId}?fields=id,name,reports&season=${seasonId}`, {
       headers: { Accept: 'application/json' },
     })
     const { data } = await response.json()

@@ -6,8 +6,9 @@ export const createPerformanceHistoryApiHandler = (dependencies = {}) => {
 
   return async (event) => {
     const playerId = event?.pathParameters?.playerId
+    const season = event?.queryStringParameters?.season === 'previous' ? 'previous' : 'current'
     try {
-      const reports = await biwengerClient.getPlayerGameweekPoints({ playerId })
+      const reports = await biwengerClient.getPlayerGameweekPoints({ playerId, season })
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json; charset=utf-8' },

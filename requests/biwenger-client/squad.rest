@@ -12,3 +12,8 @@ Accept: application/json
 GET {{baseUrl}}/players/15396/performance-history
 x-api-key: {{mobileApiKey}}
 Accept: application/json
+
+### Get a player's previous-season per-gameweek points (protected — same native API Gateway key)
+GET {{baseUrl}}/players/15396/performance-history?season=previous
+x-api-key: {{mobileApiKey}}
+Accept: application/json
