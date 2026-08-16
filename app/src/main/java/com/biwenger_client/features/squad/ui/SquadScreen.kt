@@ -731,7 +731,8 @@ private fun PerformanceChart(gameweeks: List<GameweekPoints>) {
 
 private fun performanceBarColor(points: Int?): Color = when {
     points == null -> Neutral500
-    points > 0 -> TrendUp
-    points < 0 -> TrendDown
-    else -> TrendFlat
+    points < 2 -> PerformanceLow
+    points < 6 -> PerformanceMid
+    points < 10 -> PerformanceHigh
+    else -> PerformanceGreat
 }
