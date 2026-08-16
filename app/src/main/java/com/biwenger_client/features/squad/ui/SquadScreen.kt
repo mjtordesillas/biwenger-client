@@ -698,34 +698,56 @@ private fun PerformanceChart(gameweeks: List<GameweekPoints>) {
     val minPoints = (gameweeks.minOfOrNull { it.points ?: 0 } ?: 0).coerceAtMost(0)
     val range = (maxPoints - minPoints).coerceAtLeast(1)
 
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        gameweeks.forEach { gameweek ->
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(28.dp)) {
-                Box(modifier = Modifier.height(PerformanceBarAreaHeight).fillMaxWidth()) {
-                    val points = gameweek.points ?: 0
-                    val zeroY = PerformanceBarAreaHeight * (maxPoints.toFloat() / range)
-                    val barHeight = (PerformanceBarAreaHeight * (abs(points).toFloat() / range)).coerceAtLeast(2.dp)
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = if (points >= 0) zeroY - barHeight else zeroY)
-                            .width(18.dp)
-                            .height(barHeight)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(performanceBarColor(gameweek.points))
+    Row(modifier = Modifier.fillMaxWidth()) {
+        PerformanceYAxis(maxPoints = maxPoints, minPoints = minPoints)
+
+        Row(
+            modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            gameweeks.forEach { gameweek ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(28.dp)) {
+                    Box(modifier = Modifier.height(PerformanceBarAreaHeight).fillMaxWidth()) {
+                        val points = gameweek.points ?: 0
+                        val zeroY = PerformanceBarAreaHeight * (maxPoints.toFloat() / range)
+                        val barHeight = (PerformanceBarAreaHeight * (abs(points).toFloat() / range)).coerceAtLeast(2.dp)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = if (points >= 0) zeroY - barHeight else zeroY)
+                                .width(18.dp)
+                                .height(barHeight)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(performanceBarColor(gameweek.points))
+                        )
+                    }
+                    Text(
+                        text = "${gameweek.matchDay}",
+                        fontSize = 10.sp,
+                        color = Neutral500,
+                        modifier = Modifier.padding(top = 6.dp)
                     )
                 }
-                Text(
-                    text = "${gameweek.matchDay}",
-                    fontSize = 10.sp,
-                    color = Neutral500,
-                    modifier = Modifier.padding(top = 6.dp)
-                )
             }
         }
+    }
+}
+
+@Composable
+private fun PerformanceYAxis(maxPoints: Int, minPoints: Int) {
+    val midPoints = (maxPoints + minPoints) / 2
+    Column(
+        modifier = Modifier
+            .width(22.dp)
+            .height(PerformanceBarAreaHeight)
+            .background(ColorSurface)
+            .padding(end = 4.dp)
+    ) {
+        Text(text = "$maxPoints", fontSize = 9.sp, color = Neutral500)
+        Spacer(modifier = Modifier.weight(1f))
+        Text(text = "$midPoints", fontSize = 9.sp, color = Neutral500)
+        Spacer(modifier = Modifier.weight(1f))
+        Text(text = "$minPoints", fontSize = 9.sp, color = Neutral500)
     }
 }
 
