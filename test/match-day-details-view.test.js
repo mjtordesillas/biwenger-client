@@ -36,7 +36,28 @@ test('shapes the header, AS/SofaScore base rows, and the media total for the req
     sofaScore: { points: 2, rows: [{ type: 'sofascore', rating: 6.4, points: 2 }] },
     as: { points: 6, rows: [{ type: 'picas', count: 2, points: 6 }] },
     media: 4,
+    substitutions: [],
   })
+})
+
+test('includes a substitution row for each substituted-on/off event', () => {
+  const reports = [
+    {
+      match: {
+        round: { short: 'R8' },
+        date: 1741604400,
+        home: { id: 87, name: 'Betis', score: 2 },
+        away: { id: 91, name: 'Alavés', score: 1 },
+      },
+      points: {},
+      rawStats: { picas: 2, sofascore: 6.4 },
+      events: [{ type: 4, period: 'secondTime', metadata: 70 }],
+    },
+  ]
+
+  const view = toMatchDayDetailsView(reports, { matchDay: 8 })
+
+  assert.deepEqual(view.substitutions, [{ type: 'substitutedOff', minute: 70 }])
 })
 
 test('nulls out the media total when a format is missing from the report', () => {

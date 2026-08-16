@@ -97,9 +97,12 @@ separately in `biwenger-client-android`, not this repo):
    average) alongside `as.points`/`sofaScore.points` for the two
    operands.
 
-All six backend slices are shipped as of `eb5d801`..HEAD. Remaining
-before this backlog item can move to `done`:
-- Substituted-on/off rows (`events` type `4`/`5` + minute) — a separate
-  concern from the points formula, not yet slotted into a slice.
-- The Android side (`biwenger-client-android`, not this repo) — the tap
-  handler, the sheet UI, and wiring to these six response fields.
+7. Substituted-on/off rows (`events` type `4`/`5` + minute). **Shipped**
+   (`src/substitutions.js`) — a `substitutions` array on the response,
+   one entry per event, since a player can in principle be subbed on and
+   later off within the same match.
+
+All seven backend slices are shipped. Remaining before this backlog item
+can move to `done`: the Android side (`biwenger-client-android`, not
+this repo) — the tap handler, the sheet UI, and wiring to the response
+fields above.
