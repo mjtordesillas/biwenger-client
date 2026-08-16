@@ -7,6 +7,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import com.biwenger_client.features.squad.domain.models.SubstitutionEvent
 import com.biwenger_client.infrastructure.network.Response
 
 class HttpMatchDayDetailsServiceTest {
@@ -27,11 +28,20 @@ class HttpMatchDayDetailsServiceTest {
     }
 
     @Test
-    fun `matchDayDetails parses the header`() {
+    fun `matchDayDetails parses the header, both score breakdowns, the media total, and substitutions`() {
         runBlocking {
             server.enqueue(
                 MockResponse().setBody(
-                    """{"matchDay":8,"kickoff":1741604400,"home":{"id":87,"name":"Betis","score":2,"crestUrl":"https://cdn.biwenger.com/i/t/87.png"},"away":{"id":91,"name":"Alavés","score":1,"crestUrl":"https://cdn.biwenger.com/i/t/91.png"}}"""
+                    """{
+                        "matchDay":8,
+                        "kickoff":1741604400,
+                        "home":{"id":87,"name":"Betis","score":2,"crestUrl":"https://cdn.biwenger.com/i/t/87.png"},
+                        "away":{"id":91,"name":"Alavés","score":1,"crestUrl":"https://cdn.biwenger.com/i/t/91.png"},
+                        "as":{"points":9,"rows":[{"type":"picas","count":2,"points":6},{"type":"goal","count":1,"points":3}]},
+                        "sofaScore":{"points":11,"rows":[{"type":"sofascore","rating":8.4,"points":11}]},
+                        "media":10,
+                        "substitutions":[{"type":"substitutedOff","minute":70}]
+                    }""".trimIndent()
                 )
             )
 
@@ -43,6 +53,11 @@ class HttpMatchDayDetailsServiceTest {
             assertThat(details?.kickoff).isEqualTo(1741604400)
             assertThat(details?.home?.name).isEqualTo("Betis")
             assertThat(details?.away?.score).isEqualTo(1)
+            assertThat(details?.diarioAs?.points).isEqualTo(9)
+            assertThat(details?.diarioAs?.rows).hasSize(2)
+            assertThat(details?.sofaScore?.points).isEqualTo(11)
+            assertThat(details?.media).isEqualTo(10)
+            assertThat(details?.substitutions).containsExactly(SubstitutionEvent(type = "substitutedOff", minute = 70))
         }
     }
 

@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -64,6 +65,9 @@ import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.PriceHistory
 import com.biwenger_client.features.squad.domain.models.PricePoint
+import com.biwenger_client.features.squad.domain.models.ScoreBreakdown
+import com.biwenger_client.features.squad.domain.models.ScoreRow
+import com.biwenger_client.features.squad.domain.models.SubstitutionEvent
 import com.biwenger_client.ui.theme.ColorDivider
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
@@ -807,15 +811,33 @@ private fun MatchDayDetailsScreen(matchDayDetails: Loadable<MatchDayDetails>?, o
                 text = "Could not load match day details right now.",
                 modifier = Modifier.padding(20.dp)
             )
-            is Loadable.Success -> MatchDayHeader(details = matchDayDetails.value)
+            is Loadable.Success -> MatchDayContent(details = matchDayDetails.value)
         }
+    }
+}
+
+@Composable
+private fun MatchDayContent(details: MatchDayDetails) {
+    Column(
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 24.dp)
+    ) {
+        MatchDayHeader(details = details)
+        if (details.substitutions.isNotEmpty()) {
+            SubstitutionsSection(substitutions = details.substitutions)
+        }
+        ScoreBreakdownSection(title = "Diario AS", breakdown = details.diarioAs)
+        ScoreBreakdownSection(title = "SofaScore", breakdown = details.sofaScore)
+        MediaSection(diarioAs = details.diarioAs.points, sofaScore = details.sofaScore.points, media = details.media)
     }
 }
 
 @Composable
 private fun MatchDayHeader(details: MatchDayDetails) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -831,7 +853,7 @@ private fun MatchDayHeader(details: MatchDayDetails) {
         fontSize = 12.sp,
         color = Neutral500,
         textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+        modifier = Modifier.fillMaxWidth()
     )
 }
 
@@ -850,4 +872,89 @@ private fun MatchDayTeamColumn(team: MatchDayTeam) {
 private fun formatKickoff(kickoff: Long): String {
     val formatter = SimpleDateFormat("MMM d (EEE) - HH:mm", Locale.getDefault())
     return formatter.format(Date(kickoff * 1000))
+}
+
+@Composable
+private fun SubstitutionsSection(substitutions: List<SubstitutionEvent>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+            .clip(RoundedCornerShape(NocturneRadius.md))
+            .background(ColorSurface)
+            .padding(14.dp)
+    ) {
+        substitutions.forEach { substitution ->
+            DetailRow(label = substitutionLabel(substitution), value = "${substitution.minute}'")
+        }
+    }
+}
+
+private fun substitutionLabel(substitution: SubstitutionEvent): String = when (substitution.type) {
+    "substitutedOn" -> "↑ Substituted on"
+    "substitutedOff" -> "↓ Substituted off"
+    else -> substitution.type
+}
+
+@Composable
+private fun ScoreBreakdownSection(title: String, breakdown: ScoreBreakdown) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+            .clip(RoundedCornerShape(NocturneRadius.md))
+            .background(ColorSurface)
+            .padding(14.dp)
+    ) {
+        DetailRow(label = title, value = "${breakdown.points ?: "–"} Puntos", emphasized = true)
+        breakdown.rows.forEach { row ->
+            DetailRow(label = scoreRowLabel(row), value = signed(row.points))
+        }
+    }
+}
+
+@Composable
+private fun MediaSection(diarioAs: Int?, sofaScore: Int?, media: Int?) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(NocturneRadius.md))
+            .background(ColorSurface)
+            .padding(14.dp)
+    ) {
+        DetailRow(
+            label = "Media: (${diarioAs ?: "–"} + ${sofaScore ?: "–"}) / 2",
+            value = "${media ?: "–"} puntos",
+            emphasized = true
+        )
+    }
+}
+
+@Composable
+private fun DetailRow(label: String, value: String, emphasized: Boolean = false) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = label, fontSize = if (emphasized) 13.sp else 12.sp, fontWeight = if (emphasized) FontWeight.SemiBold else null)
+        Text(text = value, fontSize = if (emphasized) 13.sp else 12.sp, fontWeight = if (emphasized) FontWeight.SemiBold else null)
+    }
+}
+
+private fun signed(points: Int?): String = when {
+    points == null -> "–"
+    points >= 0 -> "+$points"
+    else -> "$points"
+}
+
+private fun scoreRowLabel(row: ScoreRow): String = when (row.type) {
+    "picas" -> "${row.count} Picas ${"♣".repeat(row.count ?: 0)}"
+    "sofascore" -> "${row.rating} SofaScore"
+    "goal" -> if (row.count == 1) "1 Gol ⚽" else "${row.count} Goles ⚽"
+    "penalty" -> if (row.count == 1) "1 Gol de penalti ⚽" else "${row.count} Goles de penalti ⚽"
+    "assist" -> if (row.count == 1) "1 Asistencia" else "${row.count} Asistencias"
+    "redCard" -> "Tarjeta roja"
+    "secondYellowCard" -> "Segunda amarilla"
+    else -> row.type
 }
