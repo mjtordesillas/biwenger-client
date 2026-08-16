@@ -53,6 +53,31 @@ test('nulls out the points total when the format is missing from the report', ()
   assert.equal(view.points, null)
 })
 
+test('includes AS bonus rows when the report has them', () => {
+  const reports = [
+    {
+      match: {
+        round: { short: 'R8' },
+        date: 1741604400,
+        home: { id: 87, name: 'Betis', score: 2 },
+        away: { id: 91, name: 'Alavés', score: 1 },
+      },
+      points: { 1: 9 },
+      rawStats: { picas: 2, pos4: true, goals: 1 },
+    },
+  ]
+
+  const view = toMatchDayDetailsView(reports, { matchDay: 8 })
+
+  assert.deepEqual(view.as, {
+    points: 9,
+    rows: [
+      { type: 'picas', count: 2, points: 6 },
+      { type: 'goal', count: 1, points: 3 },
+    ],
+  })
+})
+
 test('handles the "SC" (unrated) picas value in the AS block', () => {
   const reports = [
     report({

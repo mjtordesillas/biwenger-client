@@ -1,6 +1,6 @@
 import { matchDayFromRound } from './round.js'
 import { teamCrestUrl } from './image-cdn.js'
-import { picasBase } from './as-score.js'
+import { toAsRows } from './as-score.js'
 
 const SCORE_FORMAT = '5'
 const AS_FORMAT = '1'
@@ -14,7 +14,7 @@ const toTeamView = (team) => ({
 
 const toAsView = (report) => ({
   points: report.points?.[AS_FORMAT] ?? null,
-  rows: [{ type: 'picas', count: report.rawStats.picas, points: picasBase(report.rawStats.picas) }],
+  rows: toAsRows(report.rawStats),
 })
 
 export const toMatchDayDetailsView = (reports, { matchDay }) => {

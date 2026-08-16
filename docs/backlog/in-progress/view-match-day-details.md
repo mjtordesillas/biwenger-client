@@ -82,7 +82,11 @@ separately in `biwenger-client-android`, not this repo):
    chart). **Shipped**, same endpoint/files as slice 1.
 3. Add the Diario AS block (picas row only). **Shipped**
    (`src/as-score.js` for the picas-base table).
-4. Add the remaining AS bonus rows (goal/penalty/red).
+4. Add the remaining AS bonus rows (goal/penalty/red). **Shipped**,
+   including a correction found while building it: `rawStats.redCard`
+   (-6) and `rawStats.secondYellowCard` (-3) turned out to be genuinely
+   different penalties, not the same value as originally documented —
+   see `docs/biwenger-api-notes.md`.
 5. Add the SofaScore block (rating + goal/penalty/assist rows).
 6. Replace the flat total from slice 2 with the "Media: (AS + SofaScore)
    / 2" row.

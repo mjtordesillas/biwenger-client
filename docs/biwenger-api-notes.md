@@ -135,7 +135,16 @@ players spanning all four positions, plus a 49-goalkeeper-only pass) for
 reports with/without each event type, then cross-checked against the
 real Biwenger app. Verified empirically (2026-08-16).
 
-**Diario AS (`points["1"]`)** = `picas_base(rawStats.picas)` + `goal_bonus[position]` (once per goal) + `3` per penalty goal (flat, any position) − `6` per red card (flat; a second-yellow red scores the same as a direct red — only 1 second-yellow sample seen, but no observed difference) + `0` per assist + `0` per yellow card:
+**Diario AS (`points["1"]`)** = `picas_base(rawStats.picas)` + `goal_bonus[position]` (once per goal) + `3` per penalty goal (flat, any position) − `6` per `rawStats.redCard` − `3` per `rawStats.secondYellowCard` + `0` per assist + `0` per yellow card:
+
+`redCard` and `secondYellowCard` are separate `rawStats` fields, not
+reliably distinguishable from `events` alone (a report with `events`
+types `6` then `7` close together — textbook second-yellow shape — had
+`redCard: 1, secondYellowCard: null` in one sample; the field itself is
+the source of truth, not the event sequence). Only one
+`secondYellowCard` sample found (`-3` delta) against three `redCard`
+samples (`-6` delta each) — thin on the second-yellow side, but a real,
+reproducible field-level distinction, not noise.
 
 | `picas` | base pts |
 |---|---|
