@@ -18,6 +18,6 @@ val TrendDown = Color(0xFFE0554F)
 val TrendFlat = Color(0xFF9397AB) // ui.theme.Neutral500
 
 val PerformanceLow = Color(0xFFE0554F) // < 2 pts
-val PerformanceMid = Color(0xFFE3C23F) // 2–5 pts
-val PerformanceHigh = Color(0xFF4C8FD9) // 6–9 pts
-val PerformanceGreat = Color(0xFF3ECF72) // 10+ pts
+val PerformanceMid = Color(0xFFE3C23F) // 2–4 pts
+val PerformanceHigh = Color(0xFF3ECF72) // 5–9 pts
+val PerformanceGreat = Color(0xFF4C8FD9) // 10+ pts
