@@ -102,7 +102,16 @@ separately in `biwenger-client-android`, not this repo):
    one entry per event, since a player can in principle be subbed on and
    later off within the same match.
 
-All seven backend slices are shipped. Remaining before this backlog item
-can move to `done`: the Android side (`biwenger-client-android`, not
-this repo) — the tap handler, the sheet UI, and wiring to the response
-fields above.
+All seven backend slices are shipped. The Android side
+(`biwenger-client-android`, not this repo, tracked here since it's the
+same feature) is being built through its own matching slices:
+
+- Android slice 1 — tapping a bar opens a new exclusive screen (same
+  pattern as `PlayerDetailScreen`) showing the header only: home/away
+  crest, name, score, match day, kickoff date. **Shipped**
+  (`biwenger-client-android` commit `0314fb0`).
+- Remaining Android slices: points total, AS block, SofaScore block,
+  Media row, substitution rows — same order as the backend slices above.
+
+Move to `done` once the Android side reaches parity with everything the
+backend already exposes.
