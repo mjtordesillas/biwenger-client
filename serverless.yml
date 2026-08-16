@@ -30,3 +30,10 @@ functions:
           method: GET
           path: /players/{playerId}/price-history
           private: true
+  performanceHistory:
+    handler: src/index.performanceHistory
+    events:
+      - http:
+          method: GET
+          path: /players/{playerId}/performance-history
+          private: true

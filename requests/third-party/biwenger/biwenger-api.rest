@@ -39,6 +39,14 @@ Accept: application/json
 GET {{baseUrl}}/players/la-liga/{{playerId}}?fields=id,name,prices
 Accept: application/json
 
+### Player season list — season ids (end year) + point totals per format, see docs/biwenger-api-notes.md (no auth)
+GET {{baseUrl}}/players/la-liga/{{playerId}}?fields=id,name,seasons
+Accept: application/json
+
+### Player per-gameweek points for a season — see docs/biwenger-api-notes.md (season id from the request above, no auth)
+GET {{baseUrl}}/players/la-liga/{{playerId}}?fields=id,name,reports&season={{seasonId}}
+Accept: application/json
+
 ### Player photo — see docs/biwenger-api-notes.md (not an API response, a static asset)
 GET https://cdn.biwenger.com/i/p/{{playerId}}.png
 
