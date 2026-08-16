@@ -20,6 +20,8 @@ import com.biwenger_client.features.squad.domain.models.PriceHistory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
+data class PerformanceHistoryRequest(val playerId: Int, val season: String)
+
 @HiltViewModel
 class SquadViewModel @Inject constructor(
     private val store: Store
@@ -42,6 +44,9 @@ class SquadViewModel @Inject constructor(
     private val _performanceHistory = mutableStateOf<Loadable<PerformanceHistory>?>(null)
     val performanceHistory: State<Loadable<PerformanceHistory>?> = _performanceHistory
 
+    private val _performanceHistorySeason = mutableStateOf(CURRENT_SEASON)
+    val performanceHistorySeason: State<String> = _performanceHistorySeason
+
     init {
         store.subscribe<Loadable<List<Player>>?>(path = "squad.players") {
             it?.let { v -> _players.value = v }
@@ -50,6 +55,7 @@ class SquadViewModel @Inject constructor(
         store.subscribe<Int?>(path = "squad.selectedPlayerId") { _selectedPlayerId.value = it }
         store.subscribe<Loadable<PriceHistory>?>(path = "squad.priceHistory") { _priceHistory.value = it }
         store.subscribe<Loadable<PerformanceHistory>?>(path = "squad.performanceHistory") { _performanceHistory.value = it }
+        store.subscribe<String>(path = "squad.performanceHistorySeason") { _performanceHistorySeason.value = it }
 
         store.registerEventHandler(
             name = ON_LOAD_EVENT,
@@ -65,9 +71,13 @@ class SquadViewModel @Inject constructor(
         )
         store.registerEventHandler(
             name = PERFORMANCE_HISTORY_REQUESTED_EVENT,
-            coeffects = { requestedEvent -> listOf(FetchPerformanceHistoryCoeffect(playerId = requireNotNull(requestedEvent.payload))) },
+            coeffects = { requestedEvent ->
+                val request = requireNotNull(requestedEvent.payload)
+                listOf(FetchPerformanceHistoryCoeffect(playerId = request.playerId, season = request.season))
+            },
             handler = ::handlePerformanceHistoryRequested
         )
+        store.registerEventHandler(name = PERFORMANCE_SEASON_CHANGED_EVENT, handler = ::handlePerformanceSeasonChanged)
         store.registerEventHandler(name = SHEET_CLOSED_EVENT, handler = ::handleSheetClosed)
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
@@ -80,6 +90,7 @@ class SquadViewModel @Inject constructor(
         store.removeEventHandler(name = PLAYER_TAPPED_EVENT, handler = ::handlePlayerTapped)
         store.removeEventHandler(name = PRICE_HISTORY_REQUESTED_EVENT, handler = ::handlePriceHistoryRequested)
         store.removeEventHandler(name = PERFORMANCE_HISTORY_REQUESTED_EVENT, handler = ::handlePerformanceHistoryRequested)
+        store.removeEventHandler(name = PERFORMANCE_SEASON_CHANGED_EVENT, handler = ::handlePerformanceSeasonChanged)
         store.removeEventHandler(name = SHEET_CLOSED_EVENT, handler = ::handleSheetClosed)
     }
 
@@ -89,14 +100,22 @@ class SquadViewModel @Inject constructor(
     fun handlePositionFilterChanged(event: Event<Int?>): List<Effect> =
         listOf(UpdateState(path = "squad.selectedPosition", value = event.payload))
 
-    fun handlePlayerTapped(event: Event<Int>): List<Effect> =
-        listOf(
-            UpdateState(path = "squad.selectedPlayerId", value = event.payload),
+    fun handlePlayerTapped(event: Event<Int>): List<Effect> {
+        val playerId = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "squad.selectedPlayerId", value = playerId),
             UpdateState(path = "squad.priceHistory", value = Loadable.Loading),
             UpdateState(path = "squad.performanceHistory", value = Loadable.Loading),
-            DispatchEvent(event = event(name = PRICE_HISTORY_REQUESTED_EVENT, payload = event.payload)),
-            DispatchEvent(event = event(name = PERFORMANCE_HISTORY_REQUESTED_EVENT, payload = event.payload)),
+            UpdateState(path = "squad.performanceHistorySeason", value = CURRENT_SEASON),
+            DispatchEvent(event = event(name = PRICE_HISTORY_REQUESTED_EVENT, payload = playerId)),
+            DispatchEvent(
+                event = event(
+                    name = PERFORMANCE_HISTORY_REQUESTED_EVENT,
+                    payload = PerformanceHistoryRequest(playerId = playerId, season = CURRENT_SEASON)
+                )
+            ),
         )
+    }
 
     fun handlePriceHistoryRequested(event: Event<Int>, coeffects: Coeffects): List<Effect> =
         listOf(
@@ -106,19 +125,31 @@ class SquadViewModel @Inject constructor(
             )
         )
 
-    fun handlePerformanceHistoryRequested(event: Event<Int>, coeffects: Coeffects): List<Effect> =
-        listOf(
+    fun handlePerformanceHistoryRequested(event: Event<PerformanceHistoryRequest>, coeffects: Coeffects): List<Effect> {
+        val request = requireNotNull(event.payload)
+        return listOf(
             UpdateState(
                 path = "squad.performanceHistory",
-                value = coeffects.load(coeffect = FetchPerformanceHistoryCoeffect(playerId = requireNotNull(event.payload)))
+                value = coeffects.load(coeffect = FetchPerformanceHistoryCoeffect(playerId = request.playerId, season = request.season))
             )
         )
+    }
+
+    fun handlePerformanceSeasonChanged(event: Event<PerformanceHistoryRequest>): List<Effect> {
+        val request = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "squad.performanceHistorySeason", value = request.season),
+            UpdateState(path = "squad.performanceHistory", value = Loadable.Loading),
+            DispatchEvent(event = event(name = PERFORMANCE_HISTORY_REQUESTED_EVENT, payload = request)),
+        )
+    }
 
     fun handleSheetClosed(event: Event<Unit>): List<Effect> =
         listOf(
             UpdateState(path = "squad.selectedPlayerId", value = null),
             UpdateState(path = "squad.priceHistory", value = null),
             UpdateState(path = "squad.performanceHistory", value = null),
+            UpdateState(path = "squad.performanceHistorySeason", value = CURRENT_SEASON),
         )
 
     fun positionFilterChanged(position: Int?) =
@@ -126,6 +157,14 @@ class SquadViewModel @Inject constructor(
 
     fun playerTapped(playerId: Int) =
         store.dispatch(event = event(name = PLAYER_TAPPED_EVENT, payload = playerId))
+
+    fun performanceSeasonChanged(playerId: Int, season: String) =
+        store.dispatch(
+            event = event(
+                name = PERFORMANCE_SEASON_CHANGED_EVENT,
+                payload = PerformanceHistoryRequest(playerId = playerId, season = season)
+            )
+        )
 
     fun sheetClosed() =
         store.dispatch(event = event(name = SHEET_CLOSED_EVENT))
@@ -136,6 +175,9 @@ class SquadViewModel @Inject constructor(
         const val PLAYER_TAPPED_EVENT = "squad.player-tapped"
         const val PRICE_HISTORY_REQUESTED_EVENT = "squad.price-history-requested"
         const val PERFORMANCE_HISTORY_REQUESTED_EVENT = "squad.performance-history-requested"
+        const val PERFORMANCE_SEASON_CHANGED_EVENT = "squad.performance-season-changed"
         const val SHEET_CLOSED_EVENT = "squad.sheet-closed"
+        const val CURRENT_SEASON = "current"
+        const val PREVIOUS_SEASON = "previous"
     }
 }

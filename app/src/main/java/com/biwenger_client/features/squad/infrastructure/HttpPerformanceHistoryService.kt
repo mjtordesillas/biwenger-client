@@ -9,6 +9,6 @@ import com.biwenger_client.infrastructure.network.RetrofitHttpClient
 class HttpPerformanceHistoryService(baseUrl: String, apiKey: String) : PerformanceHistoryService {
     private val httpClient: HttpClient = RetrofitHttpClient(baseUrl = baseUrl, apiKey = apiKey)
 
-    override suspend fun performanceHistory(playerId: Int): Response<PerformanceHistory> =
-        httpClient.get("players/$playerId/performance-history", object : TypeToken<PerformanceHistory>() {})
+    override suspend fun performanceHistory(playerId: Int, season: String): Response<PerformanceHistory> =
+        httpClient.get("players/$playerId/performance-history?season=$season", object : TypeToken<PerformanceHistory>() {})
 }

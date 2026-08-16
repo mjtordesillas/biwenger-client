@@ -16,12 +16,12 @@ class FetchPerformanceHistoryCoeffectHandlerTest {
     private val handler = FetchPerformanceHistoryCoeffectHandler(performanceHistoryService = performanceHistoryService)
 
     @Test
-    fun `extract returns the performance history for the coeffect's player id on success`() {
+    fun `extract returns the performance history for the coeffect's player id and season on success`() {
         runBlocking {
             val history = aPerformanceHistory()
-            whenever(performanceHistoryService.performanceHistory(42)).thenReturn(Response.Success(history))
+            whenever(performanceHistoryService.performanceHistory(42, "previous")).thenReturn(Response.Success(history))
 
-            val result = handler.extract(FetchPerformanceHistoryCoeffect(playerId = 42))
+            val result = handler.extract(FetchPerformanceHistoryCoeffect(playerId = 42, season = "previous"))
 
             assertThat(result).isEqualTo(history)
         }
@@ -30,10 +30,10 @@ class FetchPerformanceHistoryCoeffectHandlerTest {
     @Test
     fun `extract throws on error`() {
         runBlocking {
-            whenever(performanceHistoryService.performanceHistory(42)).thenReturn(Response.Error(502, "upstream_error"))
+            whenever(performanceHistoryService.performanceHistory(42, "current")).thenReturn(Response.Error(502, "upstream_error"))
 
             assertThatThrownBy {
-                runBlocking { handler.extract(FetchPerformanceHistoryCoeffect(playerId = 42)) }
+                runBlocking { handler.extract(FetchPerformanceHistoryCoeffect(playerId = 42, season = "current")) }
             }.isInstanceOf(PerformanceHistoryFetchException::class.java)
         }
     }

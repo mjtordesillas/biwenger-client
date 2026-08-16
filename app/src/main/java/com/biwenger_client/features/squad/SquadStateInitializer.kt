@@ -13,5 +13,6 @@ class SquadStateInitializer : StateInitializer {
         "squad.selectedPlayerId" to null as Int?,
         "squad.priceHistory" to null as Loadable<PriceHistory>?,
         "squad.performanceHistory" to null as Loadable<PerformanceHistory>?,
+        "squad.performanceHistorySeason" to "current",
     )
 }

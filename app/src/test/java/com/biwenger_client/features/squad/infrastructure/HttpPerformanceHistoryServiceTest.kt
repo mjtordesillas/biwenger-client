@@ -35,7 +35,7 @@ class HttpPerformanceHistoryServiceTest {
                 )
             )
 
-            val result = service.performanceHistory(42)
+            val result = service.performanceHistory(42, "current")
 
             assertThat(result).isInstanceOf(Response.Success::class.java)
             val history = (result as Response.Success).body
@@ -46,14 +46,14 @@ class HttpPerformanceHistoryServiceTest {
     }
 
     @Test
-    fun `performanceHistory requests the player-scoped path`() {
+    fun `performanceHistory requests the player-scoped path with the season query param`() {
         runBlocking {
             server.enqueue(MockResponse().setBody("""{"gameweeks":[]}"""))
 
-            service.performanceHistory(42)
+            service.performanceHistory(42, "previous")
 
             val request = server.takeRequest()
-            assertThat(request.path).isEqualTo("/players/42/performance-history")
+            assertThat(request.path).isEqualTo("/players/42/performance-history?season=previous")
         }
     }
 
@@ -62,7 +62,7 @@ class HttpPerformanceHistoryServiceTest {
         runBlocking {
             server.enqueue(MockResponse().setBody("""{"gameweeks":[]}"""))
 
-            service.performanceHistory(42)
+            service.performanceHistory(42, "current")
 
             val request = server.takeRequest()
             assertThat(request.getHeader("x-api-key")).isEqualTo("test-key")
@@ -74,7 +74,7 @@ class HttpPerformanceHistoryServiceTest {
         runBlocking {
             server.enqueue(MockResponse().setResponseCode(404))
 
-            val result = service.performanceHistory(42)
+            val result = service.performanceHistory(42, "current")
 
             assertThat(result).isInstanceOf(Response.Error::class.java)
             assertThat((result as Response.Error).code).isEqualTo(404)

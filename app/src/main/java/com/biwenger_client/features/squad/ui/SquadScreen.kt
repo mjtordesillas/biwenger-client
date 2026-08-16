@@ -86,6 +86,7 @@ fun SquadScreen(
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
+    val performanceHistorySeason by viewModel.performanceHistorySeason
 
     SquadScreen(
         players = players,
@@ -93,8 +94,10 @@ fun SquadScreen(
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
+        performanceHistorySeason = performanceHistorySeason,
         onPositionSelected = viewModel::positionFilterChanged,
         onPlayerTapped = viewModel::playerTapped,
+        onPerformanceSeasonChanged = viewModel::performanceSeasonChanged,
         onSheetDismissed = viewModel::sheetClosed,
     )
 }
@@ -106,8 +109,10 @@ private fun SquadScreen(
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
+    performanceHistorySeason: String,
     onPositionSelected: (Int?) -> Unit,
     onPlayerTapped: (Int) -> Unit,
+    onPerformanceSeasonChanged: (Int, String) -> Unit,
     onSheetDismissed: () -> Unit,
 ) {
     val allPlayers = (players as? Loadable.Success)?.value.orEmpty()
@@ -122,6 +127,8 @@ private fun SquadScreen(
             player = selectedPlayer,
             priceHistory = priceHistory,
             performanceHistory = performanceHistory,
+            performanceHistorySeason = performanceHistorySeason,
+            onPerformanceSeasonChanged = { season -> onPerformanceSeasonChanged(selectedPlayer.id, season) },
             onBack = onSheetDismissed
         )
     } else {
@@ -317,6 +324,8 @@ private fun PlayerDetailScreen(
     player: Player,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
+    performanceHistorySeason: String,
+    onPerformanceSeasonChanged: (String) -> Unit,
     onBack: () -> Unit
 ) {
     Column(
@@ -362,7 +371,11 @@ private fun PlayerDetailScreen(
                 trendColor = priceTrend(player.priceIncrement).second
             )
 
-            PerformanceHistorySection(performanceHistory = performanceHistory)
+            PerformanceHistorySection(
+                performanceHistory = performanceHistory,
+                season = performanceHistorySeason,
+                onSeasonChanged = onPerformanceSeasonChanged
+            )
         }
     }
 }
@@ -598,7 +611,11 @@ private fun formatPriceCompact(price: Long): String =
 private val PerformanceBarAreaHeight = 84.dp
 
 @Composable
-private fun PerformanceHistorySection(performanceHistory: Loadable<PerformanceHistory>?) {
+private fun PerformanceHistorySection(
+    performanceHistory: Loadable<PerformanceHistory>?,
+    season: String,
+    onSeasonChanged: (String) -> Unit,
+) {
     if (performanceHistory == null || performanceHistory is Loadable.Loading) {
         Box(
             modifier = Modifier
@@ -620,11 +637,30 @@ private fun PerformanceHistorySection(performanceHistory: Loadable<PerformanceHi
             .background(ColorSurface)
             .padding(14.dp)
     ) {
-        Text(
-            text = "Player performance",
-            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Player performance",
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilterChip(
+                    label = "Current",
+                    color = MaterialTheme.colorScheme.primary,
+                    active = season == SquadViewModel.CURRENT_SEASON,
+                    onClick = { onSeasonChanged(SquadViewModel.CURRENT_SEASON) }
+                )
+                FilterChip(
+                    label = "Previous",
+                    color = MaterialTheme.colorScheme.primary,
+                    active = season == SquadViewModel.PREVIOUS_SEASON,
+                    onClick = { onSeasonChanged(SquadViewModel.PREVIOUS_SEASON) }
+                )
+            }
+        }
 
         when (performanceHistory) {
             is Loadable.Failed -> Text(
@@ -636,8 +672,13 @@ private fun PerformanceHistorySection(performanceHistory: Loadable<PerformanceHi
             is Loadable.Success -> {
                 val gameweeks = performanceHistory.value.gameweeks
                 if (gameweeks.isEmpty()) {
+                    val emptyMessage = if (season == SquadViewModel.PREVIOUS_SEASON) {
+                        "No matches played last season."
+                    } else {
+                        "No matches played yet this season."
+                    }
                     Text(
-                        text = "No matches played yet this season.",
+                        text = emptyMessage,
                         fontSize = 12.sp,
                         color = Neutral500,
                         modifier = Modifier.padding(vertical = 20.dp)

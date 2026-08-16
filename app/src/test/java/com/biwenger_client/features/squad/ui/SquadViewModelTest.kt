@@ -78,6 +78,11 @@ class SquadViewModelTest {
     }
 
     @Test
+    fun `subscribes to squad_performanceHistorySeason`() {
+        verify(store).subscribe(eq("squad.performanceHistorySeason"), any<(String) -> Unit>())
+    }
+
+    @Test
     fun `registers squad_on-load handler`() {
         verify(store).registerEventHandler(
             eq("squad.on-load"),
@@ -115,8 +120,16 @@ class SquadViewModelTest {
     fun `registers squad_performance-history-requested handler`() {
         verify(store).registerEventHandler(
             eq("squad.performance-history-requested"),
-            any<(Event<Int>) -> List<com.biwenger_client.core.coeffects.Coeffect<*>>>(),
-            any<suspend (Event<Int>, Coeffects) -> List<Effect>>()
+            any<(Event<PerformanceHistoryRequest>) -> List<com.biwenger_client.core.coeffects.Coeffect<*>>>(),
+            any<suspend (Event<PerformanceHistoryRequest>, Coeffects) -> List<Effect>>()
+        )
+    }
+
+    @Test
+    fun `registers squad_performance-season-changed handler`() {
+        verify(store).registerEventHandler(
+            eq("squad.performance-season-changed"),
+            any<suspend (Event<PerformanceHistoryRequest>) -> List<Effect>>()
         )
     }
 
@@ -164,15 +177,21 @@ class SquadViewModelTest {
     }
 
     @Test
-    fun `handlePlayerTapped sets the selected player id, marks price and performance history loading, and requests both`() {
+    fun `handlePlayerTapped sets the selected player id, marks price and performance history loading, resets to current season, and requests both`() {
         val effects = viewModel.handlePlayerTapped(event(name = "squad.player-tapped", payload = 42))
 
         assertThat(effects).contains(
             UpdateState(path = "squad.selectedPlayerId", value = 42),
             UpdateState(path = "squad.priceHistory", value = Loadable.Loading),
             UpdateState(path = "squad.performanceHistory", value = Loadable.Loading),
+            UpdateState(path = "squad.performanceHistorySeason", value = "current"),
             DispatchEvent(event = event(name = "squad.price-history-requested", payload = 42)),
-            DispatchEvent(event = event(name = "squad.performance-history-requested", payload = 42)),
+            DispatchEvent(
+                event = event(
+                    name = "squad.performance-history-requested",
+                    payload = PerformanceHistoryRequest(playerId = 42, season = "current")
+                )
+            ),
         )
     }
 
@@ -196,17 +215,33 @@ class SquadViewModelTest {
     @Test
     fun `handlePerformanceHistoryRequested returns UpdateState with the loaded performance history`() {
         val history = aPerformanceHistory()
+        val request = PerformanceHistoryRequest(playerId = 42, season = "previous")
         val coeffects = Coeffects(
-            values = mapOf(FetchPerformanceHistoryCoeffect(playerId = 42) to Loadable.Success(history))
+            values = mapOf(FetchPerformanceHistoryCoeffect(playerId = 42, season = "previous") to Loadable.Success(history))
         )
 
         val effects = viewModel.handlePerformanceHistoryRequested(
-            event(name = "squad.performance-history-requested", payload = 42),
+            event(name = "squad.performance-history-requested", payload = request),
             coeffects
         )
 
         assertThat(effects).contains(
             UpdateState(path = "squad.performanceHistory", value = Loadable.Success(history))
+        )
+    }
+
+    @Test
+    fun `handlePerformanceSeasonChanged marks performance history loading, records the season, and requests it`() {
+        val request = PerformanceHistoryRequest(playerId = 42, season = "previous")
+
+        val effects = viewModel.handlePerformanceSeasonChanged(
+            event(name = "squad.performance-season-changed", payload = request)
+        )
+
+        assertThat(effects).contains(
+            UpdateState(path = "squad.performanceHistorySeason", value = "previous"),
+            UpdateState(path = "squad.performanceHistory", value = Loadable.Loading),
+            DispatchEvent(event = event(name = "squad.performance-history-requested", payload = request)),
         )
     }
 
@@ -218,6 +253,7 @@ class SquadViewModelTest {
             UpdateState(path = "squad.selectedPlayerId", value = null),
             UpdateState(path = "squad.priceHistory", value = null),
             UpdateState(path = "squad.performanceHistory", value = null),
+            UpdateState(path = "squad.performanceHistorySeason", value = "current"),
         )
     }
 
@@ -233,6 +269,18 @@ class SquadViewModelTest {
         viewModel.playerTapped(playerId = 7)
 
         verify(store).dispatch(event = event(name = "squad.player-tapped", payload = 7))
+    }
+
+    @Test
+    fun `performanceSeasonChanged dispatches performance-season-changed event`() {
+        viewModel.performanceSeasonChanged(playerId = 7, season = "previous")
+
+        verify(store).dispatch(
+            event = event(
+                name = "squad.performance-season-changed",
+                payload = PerformanceHistoryRequest(playerId = 7, season = "previous")
+            )
+        )
     }
 
     @Test
@@ -264,7 +312,11 @@ class SquadViewModelTest {
         )
         verify(store).removeEventHandler(
             eq("squad.performance-history-requested"),
-            any<suspend (Event<Int>, Coeffects) -> List<Effect>>()
+            any<suspend (Event<PerformanceHistoryRequest>, Coeffects) -> List<Effect>>()
+        )
+        verify(store).removeEventHandler(
+            eq("squad.performance-season-changed"),
+            any<suspend (Event<PerformanceHistoryRequest>) -> List<Effect>>()
         )
         verify(store).removeEventHandler(
             eq("squad.sheet-closed"),
