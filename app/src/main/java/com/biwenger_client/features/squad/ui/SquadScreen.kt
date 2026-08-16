@@ -58,6 +58,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.features.squad.domain.models.GameweekPoints
+import com.biwenger_client.features.squad.domain.models.MatchDayDetails
+import com.biwenger_client.features.squad.domain.models.MatchDayTeam
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.PriceHistory
@@ -70,6 +72,8 @@ import com.biwenger_client.ui.theme.Neutral800
 import com.biwenger_client.ui.theme.Neutral900
 import com.biwenger_client.ui.theme.NocturneRadius
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
@@ -87,6 +91,8 @@ fun SquadScreen(
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
     val performanceHistorySeason by viewModel.performanceHistorySeason
+    val selectedMatchDay by viewModel.selectedMatchDay
+    val matchDayDetails by viewModel.matchDayDetails
 
     SquadScreen(
         players = players,
@@ -95,10 +101,14 @@ fun SquadScreen(
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
         performanceHistorySeason = performanceHistorySeason,
+        selectedMatchDay = selectedMatchDay,
+        matchDayDetails = matchDayDetails,
         onPositionSelected = viewModel::positionFilterChanged,
         onPlayerTapped = viewModel::playerTapped,
         onPerformanceSeasonChanged = viewModel::performanceSeasonChanged,
         onSheetDismissed = viewModel::sheetClosed,
+        onMatchDayTapped = viewModel::matchDayTapped,
+        onMatchDayDetailsDismissed = viewModel::matchDayDetailsClosed,
     )
 }
 
@@ -110,25 +120,32 @@ private fun SquadScreen(
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
     performanceHistorySeason: String,
+    selectedMatchDay: Int?,
+    matchDayDetails: Loadable<MatchDayDetails>?,
     onPositionSelected: (Int?) -> Unit,
     onPlayerTapped: (Int) -> Unit,
     onPerformanceSeasonChanged: (Int, String) -> Unit,
     onSheetDismissed: () -> Unit,
+    onMatchDayTapped: (Int, Int, String) -> Unit,
+    onMatchDayDetailsDismissed: () -> Unit,
 ) {
     val allPlayers = (players as? Loadable.Success)?.value.orEmpty()
     val filteredPlayers = allPlayers.filter { selectedPosition == null || it.position == selectedPosition }
     val selectedPlayer = allPlayers.find { it.id == selectedPlayerId }
 
-    // Exclusive, not overlaid: only one of the two screens is ever
-    // composed at a time, so there's nothing behind the detail screen for
-    // an unclaimed tap to fall through to.
-    if (selectedPlayer != null) {
+    // Exclusive, not overlaid: only one screen is ever composed at a
+    // time, so there's nothing behind it for an unclaimed tap to fall
+    // through to.
+    if (selectedPlayer != null && selectedMatchDay != null) {
+        MatchDayDetailsScreen(matchDayDetails = matchDayDetails, onBack = onMatchDayDetailsDismissed)
+    } else if (selectedPlayer != null) {
         PlayerDetailScreen(
             player = selectedPlayer,
             priceHistory = priceHistory,
             performanceHistory = performanceHistory,
             performanceHistorySeason = performanceHistorySeason,
             onPerformanceSeasonChanged = { season -> onPerformanceSeasonChanged(selectedPlayer.id, season) },
+            onMatchDayTapped = { matchDay -> onMatchDayTapped(selectedPlayer.id, matchDay, performanceHistorySeason) },
             onBack = onSheetDismissed
         )
     } else {
@@ -326,6 +343,7 @@ private fun PlayerDetailScreen(
     performanceHistory: Loadable<PerformanceHistory>?,
     performanceHistorySeason: String,
     onPerformanceSeasonChanged: (String) -> Unit,
+    onMatchDayTapped: (Int) -> Unit,
     onBack: () -> Unit
 ) {
     Column(
@@ -374,7 +392,8 @@ private fun PlayerDetailScreen(
             PerformanceHistorySection(
                 performanceHistory = performanceHistory,
                 season = performanceHistorySeason,
-                onSeasonChanged = onPerformanceSeasonChanged
+                onSeasonChanged = onPerformanceSeasonChanged,
+                onMatchDayTapped = onMatchDayTapped
             )
         }
     }
@@ -615,6 +634,7 @@ private fun PerformanceHistorySection(
     performanceHistory: Loadable<PerformanceHistory>?,
     season: String,
     onSeasonChanged: (String) -> Unit,
+    onMatchDayTapped: (Int) -> Unit,
 ) {
     if (performanceHistory == null || performanceHistory is Loadable.Loading) {
         Box(
@@ -684,7 +704,7 @@ private fun PerformanceHistorySection(
                         modifier = Modifier.padding(vertical = 20.dp)
                     )
                 } else {
-                    PerformanceChart(gameweeks = gameweeks)
+                    PerformanceChart(gameweeks = gameweeks, onMatchDayTapped = onMatchDayTapped)
                 }
             }
             is Loadable.Loading -> Unit
@@ -693,7 +713,7 @@ private fun PerformanceHistorySection(
 }
 
 @Composable
-private fun PerformanceChart(gameweeks: List<GameweekPoints>) {
+private fun PerformanceChart(gameweeks: List<GameweekPoints>, onMatchDayTapped: (Int) -> Unit) {
     val maxPoints = (gameweeks.maxOfOrNull { it.points ?: 0 } ?: 0).coerceAtLeast(0)
     val minPoints = (gameweeks.minOfOrNull { it.points ?: 0 } ?: 0).coerceAtMost(0)
     val range = (maxPoints - minPoints).coerceAtLeast(1)
@@ -706,7 +726,10 @@ private fun PerformanceChart(gameweeks: List<GameweekPoints>) {
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             gameweeks.forEach { gameweek ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(28.dp)) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.width(28.dp).clickable { onMatchDayTapped(gameweek.matchDay) }
+                ) {
                     Box(modifier = Modifier.height(PerformanceBarAreaHeight).fillMaxWidth()) {
                         val points = gameweek.points ?: 0
                         val zeroY = PerformanceBarAreaHeight * (maxPoints.toFloat() / range)
@@ -757,4 +780,74 @@ private fun performanceBarColor(points: Int?): Color = when {
     points < 6 -> PerformanceMid
     points < 10 -> PerformanceHigh
     else -> PerformanceGreat
+}
+
+@Composable
+private fun MatchDayDetailsScreen(matchDayDetails: Loadable<MatchDayDetails>?, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "‹",
+                fontSize = 22.sp,
+                modifier = Modifier.clickable(onClick = onBack).padding(end = 10.dp)
+            )
+            Text(text = "Match day", style = MaterialTheme.typography.titleMedium)
+        }
+
+        when (matchDayDetails) {
+            null, is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.padding(20.dp))
+            is Loadable.Failed -> Text(
+                text = "Could not load match day details right now.",
+                modifier = Modifier.padding(20.dp)
+            )
+            is Loadable.Success -> MatchDayHeader(details = matchDayDetails.value)
+        }
+    }
+}
+
+@Composable
+private fun MatchDayHeader(details: MatchDayDetails) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        MatchDayTeamColumn(team = details.home)
+        Text(
+            text = "${details.home.score} - ${details.away.score}",
+            style = MaterialTheme.typography.titleLarge
+        )
+        MatchDayTeamColumn(team = details.away)
+    }
+    Text(
+        text = "Match day ${details.matchDay} | ${formatKickoff(details.kickoff)}",
+        fontSize = 12.sp,
+        color = Neutral500,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+    )
+}
+
+@Composable
+private fun MatchDayTeamColumn(team: MatchDayTeam) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        AsyncImage(
+            model = team.crestUrl,
+            contentDescription = team.name,
+            modifier = Modifier.size(40.dp)
+        )
+        Text(text = team.name, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+private fun formatKickoff(kickoff: Long): String {
+    val formatter = SimpleDateFormat("MMM d (EEE) - HH:mm", Locale.getDefault())
+    return formatter.format(Date(kickoff * 1000))
 }

@@ -11,9 +11,11 @@ import com.biwenger_client.core.events.event
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
+import com.biwenger_client.features.squad.domain.coeffects.FetchMatchDayDetailsCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPerformanceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
+import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.PriceHistory
@@ -21,6 +23,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 data class PerformanceHistoryRequest(val playerId: Int, val season: String)
+
+data class MatchDayDetailsRequest(val playerId: Int, val matchDay: Int, val season: String)
 
 @HiltViewModel
 class SquadViewModel @Inject constructor(
@@ -47,6 +51,12 @@ class SquadViewModel @Inject constructor(
     private val _performanceHistorySeason = mutableStateOf(CURRENT_SEASON)
     val performanceHistorySeason: State<String> = _performanceHistorySeason
 
+    private val _selectedMatchDay = mutableStateOf<Int?>(null)
+    val selectedMatchDay: State<Int?> = _selectedMatchDay
+
+    private val _matchDayDetails = mutableStateOf<Loadable<MatchDayDetails>?>(null)
+    val matchDayDetails: State<Loadable<MatchDayDetails>?> = _matchDayDetails
+
     init {
         store.subscribe<Loadable<List<Player>>?>(path = "squad.players") {
             it?.let { v -> _players.value = v }
@@ -56,6 +66,8 @@ class SquadViewModel @Inject constructor(
         store.subscribe<Loadable<PriceHistory>?>(path = "squad.priceHistory") { _priceHistory.value = it }
         store.subscribe<Loadable<PerformanceHistory>?>(path = "squad.performanceHistory") { _performanceHistory.value = it }
         store.subscribe<String>(path = "squad.performanceHistorySeason") { _performanceHistorySeason.value = it }
+        store.subscribe<Int?>(path = "squad.selectedMatchDay") { _selectedMatchDay.value = it }
+        store.subscribe<Loadable<MatchDayDetails>?>(path = "squad.matchDayDetails") { _matchDayDetails.value = it }
 
         store.registerEventHandler(
             name = ON_LOAD_EVENT,
@@ -79,6 +91,16 @@ class SquadViewModel @Inject constructor(
         )
         store.registerEventHandler(name = PERFORMANCE_SEASON_CHANGED_EVENT, handler = ::handlePerformanceSeasonChanged)
         store.registerEventHandler(name = SHEET_CLOSED_EVENT, handler = ::handleSheetClosed)
+        store.registerEventHandler(name = MATCH_DAY_TAPPED_EVENT, handler = ::handleMatchDayTapped)
+        store.registerEventHandler(
+            name = MATCH_DAY_DETAILS_REQUESTED_EVENT,
+            coeffects = { requestedEvent ->
+                val request = requireNotNull(requestedEvent.payload)
+                listOf(FetchMatchDayDetailsCoeffect(playerId = request.playerId, matchDay = request.matchDay, season = request.season))
+            },
+            handler = ::handleMatchDayDetailsRequested
+        )
+        store.registerEventHandler(name = MATCH_DAY_DETAILS_CLOSED_EVENT, handler = ::handleMatchDayDetailsClosed)
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -92,6 +114,9 @@ class SquadViewModel @Inject constructor(
         store.removeEventHandler(name = PERFORMANCE_HISTORY_REQUESTED_EVENT, handler = ::handlePerformanceHistoryRequested)
         store.removeEventHandler(name = PERFORMANCE_SEASON_CHANGED_EVENT, handler = ::handlePerformanceSeasonChanged)
         store.removeEventHandler(name = SHEET_CLOSED_EVENT, handler = ::handleSheetClosed)
+        store.removeEventHandler(name = MATCH_DAY_TAPPED_EVENT, handler = ::handleMatchDayTapped)
+        store.removeEventHandler(name = MATCH_DAY_DETAILS_REQUESTED_EVENT, handler = ::handleMatchDayDetailsRequested)
+        store.removeEventHandler(name = MATCH_DAY_DETAILS_CLOSED_EVENT, handler = ::handleMatchDayDetailsClosed)
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -152,6 +177,33 @@ class SquadViewModel @Inject constructor(
             UpdateState(path = "squad.performanceHistorySeason", value = CURRENT_SEASON),
         )
 
+    fun handleMatchDayTapped(event: Event<MatchDayDetailsRequest>): List<Effect> {
+        val request = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "squad.selectedMatchDay", value = request.matchDay),
+            UpdateState(path = "squad.matchDayDetails", value = Loadable.Loading),
+            DispatchEvent(event = event(name = MATCH_DAY_DETAILS_REQUESTED_EVENT, payload = request)),
+        )
+    }
+
+    fun handleMatchDayDetailsRequested(event: Event<MatchDayDetailsRequest>, coeffects: Coeffects): List<Effect> {
+        val request = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(
+                path = "squad.matchDayDetails",
+                value = coeffects.load(
+                    coeffect = FetchMatchDayDetailsCoeffect(playerId = request.playerId, matchDay = request.matchDay, season = request.season)
+                )
+            )
+        )
+    }
+
+    fun handleMatchDayDetailsClosed(event: Event<Unit>): List<Effect> =
+        listOf(
+            UpdateState(path = "squad.selectedMatchDay", value = null),
+            UpdateState(path = "squad.matchDayDetails", value = null),
+        )
+
     fun positionFilterChanged(position: Int?) =
         store.dispatch(event = event(name = POSITION_FILTER_CHANGED_EVENT, payload = position))
 
@@ -169,6 +221,17 @@ class SquadViewModel @Inject constructor(
     fun sheetClosed() =
         store.dispatch(event = event(name = SHEET_CLOSED_EVENT))
 
+    fun matchDayTapped(playerId: Int, matchDay: Int, season: String) =
+        store.dispatch(
+            event = event(
+                name = MATCH_DAY_TAPPED_EVENT,
+                payload = MatchDayDetailsRequest(playerId = playerId, matchDay = matchDay, season = season)
+            )
+        )
+
+    fun matchDayDetailsClosed() =
+        store.dispatch(event = event(name = MATCH_DAY_DETAILS_CLOSED_EVENT))
+
     companion object {
         const val ON_LOAD_EVENT = "squad.on-load"
         const val POSITION_FILTER_CHANGED_EVENT = "squad.position-filter-changed"
@@ -177,6 +240,9 @@ class SquadViewModel @Inject constructor(
         const val PERFORMANCE_HISTORY_REQUESTED_EVENT = "squad.performance-history-requested"
         const val PERFORMANCE_SEASON_CHANGED_EVENT = "squad.performance-season-changed"
         const val SHEET_CLOSED_EVENT = "squad.sheet-closed"
+        const val MATCH_DAY_TAPPED_EVENT = "squad.match-day-tapped"
+        const val MATCH_DAY_DETAILS_REQUESTED_EVENT = "squad.match-day-details-requested"
+        const val MATCH_DAY_DETAILS_CLOSED_EVENT = "squad.match-day-details-closed"
         const val CURRENT_SEASON = "current"
         const val PREVIOUS_SEASON = "previous"
     }

@@ -11,10 +11,12 @@ import com.biwenger_client.core.events.event
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
+import com.biwenger_client.features.squad.domain.coeffects.FetchMatchDayDetailsCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPerformanceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
 import com.biwenger_client.features.squad.domain.models.Player
+import com.biwenger_client.helpers.builders.aMatchDayDetails
 import com.biwenger_client.helpers.builders.aPerformanceHistory
 import com.biwenger_client.helpers.builders.aPlayer
 import com.biwenger_client.helpers.builders.aPriceHistory
@@ -83,6 +85,19 @@ class SquadViewModelTest {
     }
 
     @Test
+    fun `subscribes to squad_selectedMatchDay`() {
+        verify(store).subscribe(eq("squad.selectedMatchDay"), any<(Int?) -> Unit>())
+    }
+
+    @Test
+    fun `subscribes to squad_matchDayDetails`() {
+        verify(store).subscribe(
+            eq("squad.matchDayDetails"),
+            any<(Loadable<com.biwenger_client.features.squad.domain.models.MatchDayDetails>?) -> Unit>()
+        )
+    }
+
+    @Test
     fun `registers squad_on-load handler`() {
         verify(store).registerEventHandler(
             eq("squad.on-load"),
@@ -137,6 +152,31 @@ class SquadViewModelTest {
     fun `registers squad_sheet-closed handler`() {
         verify(store).registerEventHandler(
             eq("squad.sheet-closed"),
+            any<suspend (Event<Unit>) -> List<Effect>>()
+        )
+    }
+
+    @Test
+    fun `registers squad_match-day-tapped handler`() {
+        verify(store).registerEventHandler(
+            eq("squad.match-day-tapped"),
+            any<suspend (Event<MatchDayDetailsRequest>) -> List<Effect>>()
+        )
+    }
+
+    @Test
+    fun `registers squad_match-day-details-requested handler`() {
+        verify(store).registerEventHandler(
+            eq("squad.match-day-details-requested"),
+            any<(Event<MatchDayDetailsRequest>) -> List<com.biwenger_client.core.coeffects.Coeffect<*>>>(),
+            any<suspend (Event<MatchDayDetailsRequest>, Coeffects) -> List<Effect>>()
+        )
+    }
+
+    @Test
+    fun `registers squad_match-day-details-closed handler`() {
+        verify(store).registerEventHandler(
+            eq("squad.match-day-details-closed"),
             any<suspend (Event<Unit>) -> List<Effect>>()
         )
     }
@@ -258,6 +298,49 @@ class SquadViewModelTest {
     }
 
     @Test
+    fun `handleMatchDayTapped sets the selected match day, marks match day details loading, and requests it`() {
+        val request = MatchDayDetailsRequest(playerId = 42, matchDay = 8, season = "current")
+
+        val effects = viewModel.handleMatchDayTapped(event(name = "squad.match-day-tapped", payload = request))
+
+        assertThat(effects).contains(
+            UpdateState(path = "squad.selectedMatchDay", value = 8),
+            UpdateState(path = "squad.matchDayDetails", value = Loadable.Loading),
+            DispatchEvent(event = event(name = "squad.match-day-details-requested", payload = request)),
+        )
+    }
+
+    @Test
+    fun `handleMatchDayDetailsRequested returns UpdateState with the loaded match day details`() {
+        val details = aMatchDayDetails()
+        val request = MatchDayDetailsRequest(playerId = 42, matchDay = 8, season = "current")
+        val coeffects = Coeffects(
+            values = mapOf(
+                FetchMatchDayDetailsCoeffect(playerId = 42, matchDay = 8, season = "current") to Loadable.Success(details)
+            )
+        )
+
+        val effects = viewModel.handleMatchDayDetailsRequested(
+            event(name = "squad.match-day-details-requested", payload = request),
+            coeffects
+        )
+
+        assertThat(effects).contains(
+            UpdateState(path = "squad.matchDayDetails", value = Loadable.Success(details))
+        )
+    }
+
+    @Test
+    fun `handleMatchDayDetailsClosed clears the selected match day and match day details`() {
+        val effects = viewModel.handleMatchDayDetailsClosed(event(name = "squad.match-day-details-closed"))
+
+        assertThat(effects).contains(
+            UpdateState(path = "squad.selectedMatchDay", value = null),
+            UpdateState(path = "squad.matchDayDetails", value = null),
+        )
+    }
+
+    @Test
     fun `positionFilterChanged dispatches position-filter-changed event`() {
         viewModel.positionFilterChanged(position = 2)
 
@@ -291,6 +374,25 @@ class SquadViewModelTest {
     }
 
     @Test
+    fun `matchDayTapped dispatches match-day-tapped event`() {
+        viewModel.matchDayTapped(playerId = 7, matchDay = 8, season = "previous")
+
+        verify(store).dispatch(
+            event = event(
+                name = "squad.match-day-tapped",
+                payload = MatchDayDetailsRequest(playerId = 7, matchDay = 8, season = "previous")
+            )
+        )
+    }
+
+    @Test
+    fun `matchDayDetailsClosed dispatches match-day-details-closed event`() {
+        viewModel.matchDayDetailsClosed()
+
+        verify(store).dispatch(event = event(name = "squad.match-day-details-closed"))
+    }
+
+    @Test
     fun `removes all handlers on cleared`() {
         viewModelStore.clear()
 
@@ -320,6 +422,18 @@ class SquadViewModelTest {
         )
         verify(store).removeEventHandler(
             eq("squad.sheet-closed"),
+            any<suspend (Event<Unit>) -> List<Effect>>()
+        )
+        verify(store).removeEventHandler(
+            eq("squad.match-day-tapped"),
+            any<suspend (Event<MatchDayDetailsRequest>) -> List<Effect>>()
+        )
+        verify(store).removeEventHandler(
+            eq("squad.match-day-details-requested"),
+            any<suspend (Event<MatchDayDetailsRequest>, Coeffects) -> List<Effect>>()
+        )
+        verify(store).removeEventHandler(
+            eq("squad.match-day-details-closed"),
             any<suspend (Event<Unit>) -> List<Effect>>()
         )
     }

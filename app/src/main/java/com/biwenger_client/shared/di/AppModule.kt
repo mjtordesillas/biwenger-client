@@ -7,9 +7,11 @@ import com.biwenger_client.core.mvi.Registry
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Database
 import com.biwenger_client.features.squad.SquadStateInitializer
+import com.biwenger_client.features.squad.infrastructure.HttpMatchDayDetailsService
 import com.biwenger_client.features.squad.infrastructure.HttpPerformanceHistoryService
 import com.biwenger_client.features.squad.infrastructure.HttpPriceHistoryService
 import com.biwenger_client.features.squad.infrastructure.HttpSquadService
+import com.biwenger_client.features.squad.infrastructure.MatchDayDetailsService
 import com.biwenger_client.features.squad.infrastructure.PerformanceHistoryService
 import com.biwenger_client.features.squad.infrastructure.PriceHistoryService
 import com.biwenger_client.features.squad.infrastructure.SquadService
@@ -77,12 +79,14 @@ object AppModule {
         squadService: SquadService,
         priceHistoryService: PriceHistoryService,
         performanceHistoryService: PerformanceHistoryService,
+        matchDayDetailsService: MatchDayDetailsService,
     ): CoeffectsHandlerRegistration {
         return CoeffectsHandlerRegistration(
             registry = registry,
             squadService = squadService,
             priceHistoryService = priceHistoryService,
             performanceHistoryService = performanceHistoryService,
+            matchDayDetailsService = matchDayDetailsService,
         )
     }
 
@@ -102,5 +106,11 @@ object AppModule {
     @Singleton
     fun providePerformanceHistoryService(): PerformanceHistoryService {
         return HttpPerformanceHistoryService(baseUrl = BASE_URL, apiKey = BuildConfig.API_KEY)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMatchDayDetailsService(): MatchDayDetailsService {
+        return HttpMatchDayDetailsService(baseUrl = BASE_URL, apiKey = BuildConfig.API_KEY)
     }
 }
