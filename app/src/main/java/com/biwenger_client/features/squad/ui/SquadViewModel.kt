@@ -11,8 +11,10 @@ import com.biwenger_client.core.events.event
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
+import com.biwenger_client.features.squad.domain.coeffects.FetchPerformanceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
+import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.PriceHistory
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -37,6 +39,9 @@ class SquadViewModel @Inject constructor(
     private val _priceHistory = mutableStateOf<Loadable<PriceHistory>?>(null)
     val priceHistory: State<Loadable<PriceHistory>?> = _priceHistory
 
+    private val _performanceHistory = mutableStateOf<Loadable<PerformanceHistory>?>(null)
+    val performanceHistory: State<Loadable<PerformanceHistory>?> = _performanceHistory
+
     init {
         store.subscribe<Loadable<List<Player>>?>(path = "squad.players") {
             it?.let { v -> _players.value = v }
@@ -44,6 +49,7 @@ class SquadViewModel @Inject constructor(
         store.subscribe<Int?>(path = "squad.selectedPosition") { _selectedPosition.value = it }
         store.subscribe<Int?>(path = "squad.selectedPlayerId") { _selectedPlayerId.value = it }
         store.subscribe<Loadable<PriceHistory>?>(path = "squad.priceHistory") { _priceHistory.value = it }
+        store.subscribe<Loadable<PerformanceHistory>?>(path = "squad.performanceHistory") { _performanceHistory.value = it }
 
         store.registerEventHandler(
             name = ON_LOAD_EVENT,
@@ -57,6 +63,11 @@ class SquadViewModel @Inject constructor(
             coeffects = { requestedEvent -> listOf(FetchPriceHistoryCoeffect(playerId = requireNotNull(requestedEvent.payload))) },
             handler = ::handlePriceHistoryRequested
         )
+        store.registerEventHandler(
+            name = PERFORMANCE_HISTORY_REQUESTED_EVENT,
+            coeffects = { requestedEvent -> listOf(FetchPerformanceHistoryCoeffect(playerId = requireNotNull(requestedEvent.payload))) },
+            handler = ::handlePerformanceHistoryRequested
+        )
         store.registerEventHandler(name = SHEET_CLOSED_EVENT, handler = ::handleSheetClosed)
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
@@ -68,6 +79,7 @@ class SquadViewModel @Inject constructor(
         store.removeEventHandler(name = POSITION_FILTER_CHANGED_EVENT, handler = ::handlePositionFilterChanged)
         store.removeEventHandler(name = PLAYER_TAPPED_EVENT, handler = ::handlePlayerTapped)
         store.removeEventHandler(name = PRICE_HISTORY_REQUESTED_EVENT, handler = ::handlePriceHistoryRequested)
+        store.removeEventHandler(name = PERFORMANCE_HISTORY_REQUESTED_EVENT, handler = ::handlePerformanceHistoryRequested)
         store.removeEventHandler(name = SHEET_CLOSED_EVENT, handler = ::handleSheetClosed)
     }
 
@@ -81,7 +93,9 @@ class SquadViewModel @Inject constructor(
         listOf(
             UpdateState(path = "squad.selectedPlayerId", value = event.payload),
             UpdateState(path = "squad.priceHistory", value = Loadable.Loading),
+            UpdateState(path = "squad.performanceHistory", value = Loadable.Loading),
             DispatchEvent(event = event(name = PRICE_HISTORY_REQUESTED_EVENT, payload = event.payload)),
+            DispatchEvent(event = event(name = PERFORMANCE_HISTORY_REQUESTED_EVENT, payload = event.payload)),
         )
 
     fun handlePriceHistoryRequested(event: Event<Int>, coeffects: Coeffects): List<Effect> =
@@ -92,10 +106,19 @@ class SquadViewModel @Inject constructor(
             )
         )
 
+    fun handlePerformanceHistoryRequested(event: Event<Int>, coeffects: Coeffects): List<Effect> =
+        listOf(
+            UpdateState(
+                path = "squad.performanceHistory",
+                value = coeffects.load(coeffect = FetchPerformanceHistoryCoeffect(playerId = requireNotNull(event.payload)))
+            )
+        )
+
     fun handleSheetClosed(event: Event<Unit>): List<Effect> =
         listOf(
             UpdateState(path = "squad.selectedPlayerId", value = null),
             UpdateState(path = "squad.priceHistory", value = null),
+            UpdateState(path = "squad.performanceHistory", value = null),
         )
 
     fun positionFilterChanged(position: Int?) =
@@ -112,6 +135,7 @@ class SquadViewModel @Inject constructor(
         const val POSITION_FILTER_CHANGED_EVENT = "squad.position-filter-changed"
         const val PLAYER_TAPPED_EVENT = "squad.player-tapped"
         const val PRICE_HISTORY_REQUESTED_EVENT = "squad.price-history-requested"
+        const val PERFORMANCE_HISTORY_REQUESTED_EVENT = "squad.performance-history-requested"
         const val SHEET_CLOSED_EVENT = "squad.sheet-closed"
     }
 }

@@ -11,9 +11,11 @@ import com.biwenger_client.core.events.event
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
+import com.biwenger_client.features.squad.domain.coeffects.FetchPerformanceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
 import com.biwenger_client.features.squad.domain.models.Player
+import com.biwenger_client.helpers.builders.aPerformanceHistory
 import com.biwenger_client.helpers.builders.aPlayer
 import com.biwenger_client.helpers.builders.aPriceHistory
 import org.assertj.core.api.Assertions.assertThat
@@ -68,6 +70,14 @@ class SquadViewModelTest {
     }
 
     @Test
+    fun `subscribes to squad_performanceHistory`() {
+        verify(store).subscribe(
+            eq("squad.performanceHistory"),
+            any<(Loadable<com.biwenger_client.features.squad.domain.models.PerformanceHistory>?) -> Unit>()
+        )
+    }
+
+    @Test
     fun `registers squad_on-load handler`() {
         verify(store).registerEventHandler(
             eq("squad.on-load"),
@@ -96,6 +106,15 @@ class SquadViewModelTest {
     fun `registers squad_price-history-requested handler`() {
         verify(store).registerEventHandler(
             eq("squad.price-history-requested"),
+            any<(Event<Int>) -> List<com.biwenger_client.core.coeffects.Coeffect<*>>>(),
+            any<suspend (Event<Int>, Coeffects) -> List<Effect>>()
+        )
+    }
+
+    @Test
+    fun `registers squad_performance-history-requested handler`() {
+        verify(store).registerEventHandler(
+            eq("squad.performance-history-requested"),
             any<(Event<Int>) -> List<com.biwenger_client.core.coeffects.Coeffect<*>>>(),
             any<suspend (Event<Int>, Coeffects) -> List<Effect>>()
         )
@@ -145,13 +164,15 @@ class SquadViewModelTest {
     }
 
     @Test
-    fun `handlePlayerTapped sets the selected player id, marks price history loading, and requests it`() {
+    fun `handlePlayerTapped sets the selected player id, marks price and performance history loading, and requests both`() {
         val effects = viewModel.handlePlayerTapped(event(name = "squad.player-tapped", payload = 42))
 
         assertThat(effects).contains(
             UpdateState(path = "squad.selectedPlayerId", value = 42),
             UpdateState(path = "squad.priceHistory", value = Loadable.Loading),
+            UpdateState(path = "squad.performanceHistory", value = Loadable.Loading),
             DispatchEvent(event = event(name = "squad.price-history-requested", payload = 42)),
+            DispatchEvent(event = event(name = "squad.performance-history-requested", payload = 42)),
         )
     }
 
@@ -173,12 +194,30 @@ class SquadViewModelTest {
     }
 
     @Test
-    fun `handleSheetClosed clears the selected player id and price history`() {
+    fun `handlePerformanceHistoryRequested returns UpdateState with the loaded performance history`() {
+        val history = aPerformanceHistory()
+        val coeffects = Coeffects(
+            values = mapOf(FetchPerformanceHistoryCoeffect(playerId = 42) to Loadable.Success(history))
+        )
+
+        val effects = viewModel.handlePerformanceHistoryRequested(
+            event(name = "squad.performance-history-requested", payload = 42),
+            coeffects
+        )
+
+        assertThat(effects).contains(
+            UpdateState(path = "squad.performanceHistory", value = Loadable.Success(history))
+        )
+    }
+
+    @Test
+    fun `handleSheetClosed clears the selected player id, price history, and performance history`() {
         val effects = viewModel.handleSheetClosed(event(name = "squad.sheet-closed"))
 
         assertThat(effects).contains(
             UpdateState(path = "squad.selectedPlayerId", value = null),
             UpdateState(path = "squad.priceHistory", value = null),
+            UpdateState(path = "squad.performanceHistory", value = null),
         )
     }
 
@@ -221,6 +260,10 @@ class SquadViewModelTest {
         )
         verify(store).removeEventHandler(
             eq("squad.price-history-requested"),
+            any<suspend (Event<Int>, Coeffects) -> List<Effect>>()
+        )
+        verify(store).removeEventHandler(
+            eq("squad.performance-history-requested"),
             any<suspend (Event<Int>, Coeffects) -> List<Effect>>()
         )
         verify(store).removeEventHandler(

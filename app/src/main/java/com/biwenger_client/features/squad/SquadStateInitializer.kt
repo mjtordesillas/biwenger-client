@@ -2,6 +2,7 @@ package com.biwenger_client.features.squad
 
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.StateInitializer
+import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.PriceHistory
 
@@ -11,5 +12,6 @@ class SquadStateInitializer : StateInitializer {
         "squad.selectedPosition" to null as Int?,
         "squad.selectedPlayerId" to null as Int?,
         "squad.priceHistory" to null as Loadable<PriceHistory>?,
+        "squad.performanceHistory" to null as Loadable<PerformanceHistory>?,
     )
 }

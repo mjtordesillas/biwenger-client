@@ -57,6 +57,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.biwenger_client.core.state.Loadable
+import com.biwenger_client.features.squad.domain.models.GameweekPoints
+import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.PriceHistory
 import com.biwenger_client.features.squad.domain.models.PricePoint
@@ -83,12 +85,14 @@ fun SquadScreen(
     val selectedPosition by viewModel.selectedPosition
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
+    val performanceHistory by viewModel.performanceHistory
 
     SquadScreen(
         players = players,
         selectedPosition = selectedPosition,
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
+        performanceHistory = performanceHistory,
         onPositionSelected = viewModel::positionFilterChanged,
         onPlayerTapped = viewModel::playerTapped,
         onSheetDismissed = viewModel::sheetClosed,
@@ -101,6 +105,7 @@ private fun SquadScreen(
     selectedPosition: Int?,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
+    performanceHistory: Loadable<PerformanceHistory>?,
     onPositionSelected: (Int?) -> Unit,
     onPlayerTapped: (Int) -> Unit,
     onSheetDismissed: () -> Unit,
@@ -113,7 +118,12 @@ private fun SquadScreen(
     // composed at a time, so there's nothing behind the detail screen for
     // an unclaimed tap to fall through to.
     if (selectedPlayer != null) {
-        PlayerDetailScreen(player = selectedPlayer, priceHistory = priceHistory, onBack = onSheetDismissed)
+        PlayerDetailScreen(
+            player = selectedPlayer,
+            priceHistory = priceHistory,
+            performanceHistory = performanceHistory,
+            onBack = onSheetDismissed
+        )
     } else {
         Column(modifier = Modifier.fillMaxSize()) {
             SquadHeader()
@@ -303,7 +313,12 @@ private fun priceTrend(priceIncrement: Long): Pair<String, Color> = when {
 }
 
 @Composable
-private fun PlayerDetailScreen(player: Player, priceHistory: Loadable<PriceHistory>?, onBack: () -> Unit) {
+private fun PlayerDetailScreen(
+    player: Player,
+    priceHistory: Loadable<PriceHistory>?,
+    performanceHistory: Loadable<PerformanceHistory>?,
+    onBack: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -346,6 +361,8 @@ private fun PlayerDetailScreen(player: Player, priceHistory: Loadable<PriceHisto
                 priceHistory = priceHistory,
                 trendColor = priceTrend(player.priceIncrement).second
             )
+
+            PerformanceHistorySection(performanceHistory = performanceHistory)
         }
     }
 }
@@ -577,3 +594,103 @@ private fun formatAxisDate(isoDate: String): String {
 
 private fun formatPriceCompact(price: Long): String =
     String.format(Locale.US, "€%.1fm", price / 1_000_000.0)
+
+private val PerformanceBarAreaHeight = 84.dp
+
+@Composable
+private fun PerformanceHistorySection(performanceHistory: Loadable<PerformanceHistory>?) {
+    if (performanceHistory == null || performanceHistory is Loadable.Loading) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .height(PriceHistoryCardHeight)
+                .clip(RoundedCornerShape(NocturneRadius.md))
+                .background(rememberShimmerBrush())
+        )
+        return
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .shadow(elevation = 4.dp, shape = RoundedCornerShape(NocturneRadius.md))
+            .clip(RoundedCornerShape(NocturneRadius.md))
+            .background(ColorSurface)
+            .padding(14.dp)
+    ) {
+        Text(
+            text = "Player performance",
+            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        when (performanceHistory) {
+            is Loadable.Failed -> Text(
+                text = "Could not load performance history right now.",
+                fontSize = 12.sp,
+                color = Neutral500,
+                modifier = Modifier.padding(vertical = 20.dp)
+            )
+            is Loadable.Success -> {
+                val gameweeks = performanceHistory.value.gameweeks
+                if (gameweeks.isEmpty()) {
+                    Text(
+                        text = "No matches played yet this season.",
+                        fontSize = 12.sp,
+                        color = Neutral500,
+                        modifier = Modifier.padding(vertical = 20.dp)
+                    )
+                } else {
+                    PerformanceChart(gameweeks = gameweeks)
+                }
+            }
+            is Loadable.Loading -> Unit
+        }
+    }
+}
+
+@Composable
+private fun PerformanceChart(gameweeks: List<GameweekPoints>) {
+    val maxPoints = (gameweeks.maxOfOrNull { it.points ?: 0 } ?: 0).coerceAtLeast(0)
+    val minPoints = (gameweeks.minOfOrNull { it.points ?: 0 } ?: 0).coerceAtMost(0)
+    val range = (maxPoints - minPoints).coerceAtLeast(1)
+
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        gameweeks.forEach { gameweek ->
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(28.dp)) {
+                Box(modifier = Modifier.height(PerformanceBarAreaHeight).fillMaxWidth()) {
+                    val points = gameweek.points ?: 0
+                    val zeroY = PerformanceBarAreaHeight * (maxPoints.toFloat() / range)
+                    val barHeight = (PerformanceBarAreaHeight * (abs(points).toFloat() / range)).coerceAtLeast(2.dp)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .padding(top = if (points >= 0) zeroY - barHeight else zeroY)
+                            .width(18.dp)
+                            .height(barHeight)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(performanceBarColor(gameweek.points))
+                    )
+                }
+                Text(
+                    text = "${gameweek.matchDay}",
+                    fontSize = 10.sp,
+                    color = Neutral500,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+private fun performanceBarColor(points: Int?): Color = when {
+    points == null -> Neutral500
+    points > 0 -> TrendUp
+    points < 0 -> TrendDown
+    else -> TrendFlat
+}
