@@ -104,14 +104,19 @@ separately in `biwenger-client-android`, not this repo):
 
 All seven backend slices are shipped. The Android side
 (`biwenger-client-android`, not this repo, tracked here since it's the
-same feature) is being built through its own matching slices:
+same feature) shipped in two increments rather than mirroring all seven
+backend slices 1:1 — slice 1 (header only) landed separately, then the
+remaining AS/SofaScore/Media/substitutions UI landed together once it
+was clear the backend was already fully done and there was no more
+value in re-slicing already-available data:
 
 - Android slice 1 — tapping a bar opens a new exclusive screen (same
-  pattern as `PlayerDetailScreen`) showing the header only: home/away
-  crest, name, score, match day, kickoff date. **Shipped**
+  pattern as `PlayerDetailScreen`) showing the header only. **Shipped**
   (`biwenger-client-android` commit `0314fb0`).
-- Remaining Android slices: points total, AS block, SofaScore block,
-  Media row, substitution rows — same order as the backend slices above.
+- Full breakdown UI — `MatchDayDetails` domain model grown to the full
+  response shape (`ScoreBreakdown`/`ScoreRow`/`SubstitutionEvent`), and
+  `MatchDayContent` renders both score blocks (base row + bonus rows),
+  the Media row, and substitution rows. **Shipped**
+  (`biwenger-client-android` commit `82c7f51`).
 
-Move to `done` once the Android side reaches parity with everything the
-backend already exposes.
+Done: both repos now fully implement this feature end to end.
