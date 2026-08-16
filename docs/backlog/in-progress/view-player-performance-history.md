@@ -23,3 +23,18 @@ Backing data confirmed available: `docs/biwenger-api-notes.md`
 with a points breakdown, no auth required. Need current + previous
 season's `season` id per player, which comes from that same endpoint's
 `seasons` field.
+
+Progress: backend endpoint (`GET /players/{playerId}/performance-history`,
+`?season=current|previous`, defaults to current) and Android's
+"Player performance" card are both shipped, including the current/
+previous toggle — see biwenger-client commits `3dc4eda`/`3fb1ba9` and
+biwenger-client-android commits `929e990`/`fd55546`. Not deployed yet
+(`serverless deploy` not run), so it's not live for real users.
+
+Still open, deferred as thinnest-slice follow-ups:
+- Bars are colored by sign only (up/down/flat) — the mockup's four-tier
+  magnitude bands (e.g. red <2, yellow 2–6, blue 6–10, green 10+) aren't
+  implemented.
+- No y-axis tick labels or a visible zero-baseline line, though bars do
+  grow up/down from zero.
+- No tap-to-see-tooltip ("Match day N: X pts").
