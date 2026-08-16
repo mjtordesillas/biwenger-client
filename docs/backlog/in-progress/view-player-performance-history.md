@@ -27,14 +27,13 @@ season's `season` id per player, which comes from that same endpoint's
 Progress: backend endpoint (`GET /players/{playerId}/performance-history`,
 `?season=current|previous`, defaults to current) and Android's
 "Player performance" card are both shipped, including the current/
-previous toggle — see biwenger-client commits `3dc4eda`/`3fb1ba9` and
-biwenger-client-android commits `929e990`/`fd55546`. Not deployed yet
-(`serverless deploy` not run), so it's not live for real users.
+previous toggle and magnitude-banded bar colors (<2 red, 2–5 yellow, 6–9
+blue, 10+ green) — see biwenger-client commits `3dc4eda`/`3fb1ba9` and
+biwenger-client-android commits `929e990`/`fd55546`/`c066494`. Not
+deployed yet (`serverless deploy` not run), so it's not live for real
+users.
 
 Still open, deferred as thinnest-slice follow-ups:
-- Bars are colored by sign only (up/down/flat) — the mockup's four-tier
-  magnitude bands (e.g. red <2, yellow 2–6, blue 6–10, green 10+) aren't
-  implemented.
 - No y-axis tick labels or a visible zero-baseline line, though bars do
   grow up/down from zero.
 - No tap-to-see-tooltip ("Match day N: X pts").
