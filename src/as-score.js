@@ -1,14 +1,11 @@
+import { goalBonus } from './goal-bonus.js'
+
 const PICAS_BASE = { 0: -2, 1: 2, 2: 6, 3: 10, 4: 14, SC: 0 }
-const GOAL_BONUS = { 1: 6, 2: 5, 3: 4, 4: 3 }
 const PENALTY_GOAL_BONUS = 3
 const RED_CARD_PENALTY = -6
 const SECOND_YELLOW_CARD_PENALTY = -3
 
 export const picasBase = (picas) => PICAS_BASE[picas] ?? null
-
-const positionFromRawStats = (rawStats) => [1, 2, 3, 4].find((position) => rawStats[`pos${position}`])
-
-export const goalBonus = (rawStats) => GOAL_BONUS[positionFromRawStats(rawStats)] ?? null
 
 export const toAsRows = (rawStats) => {
   const rows = [{ type: 'picas', count: rawStats.picas, points: picasBase(rawStats.picas) }]

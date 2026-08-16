@@ -1,9 +1,11 @@
 import { matchDayFromRound } from './round.js'
 import { teamCrestUrl } from './image-cdn.js'
 import { toAsRows } from './as-score.js'
+import { toSofaScoreRows } from './sofascore-score.js'
 
 const SCORE_FORMAT = '5'
 const AS_FORMAT = '1'
+const SOFASCORE_FORMAT = '2'
 
 const toTeamView = (team) => ({
   id: team.id,
@@ -15,6 +17,11 @@ const toTeamView = (team) => ({
 const toAsView = (report) => ({
   points: report.points?.[AS_FORMAT] ?? null,
   rows: toAsRows(report.rawStats),
+})
+
+const toSofaScoreView = (report) => ({
+  points: report.points?.[SOFASCORE_FORMAT] ?? null,
+  rows: toSofaScoreRows(report.rawStats),
 })
 
 export const toMatchDayDetailsView = (reports, { matchDay }) => {
@@ -29,5 +36,6 @@ export const toMatchDayDetailsView = (reports, { matchDay }) => {
     home: toTeamView(report.match.home),
     away: toTeamView(report.match.away),
     as: toAsView(report),
+    sofaScore: toSofaScoreView(report),
   }
 }

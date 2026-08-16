@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { picasBase, goalBonus, toAsRows } from '../src/as-score.js'
+import { picasBase, toAsRows } from '../src/as-score.js'
 
 test('maps picas to their base points, per the reverse-engineered table', () => {
   assert.equal(picasBase(0), -2)
@@ -16,13 +16,6 @@ test('maps the "SC" (unrated) picas value to 0', () => {
 
 test('returns null for an unrecognized picas value', () => {
   assert.equal(picasBase(undefined), null)
-})
-
-test('scales the goal bonus by the position played that match', () => {
-  assert.equal(goalBonus({ pos1: true }), 6)
-  assert.equal(goalBonus({ pos2: true }), 5)
-  assert.equal(goalBonus({ pos3: true }), 4)
-  assert.equal(goalBonus({ pos4: true }), 3)
 })
 
 test('only the picas row when there are no bonus events', () => {

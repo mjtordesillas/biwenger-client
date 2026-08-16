@@ -88,6 +88,9 @@ separately in `biwenger-client-android`, not this repo):
    different penalties, not the same value as originally documented —
    see `docs/biwenger-api-notes.md`.
 5. Add the SofaScore block (rating + goal/penalty/assist rows).
+   **Shipped** (`src/sofascore-score.js`; `goalBonus` extracted to
+   `src/goal-bonus.js` now that AS and SofaScore both need it — second
+   use case).
 6. Replace the flat total from slice 2 with the "Media: (AS + SofaScore)
    / 2" row.
 

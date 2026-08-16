@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { toMatchDayDetailsView } from '../src/match-day-details-view.js'
 
-const report = ({ round, date, points, picas = 2, home, away }) => ({
+const report = ({ round, date, points, picas = 2, sofascore = 6.4, home, away }) => ({
   match: {
     round: { short: round },
     date,
@@ -10,16 +10,17 @@ const report = ({ round, date, points, picas = 2, home, away }) => ({
     away: { id: away.id, name: away.name, score: away.score },
   },
   points,
-  rawStats: { picas },
+  rawStats: { picas, sofascore },
 })
 
-test('shapes the header, points total, and AS picas row for the requested match day', () => {
+test('shapes the header, points totals, and AS/SofaScore base rows for the requested match day', () => {
   const reports = [
     report({
       round: 'R8',
       date: 1741604400,
-      points: { 1: 6, 5: 4 },
+      points: { 1: 6, 2: 2, 5: 4 },
       picas: 2,
+      sofascore: 6.4,
       home: { id: 87, name: 'Betis', score: 2 },
       away: { id: 91, name: 'Alavés', score: 1 },
     }),
@@ -33,6 +34,7 @@ test('shapes the header, points total, and AS picas row for the requested match 
     points: 4,
     home: { id: 87, name: 'Betis', score: 2, crestUrl: 'https://cdn.biwenger.com/i/t/87.png' },
     away: { id: 91, name: 'Alavés', score: 1, crestUrl: 'https://cdn.biwenger.com/i/t/91.png' },
+    sofaScore: { points: 2, rows: [{ type: 'sofascore', rating: 6.4, points: 2 }] },
     as: { points: 6, rows: [{ type: 'picas', count: 2, points: 6 }] },
   })
 })
