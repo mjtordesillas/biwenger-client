@@ -92,7 +92,14 @@ separately in `biwenger-client-android`, not this repo):
    `src/goal-bonus.js` now that AS and SofaScore both need it — second
    use case).
 6. Replace the flat total from slice 2 with the "Media: (AS + SofaScore)
-   / 2" row.
+   / 2" row. **Shipped** (`src/media-score.js`) — the top-level `points`
+   field from slices 1-2 is gone, replaced by `media` (the computed
+   average) alongside `as.points`/`sofaScore.points` for the two
+   operands.
 
-Substituted-on/off rows (`events` type `4`/`5` + minute) are a separate
-concern from the points formula — not yet slotted into the list above.
+All six backend slices are shipped as of `eb5d801`..HEAD. Remaining
+before this backlog item can move to `done`:
+- Substituted-on/off rows (`events` type `4`/`5` + minute) — a separate
+  concern from the points formula, not yet slotted into a slice.
+- The Android side (`biwenger-client-android`, not this repo) — the tap
+  handler, the sheet UI, and wiring to these six response fields.

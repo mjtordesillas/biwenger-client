@@ -13,12 +13,12 @@ const report = ({ round, date, points, picas = 2, sofascore = 6.4, home, away })
   rawStats: { picas, sofascore },
 })
 
-test('shapes the header, points totals, and AS/SofaScore base rows for the requested match day', () => {
+test('shapes the header, AS/SofaScore base rows, and the media total for the requested match day', () => {
   const reports = [
     report({
       round: 'R8',
       date: 1741604400,
-      points: { 1: 6, 2: 2, 5: 4 },
+      points: { 1: 6, 2: 2 },
       picas: 2,
       sofascore: 6.4,
       home: { id: 87, name: 'Betis', score: 2 },
@@ -31,15 +31,15 @@ test('shapes the header, points totals, and AS/SofaScore base rows for the reque
   assert.deepEqual(view, {
     matchDay: 8,
     kickoff: 1741604400,
-    points: 4,
     home: { id: 87, name: 'Betis', score: 2, crestUrl: 'https://cdn.biwenger.com/i/t/87.png' },
     away: { id: 91, name: 'Alavés', score: 1, crestUrl: 'https://cdn.biwenger.com/i/t/91.png' },
     sofaScore: { points: 2, rows: [{ type: 'sofascore', rating: 6.4, points: 2 }] },
     as: { points: 6, rows: [{ type: 'picas', count: 2, points: 6 }] },
+    media: 4,
   })
 })
 
-test('nulls out the points total when the format is missing from the report', () => {
+test('nulls out the media total when a format is missing from the report', () => {
   const reports = [
     report({
       round: 'R8',
@@ -52,7 +52,7 @@ test('nulls out the points total when the format is missing from the report', ()
 
   const view = toMatchDayDetailsView(reports, { matchDay: 8 })
 
-  assert.equal(view.points, null)
+  assert.equal(view.media, null)
 })
 
 test('includes AS bonus rows when the report has them', () => {
