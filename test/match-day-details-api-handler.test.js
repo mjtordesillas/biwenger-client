@@ -2,7 +2,11 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { createMatchDayDetailsApiHandler } from '../src/match-day-details-api-handler.js'
 
-const report = { match: { round: { short: 'R8' }, date: 1741604400, home: { id: 87, name: 'Betis', score: 2 }, away: { id: 91, name: 'Alavés', score: 1 } } }
+const report = {
+  match: { round: { short: 'R8' }, date: 1741604400, home: { id: 87, name: 'Betis', score: 2 }, away: { id: 91, name: 'Alavés', score: 1 } },
+  points: { 1: 6, 5: 4 },
+  rawStats: { picas: 2 },
+}
 
 const fakeBiwengerClient = (reports) => ({
   getPlayerGameweekPoints: async ({ playerId, season }) => {
