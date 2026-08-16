@@ -99,3 +99,112 @@ No auth required. Verified empirically (2026-08-15).
 - No pagination knob found (`reports(100)`, `reports(50,0)` etc. all
   no-ops) — a season's reports just come back as one array, which is
   fine since a la-liga season is capped at 38 rounds.
+
+## Score format ids, and no per-event points breakdown
+
+`GET https://biwenger.as.com/api/v2/competitions/la-liga/data?lang=es&score={id}`
+(`fields=` is accepted syntactically but ignored — always returns the
+full shape). Verified empirically (2026-08-16).
+
+- `data.scores` lists every `score=` id with its label: `1`="Diario AS",
+  `7`="Feeberse Score", `8`="Media AS y Feeberse", `2`="SofaScore",
+  `5`="Media AS y SofaScore" (an average, not AS alone), `3`="Estadísticas",
+  `6`="Biwenger Social". The already-shipped performance-history chart
+  reads `points["5"]` (inherited from `getCatalogue()`'s `score=5`,
+  itself inherited from a reference project during the RAT, never
+  verified against this label list) — that's "Media AS y SofaScore", not
+  Diario AS. Not corrected without a concrete need (the chart's UI never
+  claims to be showing "Diario AS"), but `points["1"]` is the key for any
+  feature that specifically wants the Diario AS number.
+- `reports[].points` and `reports[].rawStats` only ever carry each
+  report's **total** per score format (e.g. `points: {"1": 6, "5": 5,
+  ...}`) — never a breakdown by event/category, even for reports
+  containing goals/assists/cards (checked player 15396/season 2026,
+  rounds R7/R14/R36/R37 — assist, yellow card, goal, red card
+  respectively). No `fields=` combination on this or the reports
+  endpoint surfaces per-event point values; they don't appear to be
+  exposed by this API at all. The per-event breakdown below was instead
+  reverse-engineered by comparing reports with/without each event type
+  against `rawStats.picas`/`rawStats.sofascore` (see next section).
+
+## Diario AS / SofaScore scoring formula (reverse-engineered)
+
+Not exposed by any endpoint field — reconstructed by diffing
+`reports[].points`/`rawStats` across ~800 reports (season 2026, ~115
+players spanning all four positions, plus a 49-goalkeeper-only pass) for
+reports with/without each event type, then cross-checked against the
+real Biwenger app. Verified empirically (2026-08-16).
+
+**Diario AS (`points["1"]`)** = `picas_base(rawStats.picas)` + `goal_bonus[position]` (once per goal) + `3` per penalty goal (flat, any position) − `6` per red card (flat; a second-yellow red scores the same as a direct red — only 1 second-yellow sample seen, but no observed difference) + `0` per assist + `0` per yellow card:
+
+| `picas` | base pts |
+|---|---|
+| 0 | -2 |
+| 1 | 2 |
+| 2 | 6 |
+| 3 | 10 *(extrapolated from the +4/pica pattern, not directly sampled)* |
+| 4 | 14 *(extrapolated, not directly sampled)* |
+| `"SC"` (string — chronicler didn't rate the player; always paired with `minutesPlayed` in the low single digits) | 0 |
+
+**SofaScore (`points["2"]`)** = `sofascore_base(rawStats.sofascore)` + `goal_bonus[position]` + `1` per assist + `0` per red/yellow card (a red card's effect is already priced into a lower `sofascore` rating, no separate penalty on top):
+
+| `sofascore` rating | base pts | | rating | base pts |
+|---|---|---|---|---|
+| 9.5–10.0 | 14 | | 6.8–6.9 | 4 |
+| 9.0–9.4 | 13 | | 6.6–6.7 | 3 |
+| 8.6–8.9 | 12 | | 6.4–6.5 | 2 (standard baseline) |
+| 8.2–8.5 | 11 | | 6.2–6.3 | 1 |
+| 8.0–8.1 | 10 | | 6.0–6.1 | 0 |
+| 7.8–7.9 | 9 | | 5.8–5.9 | -1 |
+| 7.6–7.7 | 8 | | 5.6–5.7 | -2 |
+| 7.4–7.5 | 7 | | 5.4–5.5 | -3 |
+| 7.2–7.3 | 6 | | 5.2–5.3 | -4 |
+| 7.0–7.1 | 5 | | 5.0–5.1 | -5 |
+| | | | 0.0–4.9 | -6 |
+
+Verified exact (319/319 clean reports with no goal/assist/card that
+match day) — every `sofascore`→`points["2"]` pair in the sample landed
+on the table above with zero mismatches.
+
+**`goal_bonus[position]`** (same table for both formats): GK `+6`, DF
+`+5`, MF `+4`, FW `+3`. GK is a promise from a domain expert rather than
+a sampled report (no goalkeeper scored in the ~800-report sample), but
+follows the same +1-per-tier pattern the other three positions show
+exactly, so treated as confirmed, not estimated.
+
+**`points["5"]`** ("Media AS y SofaScore", what the already-shipped
+performance-history chart reads) = `round_half_away_from_zero((points["1"] + points["2"]) / 2)`
+— i.e. `.5` rounds toward the larger magnitude, not always toward
+`+Infinity` (e.g. average `-2.5` → `-3`, not `-2`). Verified exact
+(468/468 reports with all three fields present).
+
+Cross-checked against 5 screenshots of the real Biwenger app's own player
+detail sheet (2026-08-16) — every picas/sofascore/goal/penalty/assist
+figure above matched exactly (e.g. Guridi: 2 picas → `+6`, 1 penalty goal
+→ `+3` both formats, 6.7 sofascore → `+3`; Tenaglia: 3 picas → `+10`, 1
+goal as DF → `+5` both formats, 8.6 sofascore → `+12`). Also settled from
+those screenshots:
+
+- A bonus event that contributes `0` to a given format gets **no row at
+  all** in that format's breakdown (not a row showing `+0`) — e.g. an
+  assist only ever appears under the SofaScore block, never under AS.
+- `rawStats.redCard` and `rawStats.secondYellowCard` are **separate
+  fields** (missed on the first pass, which only used `events` types `6`
+  and `7` together to infer a second-yellow red) — no need to infer a
+  double-yellow from combined event types, `rawStats` says so directly.
+  Still only the same 1-2 samples confirming both score `-6` in AS; not
+  re-verified after finding the dedicated field (hit a 429 rate limit
+  mid-check).
+- `rawStats` also has `penaltyMissed` and `ownGoals` fields, unsampled
+  (no occurrences seen) — presumably `0`/negative bonuses respectively,
+  not derived yet.
+- **"Súper Pica"** (Guridi screenshot: a `+3` line with a spade icon,
+  read as AS-only given `config.superPicaScores: [1,5,8]` from the
+  catalogue endpoint listing exactly the AS-involving formats) and an
+  **"MVP" star badge** (Tenaglia screenshot, no points tied to it that
+  aren't already accounted for by his goal bonus) are both real but
+  **not implemented** — neither corresponds to any `rawStats` field
+  found across ~800 reports scanned, so there's no known way to derive
+  either from this API yet. Deliberately out of scope for
+  `view-match-day-details`, not something the feature quietly gets
+  wrong.

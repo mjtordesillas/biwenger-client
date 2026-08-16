@@ -25,14 +25,25 @@ Accept: application/json
 %}
 
 ### My squad — player ids only, see docs/rat.md for why
-GET {{baseUrl}}/user?fields=players(id,owner)
+GET {{baseUrl}}/user?fields=players(id,owner,name)
 Authorization: Bearer {{token}}
 X-League: {{leagueId}}
 X-User: {{userId}}
 Accept: application/json
 
 ### Catalogue — name/position/price/altPositions/priceIncrement/points for every player, keyed by id. No auth required.
+# `score=5` here is "Media AS y SofaScore" (an average), NOT Diario AS — see the
+# "Score formats" request below. Kept at 5 because that's what Slice 1
+# (getMySquad) shipped with; not corrected without a concrete need.
 GET {{baseUrl}}/competitions/la-liga/data?lang=es&score=5
+Accept: application/json
+
+### Score formats — `data.scores[]` lists every `score=` id with its label.
+# Verified 2026-08-16: id 1 = "Diario AS" (the format
+# view-match-day-details needs), id 5 = "Media AS y SofaScore". `fields=`
+# is ignored on this endpoint (always returns the full shape) — ignore
+# the `fields` param below, it's a no-op kept for discoverability.
+GET {{baseUrl}}/competitions/la-liga/data?lang=es&score=1&fields=id,scores
 Accept: application/json
 
 ### Player historical market value — see docs/biwenger-api-notes.md (trailing ~1 year, no auth)
@@ -44,6 +55,12 @@ GET {{baseUrl}}/players/la-liga/{{playerId}}?fields=id,name,seasons
 Accept: application/json
 
 ### Player per-gameweek points for a season — see docs/biwenger-api-notes.md (season id from the request above, no auth)
+# `points`/`rawStats` only ever carry the report's TOTAL per score format —
+# never a per-event breakdown (checked 2026-08-16 against reports
+# containing goals/assists/cards; no `fields=` combination surfaces one).
+# For player 15396/season 2026 (a season with real events, unlike the
+# still-preseason current one), sample rounds with events to compare:
+# R7 (assist), R14 (yellow card), R36 (goal), R37 (red card).
 GET {{baseUrl}}/players/la-liga/{{playerId}}?fields=id,name,reports&season={{seasonId}}
 Accept: application/json
 

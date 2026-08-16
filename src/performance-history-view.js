@@ -1,6 +1,6 @@
-const SCORE_FORMAT = '5'
+import { matchDayFromRound } from './round.js'
 
-const matchDayFromRound = (round) => Number(String(round.short).replace(/\D/g, ''))
+const SCORE_FORMAT = '5'
 
 export const toPerformanceHistoryView = (reports) => {
   const gameweeks = reports

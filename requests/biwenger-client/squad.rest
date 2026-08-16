@@ -17,3 +17,8 @@ Accept: application/json
 GET {{baseUrl}}/players/15396/performance-history?season=previous
 x-api-key: {{mobileApiKey}}
 Accept: application/json
+
+### Get a match day's header (which match, when, the score) for a player — Slice 1 of view-match-day-details, no points breakdown yet (protected — same native API Gateway key)
+GET {{baseUrl}}/players/15396/match-day-details?matchDay=8
+x-api-key: {{mobileApiKey}}
+Accept: application/json

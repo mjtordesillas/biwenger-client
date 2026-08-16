@@ -37,3 +37,10 @@ functions:
           method: GET
           path: /players/{playerId}/performance-history
           private: true
+  matchDayDetails:
+    handler: src/index.matchDayDetails
+    events:
+      - http:
+          method: GET
+          path: /players/{playerId}/match-day-details
+          private: true
