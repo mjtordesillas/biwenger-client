@@ -1,6 +1,8 @@
 import { matchDayFromRound } from './round.js'
 import { teamCrestUrl } from './image-cdn.js'
 
+const SCORE_FORMAT = '5'
+
 const toTeamView = (team) => ({
   id: team.id,
   name: team.name,
@@ -8,9 +10,6 @@ const toTeamView = (team) => ({
   crestUrl: teamCrestUrl(team.id),
 })
 
-// Slice 1 of view-match-day-details: header only (which match, when, the
-// score) — no points breakdown yet. See
-// docs/backlog/to-do/view-match-day-details.md.
 export const toMatchDayDetailsView = (reports, { matchDay }) => {
   const report = reports.filter(Boolean).find((candidate) => matchDayFromRound(candidate.match.round) === matchDay)
   if (!report) {
@@ -19,6 +18,7 @@ export const toMatchDayDetailsView = (reports, { matchDay }) => {
   return {
     matchDay,
     kickoff: report.match.date,
+    points: report.points?.[SCORE_FORMAT] ?? null,
     home: toTeamView(report.match.home),
     away: toTeamView(report.match.away),
   }

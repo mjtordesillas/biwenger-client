@@ -2,20 +2,22 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { toMatchDayDetailsView } from '../src/match-day-details-view.js'
 
-const report = ({ round, date, home, away }) => ({
+const report = ({ round, date, points, home, away }) => ({
   match: {
     round: { short: round },
     date,
     home: { id: home.id, name: home.name, score: home.score },
     away: { id: away.id, name: away.name, score: away.score },
   },
+  points,
 })
 
-test('shapes the header for the requested match day', () => {
+test('shapes the header and points total for the requested match day', () => {
   const reports = [
     report({
       round: 'R8',
       date: 1741604400,
+      points: { 1: 2, 5: 4 },
       home: { id: 87, name: 'Betis', score: 2 },
       away: { id: 91, name: 'Alavés', score: 1 },
     }),
@@ -26,9 +28,26 @@ test('shapes the header for the requested match day', () => {
   assert.deepEqual(view, {
     matchDay: 8,
     kickoff: 1741604400,
+    points: 4,
     home: { id: 87, name: 'Betis', score: 2, crestUrl: 'https://cdn.biwenger.com/i/t/87.png' },
     away: { id: 91, name: 'Alavés', score: 1, crestUrl: 'https://cdn.biwenger.com/i/t/91.png' },
   })
+})
+
+test('nulls out the points total when the format is missing from the report', () => {
+  const reports = [
+    report({
+      round: 'R8',
+      date: 1741604400,
+      points: { 1: 2 },
+      home: { id: 87, name: 'Betis', score: 2 },
+      away: { id: 91, name: 'Alavés', score: 1 },
+    }),
+  ]
+
+  const view = toMatchDayDetailsView(reports, { matchDay: 8 })
+
+  assert.equal(view.points, null)
 })
 
 test('finds the requested match day among several reports', () => {

@@ -79,7 +79,7 @@ separately in `biwenger-client-android`, not this repo):
    (`src/match-day-details-api-handler.js`,
    `src/match-day-details-view.js`). No points yet.
 2. Add the single points total (`points["5"]`, matching the existing
-   chart).
+   chart). **Shipped**, same endpoint/files as slice 1.
 3. Add the Diario AS block (picas row only).
 4. Add the remaining AS bonus rows (goal/penalty/red).
 5. Add the SofaScore block (rating + goal/penalty/assist rows).
