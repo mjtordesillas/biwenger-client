@@ -67,12 +67,12 @@ fun PlayerRow(player: Player, onClick: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        PlayerAvatar(player = player, size = 48.dp)
+        PlayerAvatar(photoUrl = player.photoUrl, teamCrestUrl = player.teamCrestUrl, contentDescription = player.name, size = 48.dp)
 
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
             Text(text = player.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                PositionTag(player = player)
+                PositionTag(position = player.position, secondaryPosition = player.secondaryPosition)
                 Text(
                     text = "  ${player.points} pts",
                     style = MaterialTheme.typography.labelMedium,
@@ -89,7 +89,7 @@ fun PlayerRow(player: Player, onClick: () -> Unit) {
 }
 
 @Composable
-fun PlayerAvatar(player: Player, size: Dp) {
+fun PlayerAvatar(photoUrl: String, teamCrestUrl: String, contentDescription: String, size: Dp) {
     Box(modifier = Modifier.size(size)) {
         Box(
             modifier = Modifier
@@ -98,8 +98,8 @@ fun PlayerAvatar(player: Player, size: Dp) {
                 .background(Neutral900)
         ) {
             AsyncImage(
-                model = player.photoUrl,
-                contentDescription = player.name,
+                model = photoUrl,
+                contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -108,7 +108,7 @@ fun PlayerAvatar(player: Player, size: Dp) {
         // shape (shield, circle, whatever the club uses), not forced into
         // one mask. ContentScale.Fit shows the real image untouched.
         AsyncImage(
-            model = player.teamCrestUrl,
+            model = teamCrestUrl,
             contentDescription = null,
             contentScale = ContentScale.Fit,
             modifier = Modifier
@@ -119,8 +119,8 @@ fun PlayerAvatar(player: Player, size: Dp) {
 }
 
 @Composable
-fun PositionTag(player: Player) {
-    val color = PositionColors[player.position] ?: Neutral500
+fun PositionTag(position: Int, secondaryPosition: Int?) {
+    val color = PositionColors[position] ?: Neutral500
     Box {
         Box(
             modifier = Modifier
@@ -129,13 +129,13 @@ fun PositionTag(player: Player) {
                 .padding(horizontal = 10.dp, vertical = 3.dp)
         ) {
             Text(
-                text = PositionLabels[player.position] ?: player.position.toString(),
+                text = PositionLabels[position] ?: position.toString(),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = color
             )
         }
-        val secondaryColor = player.secondaryPosition?.let { PositionColors[it] }
+        val secondaryColor = secondaryPosition?.let { PositionColors[it] }
         if (secondaryColor != null) {
             Box(
                 modifier = Modifier

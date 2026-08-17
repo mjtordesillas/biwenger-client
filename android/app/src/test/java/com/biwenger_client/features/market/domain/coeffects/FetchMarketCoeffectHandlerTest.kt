@@ -1,7 +1,7 @@
 package com.biwenger_client.features.market.domain.coeffects
 
 import com.biwenger_client.features.market.infrastructure.MarketService
-import com.biwenger_client.helpers.builders.aPlayer
+import com.biwenger_client.helpers.builders.aMarketListing
 import com.biwenger_client.infrastructure.network.Response
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
@@ -18,12 +18,12 @@ class FetchMarketCoeffectHandlerTest {
     @Test
     fun `extract returns the market listings on success`() {
         runBlocking {
-            val players = listOf(aPlayer())
-            whenever(marketService.market()).thenReturn(Response.Success(players))
+            val listings = listOf(aMarketListing())
+            whenever(marketService.market()).thenReturn(Response.Success(listings))
 
             val result = handler.extract(FetchMarketCoeffect)
 
-            assertThat(result).isEqualTo(players)
+            assertThat(result).isEqualTo(listings)
         }
     }
 

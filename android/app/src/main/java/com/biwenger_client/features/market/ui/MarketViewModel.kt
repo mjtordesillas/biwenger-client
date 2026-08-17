@@ -10,8 +10,8 @@ import com.biwenger_client.core.events.event
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
-import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffect
+import com.biwenger_client.features.market.domain.models.MarketListing
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -22,11 +22,11 @@ class MarketViewModel @Inject constructor(
 
     private val marketCoeffect = FetchMarketCoeffect
 
-    private val _players = mutableStateOf<Loadable<List<Player>>>(Loadable.Loading)
-    val players: State<Loadable<List<Player>>> = _players
+    private val _players = mutableStateOf<Loadable<List<MarketListing>>>(Loadable.Loading)
+    val players: State<Loadable<List<MarketListing>>> = _players
 
     init {
-        store.subscribe<Loadable<List<Player>>?>(path = "market.players") {
+        store.subscribe<Loadable<List<MarketListing>>?>(path = "market.players") {
             it?.let { v -> _players.value = v }
         }
 

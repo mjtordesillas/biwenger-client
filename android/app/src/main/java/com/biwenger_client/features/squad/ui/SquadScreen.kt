@@ -258,9 +258,9 @@ private fun PlayerDetailScreen(
 
         Column(modifier = Modifier.padding(horizontal = 22.dp).padding(bottom = 24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                PlayerAvatar(player = player, size = 68.dp)
+                PlayerAvatar(photoUrl = player.photoUrl, teamCrestUrl = player.teamCrestUrl, contentDescription = player.name, size = 68.dp)
                 Column(modifier = Modifier.padding(start = 16.dp)) {
-                    PositionTag(player = player)
+                    PositionTag(position = player.position, secondaryPosition = player.secondaryPosition)
                 }
             }
 
@@ -733,7 +733,7 @@ private fun MatchDayPlayerSummary(player: Player, points: Int?) {
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp)
     ) {
-        PlayerAvatar(player = player, size = 68.dp)
+        PlayerAvatar(photoUrl = player.photoUrl, teamCrestUrl = player.teamCrestUrl, contentDescription = player.name, size = 68.dp)
         Text(text = player.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(

@@ -27,15 +27,16 @@ class HttpMarketServiceTest {
     }
 
     @Test
-    fun `market parses the wrapped players array`() {
+    fun `market parses the wrapped players array, including the market-specific fields`() {
         runBlocking {
             server.enqueue(
                 MockResponse().setBody(
                     """{"players":[{
                         "id":1,"name":"Brugué","position":4,"secondaryPosition":null,
-                        "price":280000,"priceIncrement":10000,"points":5,
+                        "price":250000,"marketValue":280000,"priceIncrement":10000,"points":5,
                         "photoUrl":"https://cdn.biwenger.com/i/p/1.png",
-                        "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png"
+                        "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png",
+                        "until":1787116441,"seller":"Rival FC"
                     }]}"""
                 )
             )
@@ -43,11 +44,36 @@ class HttpMarketServiceTest {
             val result = service.market()
 
             assertThat(result).isInstanceOf(Response.Success::class.java)
-            val players = (result as Response.Success).body
-            assertThat(players).hasSize(1)
-            val player = players?.first()
-            assertThat(player?.name).isEqualTo("Brugué")
-            assertThat(player?.price).isEqualTo(280000)
+            val listings = (result as Response.Success).body
+            assertThat(listings).hasSize(1)
+            val listing = listings?.first()
+            assertThat(listing?.name).isEqualTo("Brugué")
+            assertThat(listing?.price).isEqualTo(250000)
+            assertThat(listing?.marketValue).isEqualTo(280000)
+            assertThat(listing?.until).isEqualTo(1787116441)
+            assertThat(listing?.seller).isEqualTo("Rival FC")
+        }
+    }
+
+    @Test
+    fun `market defaults seller to null for a free-agent listing`() {
+        runBlocking {
+            server.enqueue(
+                MockResponse().setBody(
+                    """{"players":[{
+                        "id":1,"name":"Brugué","position":4,"secondaryPosition":null,
+                        "price":250000,"marketValue":280000,"priceIncrement":10000,"points":5,
+                        "photoUrl":"https://cdn.biwenger.com/i/p/1.png",
+                        "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png",
+                        "until":1787116441,"seller":null
+                    }]}"""
+                )
+            )
+
+            val result = service.market()
+
+            val listing = (result as Response.Success).body?.first()
+            assertThat(listing?.seller).isNull()
         }
     }
 

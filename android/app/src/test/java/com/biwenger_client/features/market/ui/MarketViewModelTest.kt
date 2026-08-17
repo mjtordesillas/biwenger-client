@@ -10,9 +10,9 @@ import com.biwenger_client.core.events.event
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
-import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffect
-import com.biwenger_client.helpers.builders.aPlayer
+import com.biwenger_client.features.market.domain.models.MarketListing
+import com.biwenger_client.helpers.builders.aMarketListing
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
 import org.junit.Test
@@ -42,7 +42,7 @@ class MarketViewModelTest {
     fun `subscribes to market_players`() {
         verify(store).subscribe(
             eq("market.players"),
-            any<(Loadable<List<Player>>?) -> Unit>()
+            any<(Loadable<List<MarketListing>>?) -> Unit>()
         )
     }
 
@@ -62,15 +62,15 @@ class MarketViewModelTest {
 
     @Test
     fun `handleOnLoad returns UpdateState with loaded players`() {
-        val players = listOf(aPlayer())
+        val listings = listOf(aMarketListing())
         val coeffects = Coeffects(
-            values = mapOf(FetchMarketCoeffect to Loadable.Success(players))
+            values = mapOf(FetchMarketCoeffect to Loadable.Success(listings))
         )
 
         val effects = viewModel.handleOnLoad(event(name = "market.on-load"), coeffects)
 
         assertThat(effects).contains(
-            UpdateState(path = "market.players", value = Loadable.Success(players))
+            UpdateState(path = "market.players", value = Loadable.Success(listings))
         )
     }
 }
