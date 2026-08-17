@@ -69,6 +69,37 @@ players checked; `pointsLastSeason` was already populated (e.g. `162`)
 since the prior season is complete. Worth re-checking once the season is
 underway before relying on the this-season fields.
 
+## League transfer market
+
+`GET https://biwenger.as.com/api/v2/market`
+Requires `Authorization: Bearer <token>` **and** `X-League`/`X-User` headers
+(same shape as `getSquadPlayerIds`) — 400 `"X-League and X-User headers
+required"` without them. Verified empirically (2026-08-17) against a real
+league via `requests/third-party/biwenger/biwenger-api.rest`. Found via the
+`market.go` handler in the
+[pablopb3/biwenger-api](https://github.com/pablopb3/biwenger-api) reference
+project (unofficial wrapper, not assumed correct — re-verified against the
+real API before trusting it).
+
+- `data.sales[]` is the actual market listing — one entry per player
+  currently up for sale, each `{date, until, price, player: {id}, user}`.
+  `date` is when it was listed, `until` is expiry, both unix seconds.
+  No name/position/etc — join against the catalogue (`getCatalogue()`),
+  same pattern as `getMySquad`.
+- Two kinds of entries, told apart by `user`:
+  - **Free-agent listings**: `user: null`, `player` has only `id`.
+  - **Manager clause-buys**: `user: {id, name, icon}` (the seller),
+    `player.owner.clause` present and equal to `price`. This includes the
+    authenticated user's own listings (`user.id` == the requester's own
+    account id) — filter those out for a "players I can bid on" view, same
+    as `market.go`'s `IsMyPlayer` check.
+- `data.status` is `{balance, maximumBid}` for the authenticated user —
+  rides along on the same call, not part of the listings themselves.
+- `data.offers[]` is a separate concern: incoming purchase offers on
+  specific owned players (`requestedPlayers`, `amount`, `status`, `to`) —
+  not part of "view the market", closer to a negotiation/recommendations
+  feature.
+
 ## Per-gameweek points via `reports`
 
 `GET https://biwenger.as.com/api/v2/players/la-liga/{playerId}?fields=id,name,reports&season={seasonId}`

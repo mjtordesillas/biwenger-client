@@ -23,6 +23,13 @@ functions:
           method: GET
           path: /squad
           private: true
+  market:
+    handler: src/index.market
+    events:
+      - http:
+          method: GET
+          path: /market
+          private: true
   priceHistory:
     handler: src/index.priceHistory
     events:

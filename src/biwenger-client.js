@@ -62,6 +62,33 @@ export const createBiwengerClient = (dependencies = {}) => {
     return playerIds.map((id) => catalogue[String(id)]).filter(Boolean)
   }
 
+  // League transfer market — see docs/biwenger-api-notes.md. `sale.price`
+  // is the asking price (what a bid actually costs), which can diverge
+  // from the catalogue's `price` (the player's live market value, tracked
+  // separately by `priceIncrement`) — override it, don't join it away.
+  // Excludes the requester's own listings, same as market.go's IsMyPlayer.
+  const getCurrentMarket = async ({ email, password }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    const response = await httpFetch(`${baseUrl}/market`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-League': String(leagueId),
+        'X-User': String(userId),
+        Accept: 'application/json',
+      },
+    })
+    const { data } = await response.json()
+    const catalogue = await getCatalogue()
+    return data.sales
+      .filter((sale) => sale.user?.id !== userId)
+      .map((sale) => {
+        const player = catalogue[String(sale.player.id)]
+        return player && { ...player, price: sale.price }
+      })
+      .filter(Boolean)
+  }
+
   const getPlayerPrices = async ({ playerId }) => {
     const response = await httpFetch(`${baseUrl}/players/la-liga/${playerId}?fields=id,name,prices`, {
       headers: { Accept: 'application/json' },
@@ -91,5 +118,5 @@ export const createBiwengerClient = (dependencies = {}) => {
     return data.reports
   }
 
-  return { getMySquad, getPlayerPrices, getPlayerGameweekPoints }
+  return { getMySquad, getCurrentMarket, getPlayerPrices, getPlayerGameweekPoints }
 }
