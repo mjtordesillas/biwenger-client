@@ -1,6 +1,7 @@
 package com.biwenger_client.features.market.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +27,12 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.features.market.domain.models.MarketListing
+import com.biwenger_client.features.squad.domain.models.MatchDayDetails
+import com.biwenger_client.features.squad.domain.models.PerformanceHistory
+import com.biwenger_client.features.squad.domain.models.PriceHistory
+import com.biwenger_client.ui.MatchDayDetailsScreen
 import com.biwenger_client.ui.PlayerAvatar
+import com.biwenger_client.ui.PlayerDetailScreen
 import com.biwenger_client.ui.PositionTag
 import com.biwenger_client.ui.formatPrice
 import com.biwenger_client.ui.formatPriceChange
@@ -40,29 +46,83 @@ import kotlin.math.ceil
 // Slice 1 shipped list-only (name/position/price); this fills in the
 // three fields deferred then — expiry, seller, and market value — since
 // a bare asking price without knowing what the player's actually worth
-// or how long the listing lasts isn't enough to act on. No tap
-// interaction/bidding yet — still out of scope, see docs/backlog.
+// or how long the listing lasts isn't enough to act on. Tapping a row
+// opens the same shared player-detail sheet Squad uses (price/performance
+// history, match-day drill-down) — no bidding yet, that's still out of
+// scope, see docs/backlog.
 @Composable
 fun MarketScreen(
     viewModel: MarketViewModel = hiltViewModel()
 ) {
     val players by viewModel.players
-    MarketScreen(players = players)
+    val selectedPlayerId by viewModel.selectedPlayerId
+    val priceHistory by viewModel.priceHistory
+    val performanceHistory by viewModel.performanceHistory
+    val performanceHistorySeason by viewModel.performanceHistorySeason
+    val selectedMatchDay by viewModel.selectedMatchDay
+    val matchDayDetails by viewModel.matchDayDetails
+
+    MarketScreen(
+        players = players,
+        selectedPlayerId = selectedPlayerId,
+        priceHistory = priceHistory,
+        performanceHistory = performanceHistory,
+        performanceHistorySeason = performanceHistorySeason,
+        selectedMatchDay = selectedMatchDay,
+        matchDayDetails = matchDayDetails,
+        onPlayerTapped = viewModel::playerTapped,
+        onPerformanceSeasonChanged = viewModel::performanceSeasonChanged,
+        onSheetDismissed = viewModel::sheetClosed,
+        onMatchDayTapped = viewModel::matchDayTapped,
+        onMatchDayDetailsDismissed = viewModel::matchDayDetailsClosed,
+    )
 }
 
 @Composable
-private fun MarketScreen(players: Loadable<List<MarketListing>>) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        MarketHeader()
+private fun MarketScreen(
+    players: Loadable<List<MarketListing>>,
+    selectedPlayerId: Int?,
+    priceHistory: Loadable<PriceHistory>?,
+    performanceHistory: Loadable<PerformanceHistory>?,
+    performanceHistorySeason: String,
+    selectedMatchDay: Int?,
+    matchDayDetails: Loadable<MatchDayDetails>?,
+    onPlayerTapped: (Int) -> Unit,
+    onPerformanceSeasonChanged: (Int, String) -> Unit,
+    onSheetDismissed: () -> Unit,
+    onMatchDayTapped: (Int, Int, String) -> Unit,
+    onMatchDayDetailsDismissed: () -> Unit,
+) {
+    val allListings = (players as? Loadable.Success)?.value.orEmpty()
+    val selectedListing = allListings.find { it.id == selectedPlayerId }
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            when (players) {
-                is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                is Loadable.Failed -> Text(
-                    text = "Could not load the market right now.",
-                    modifier = Modifier.align(Alignment.Center).padding(16.dp)
-                )
-                is Loadable.Success -> MarketListingList(listings = players.value)
+    // Exclusive, not overlaid — same reasoning as SquadScreen: only one
+    // screen is ever composed at a time.
+    if (selectedListing != null && selectedMatchDay != null) {
+        MatchDayDetailsScreen(player = selectedListing.toPlayer(), matchDayDetails = matchDayDetails, onBack = onMatchDayDetailsDismissed)
+    } else if (selectedListing != null) {
+        PlayerDetailScreen(
+            player = selectedListing.toPlayer(),
+            priceHistory = priceHistory,
+            performanceHistory = performanceHistory,
+            performanceHistorySeason = performanceHistorySeason,
+            onPerformanceSeasonChanged = { season -> onPerformanceSeasonChanged(selectedListing.id, season) },
+            onMatchDayTapped = { matchDay -> onMatchDayTapped(selectedListing.id, matchDay, performanceHistorySeason) },
+            onBack = onSheetDismissed
+        )
+    } else {
+        Column(modifier = Modifier.fillMaxSize()) {
+            MarketHeader()
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when (players) {
+                    is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    is Loadable.Failed -> Text(
+                        text = "Could not load the market right now.",
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp)
+                    )
+                    is Loadable.Success -> MarketListingList(listings = players.value, onPlayerTapped = onPlayerTapped)
+                }
             }
         }
     }
@@ -76,23 +136,24 @@ private fun MarketHeader() {
 }
 
 @Composable
-private fun MarketListingList(listings: List<MarketListing>) {
+private fun MarketListingList(listings: List<MarketListing>, onPlayerTapped: (Int) -> Unit) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(listings) { listing -> MarketListingRow(listing = listing) }
+        items(listings) { listing -> MarketListingRow(listing = listing, onClick = { onPlayerTapped(listing.id) }) }
     }
 }
 
 @Composable
-private fun MarketListingRow(listing: MarketListing) {
+private fun MarketListingRow(listing: MarketListing, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(NocturneRadius.md))
             .background(ColorSurface)
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Row(

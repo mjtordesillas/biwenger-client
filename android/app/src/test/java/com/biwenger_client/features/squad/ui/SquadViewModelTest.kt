@@ -20,6 +20,8 @@ import com.biwenger_client.helpers.builders.aMatchDayDetails
 import com.biwenger_client.helpers.builders.aPerformanceHistory
 import com.biwenger_client.helpers.builders.aPlayer
 import com.biwenger_client.helpers.builders.aPriceHistory
+import com.biwenger_client.ui.MatchDayDetailsRequest
+import com.biwenger_client.ui.PerformanceHistoryRequest
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
 import org.junit.Test

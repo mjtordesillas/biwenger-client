@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.biwenger_client.domain.models.Player
+import com.biwenger_client.ui.theme.ColorDivider
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
 import com.biwenger_client.ui.theme.Neutral900
@@ -170,3 +172,24 @@ fun formatPrice(price: Long): String =
 
 fun formatPriceChange(priceIncrement: Long): String =
     NumberFormat.getCurrencyInstance(Locale("es", "ES")).format(abs(priceIncrement))
+
+// Promoted out of features/squad/ui/SquadScreen.kt alongside
+// PlayerDetailScreen.kt — used by both squad's position filter row and
+// the shared detail screen's season filter.
+@Composable
+fun FilterChip(label: String, color: Color, active: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(NocturneRadius.md))
+            .border(1.dp, if (active) color else ColorDivider, RoundedCornerShape(NocturneRadius.md))
+            .background(if (active) color.copy(alpha = 0.22f) else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 12.5.sp,
+            color = if (active) color else MaterialTheme.colorScheme.onSurface,
+        )
+    }
+}

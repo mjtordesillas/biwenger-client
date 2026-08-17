@@ -19,12 +19,11 @@ import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.PriceHistory
+import com.biwenger_client.ui.CURRENT_SEASON
+import com.biwenger_client.ui.MatchDayDetailsRequest
+import com.biwenger_client.ui.PerformanceHistoryRequest
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-
-data class PerformanceHistoryRequest(val playerId: Int, val season: String)
-
-data class MatchDayDetailsRequest(val playerId: Int, val matchDay: Int, val season: String)
 
 @HiltViewModel
 class SquadViewModel @Inject constructor(
@@ -243,7 +242,5 @@ class SquadViewModel @Inject constructor(
         const val MATCH_DAY_TAPPED_EVENT = "squad.match-day-tapped"
         const val MATCH_DAY_DETAILS_REQUESTED_EVENT = "squad.match-day-details-requested"
         const val MATCH_DAY_DETAILS_CLOSED_EVENT = "squad.match-day-details-closed"
-        const val CURRENT_SEASON = "current"
-        const val PREVIOUS_SEASON = "previous"
     }
 }
