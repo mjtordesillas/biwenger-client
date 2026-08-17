@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -94,12 +95,37 @@ private fun MarketListingRow(listing: MarketListing) {
             .background(ColorSurface)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(text = sellerLabel(listing.seller), fontSize = 11.sp, color = Neutral500)
-            Text(text = "Expires ${formatExpiry(listing.until)}", fontSize = 11.sp, color = Neutral500)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // maxLines/overflow as a guard against a long seller name
+            // overflowing the row — not observed to actually wrap in
+            // practice; the perceived top-row misalignment this was
+            // chasing turned out not to be one (same fontSize/color on
+            // both, neither wraps — likely just the usual left-vs-right
+            // text optical effect). CenterVertically kept anyway, it's a
+            // correct choice regardless.
+            Text(
+                text = sellerLabel(listing.seller),
+                fontSize = 12.sp,
+                color = Neutral500,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "Expires ${formatExpiry(listing.until)}",
+                fontSize = 12.sp,
+                color = Neutral500,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 8.dp)
+            )
         }
 
-        Row(modifier = Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             PlayerAvatar(
                 photoUrl = listing.photoUrl,
                 teamCrestUrl = listing.teamCrestUrl,
@@ -114,16 +140,29 @@ private fun MarketListingRow(listing: MarketListing) {
                 }
             }
 
-            Text(text = formatPrice(listing.price), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
+            Column(horizontalAlignment = Alignment.End) {
+                Text(text = formatPrice(listing.price), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
+                // How the asking price compares to market value — same
+                // up/down/flat styling as the market value increment
+                // below, just a different underlying number (price -
+                // marketValue, not the catalogue's own day-over-day move).
+                val (icon, color) = priceTrend(listing.price - listing.marketValue)
+                Text(
+                    text = "$icon ${formatPriceChange(listing.price - listing.marketValue)}",
+                    fontSize = 12.sp,
+                    color = color,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
 
         // The increment tracks the catalogue's live value, not the fixed
         // asking price above — it goes right after market value, not
         // under the price.
         Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "Market value: ${formatPrice(listing.marketValue)} ", fontSize = 11.sp, color = Neutral500)
+            Text(text = "Market value: ${formatPrice(listing.marketValue)} ", fontSize = 12.sp, color = Neutral500)
             val (icon, color) = priceTrend(listing.priceIncrement)
-            Text(text = "$icon ${formatPriceChange(listing.priceIncrement)}", fontSize = 11.sp, color = color)
+            Text(text = "$icon ${formatPriceChange(listing.priceIncrement)}", fontSize = 12.sp, color = color)
         }
     }
 }
