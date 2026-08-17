@@ -65,6 +65,14 @@ single-parameter calls and trailing lambdas. See
   declares its initial state slice; `AppModule` combines them.
 - `EffectsHandlerRegistration` / `CoeffectsHandlerRegistration`
   (`shared/`) — startup wiring, one line per feature.
+- `NavigationProvider` / `Navigator` / `NavigationEffect` / `Routes`
+  (`core/navigation/`) — ported from interest-tracker-android once
+  market became a second top-level screen. `NavigationProvider` holds
+  the live `NavController` (set by `MainActivity`); dispatch
+  `NavigationEffect.NavigateToRoute`/`PopBackStack` from an event
+  handler like any other effect, or call `Navigator` directly from a
+  Composable via straight `NavController.navigate()` for simple
+  same-screen taps (see `MainActivity`'s bottom nav wiring).
 
 ### ViewModel pattern
 
@@ -75,16 +83,14 @@ an on-load event in `init`.
 ## Documentation
 
 - `docs/adrs/` — Architecture Decision Records (Nygard format), ported
-  from interest-tracker-android and adapted to this app's single feature.
+  from interest-tracker-android and adapted to this app.
 - `docs/coding-conventions/` — naming, named parameters, project
   structure, stateless composables, coeffects, ViewModels.
 - `docs/design-system/` — Nocturne, this app's design system.
 
 Deliberately not ported yet: response caching (`ResponseCache`/
-`CachingXxxService`), navigation (`NavigationEffect`/`Navigator`/`Routes`)
-— there's one screen and one service, no cross-feature navigation or
-caching need yet. Add them the slice a second feature/screen actually
-needs them, not before.
+`CachingXxxService`) — no repeated-fetch cost has shown up yet. Add it
+the slice that actually needs it, not before.
 
 ## Build & Test Commands
 

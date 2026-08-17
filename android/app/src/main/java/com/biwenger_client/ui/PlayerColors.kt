@@ -1,11 +1,13 @@
-package com.biwenger_client.features.squad.ui
+package com.biwenger_client.ui
 
 import androidx.compose.ui.graphics.Color
 
 // Position and price-trend colors are functional status, not decoration —
 // the one exception Nocturne's readme carves out from "keep chroma low
-// outside the accent". Feature-local, not promoted to ui/theme/Color.kt,
-// since nothing outside the squad screen needs them yet.
+// outside the accent". Promoted out of features/squad — market's player
+// rows need the same PositionColors/Trend* now too (PerformanceLow/Mid/
+// High/Great stay here too rather than splitting the file; unused by
+// market for now, harmless).
 val PositionColors = mapOf(
     1 to Color(0xFFE3A83F), // GK
     2 to Color(0xFF4C8FD9), // DF

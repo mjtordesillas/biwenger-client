@@ -62,12 +62,24 @@ import com.biwenger_client.features.squad.domain.models.GameweekPoints
 import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.MatchDayTeam
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
-import com.biwenger_client.features.squad.domain.models.Player
+import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.PriceHistory
 import com.biwenger_client.features.squad.domain.models.PricePoint
 import com.biwenger_client.features.squad.domain.models.ScoreBreakdown
 import com.biwenger_client.features.squad.domain.models.ScoreRow
 import com.biwenger_client.features.squad.domain.models.SubstitutionEvent
+import com.biwenger_client.ui.PerformanceGreat
+import com.biwenger_client.ui.PerformanceHigh
+import com.biwenger_client.ui.PerformanceLow
+import com.biwenger_client.ui.PerformanceMid
+import com.biwenger_client.ui.PlayerAvatar
+import com.biwenger_client.ui.PlayerList
+import com.biwenger_client.ui.PositionColors
+import com.biwenger_client.ui.PositionLabels
+import com.biwenger_client.ui.PositionTag
+import com.biwenger_client.ui.PriceTrend
+import com.biwenger_client.ui.formatPrice
+import com.biwenger_client.ui.priceTrend
 import com.biwenger_client.ui.theme.ColorDivider
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
@@ -81,7 +93,6 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
-private val PositionLabels = mapOf(1 to "GK", 2 to "DF", 3 to "MF", 4 to "FW")
 private val FilterPositions = listOf(null, 1, 2, 3, 4) // null = All
 private val PriceHistoryCardHeight = 158.dp
 
@@ -219,128 +230,6 @@ private fun FilterChip(label: String, color: Color, active: Boolean, onClick: ()
 }
 
 @Composable
-private fun PlayerList(players: List<Player>, onPlayerTapped: (Int) -> Unit) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(players) { player ->
-            PlayerRow(player = player, onClick = { onPlayerTapped(player.id) })
-        }
-    }
-}
-
-@Composable
-private fun PlayerRow(player: Player, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(NocturneRadius.md))
-            .background(ColorSurface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        PlayerAvatar(player = player, size = 48.dp)
-
-        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-            Text(text = player.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                PositionTag(player = player)
-                Text(
-                    text = "  ${player.points} pts",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Neutral500
-                )
-            }
-        }
-
-        Column(horizontalAlignment = Alignment.End) {
-            Text(text = formatPrice(player.price), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
-            PriceTrend(priceIncrement = player.priceIncrement)
-        }
-    }
-}
-
-@Composable
-private fun PlayerAvatar(player: Player, size: Dp) {
-    Box(modifier = Modifier.size(size)) {
-        Box(
-            modifier = Modifier
-                .size(size)
-                .clip(CircleShape)
-                .background(Neutral900)
-        ) {
-            AsyncImage(
-                model = player.photoUrl,
-                contentDescription = player.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        // No shape/background here on purpose — a team crest is its own
-        // shape (shield, circle, whatever the club uses), not forced into
-        // one mask. ContentScale.Fit shows the real image untouched.
-        AsyncImage(
-            model = player.teamCrestUrl,
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier
-                .size(size * 0.4f)
-                .align(Alignment.BottomStart)
-        )
-    }
-}
-
-@Composable
-private fun PositionTag(player: Player) {
-    val color = PositionColors[player.position] ?: Neutral500
-    Box {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(NocturneRadius.md * 0.75f))
-                .background(color.copy(alpha = 0.24f))
-                .padding(horizontal = 10.dp, vertical = 3.dp)
-        ) {
-            Text(
-                text = PositionLabels[player.position] ?: player.position.toString(),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = color
-            )
-        }
-        val secondaryColor = player.secondaryPosition?.let { PositionColors[it] }
-        if (secondaryColor != null) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .align(Alignment.BottomEnd)
-                    .border(1.5.dp, ColorSurface, CircleShape)
-                    .background(secondaryColor, CircleShape)
-            )
-        }
-    }
-}
-
-@Composable
-private fun PriceTrend(priceIncrement: Long) {
-    val (icon, color) = priceTrend(priceIncrement)
-    Text(
-        text = "$icon ${formatPriceChange(priceIncrement)}",
-        fontSize = 11.5.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = color
-    )
-}
-
-private fun priceTrend(priceIncrement: Long): Pair<String, Color> = when {
-    priceIncrement > 0 -> "↑" to TrendUp
-    priceIncrement < 0 -> "↓" to TrendDown
-    else -> "–" to TrendFlat
-}
-
-@Composable
 private fun PlayerDetailScreen(
     player: Player,
     priceHistory: Loadable<PriceHistory>?,
@@ -429,12 +318,6 @@ private fun DetailStat(
         )
     }
 }
-
-private fun formatPrice(price: Long): String =
-    NumberFormat.getCurrencyInstance(Locale("es", "ES")).format(price)
-
-private fun formatPriceChange(priceIncrement: Long): String =
-    NumberFormat.getCurrencyInstance(Locale("es", "ES")).format(abs(priceIncrement))
 
 private enum class PriceHistoryTab { LAST_YEAR, CURRENT_SEASON }
 

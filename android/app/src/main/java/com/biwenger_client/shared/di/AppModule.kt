@@ -5,7 +5,12 @@ import com.biwenger_client.core.mvi.AppStore
 import com.biwenger_client.core.mvi.ChannelRegistry
 import com.biwenger_client.core.mvi.Registry
 import com.biwenger_client.core.mvi.Store
+import com.biwenger_client.core.navigation.NavigationProvider
+import com.biwenger_client.core.navigation.Navigator
 import com.biwenger_client.core.state.Database
+import com.biwenger_client.features.market.MarketStateInitializer
+import com.biwenger_client.features.market.infrastructure.HttpMarketService
+import com.biwenger_client.features.market.infrastructure.MarketService
 import com.biwenger_client.features.squad.SquadStateInitializer
 import com.biwenger_client.features.squad.infrastructure.HttpMatchDayDetailsService
 import com.biwenger_client.features.squad.infrastructure.HttpPerformanceHistoryService
@@ -53,8 +58,20 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(): Database {
-        val state = SquadStateInitializer().initialState()
+        val state = SquadStateInitializer().initialState() + MarketStateInitializer().initialState()
         return Database(initialState = state)
+    }
+
+    @Provides
+    @Singleton
+    fun provideNavigationProvider(): NavigationProvider {
+        return NavigationProvider()
+    }
+
+    @Provides
+    @Singleton
+    fun provideNavigator(navigationProvider: NavigationProvider): Navigator {
+        return navigationProvider
     }
 
     @Provides
@@ -68,8 +85,9 @@ object AppModule {
     fun provideEffectsHandlerRegistration(
         registry: Registry,
         database: Database,
+        navigator: Navigator,
     ): EffectsHandlerRegistration {
-        return EffectsHandlerRegistration(registry = registry, database = database)
+        return EffectsHandlerRegistration(registry = registry, database = database, navigator = navigator)
     }
 
     @Provides
@@ -80,6 +98,7 @@ object AppModule {
         priceHistoryService: PriceHistoryService,
         performanceHistoryService: PerformanceHistoryService,
         matchDayDetailsService: MatchDayDetailsService,
+        marketService: MarketService,
     ): CoeffectsHandlerRegistration {
         return CoeffectsHandlerRegistration(
             registry = registry,
@@ -87,6 +106,7 @@ object AppModule {
             priceHistoryService = priceHistoryService,
             performanceHistoryService = performanceHistoryService,
             matchDayDetailsService = matchDayDetailsService,
+            marketService = marketService,
         )
     }
 
@@ -112,5 +132,11 @@ object AppModule {
     @Singleton
     fun provideMatchDayDetailsService(): MatchDayDetailsService {
         return HttpMatchDayDetailsService(baseUrl = BASE_URL, apiKey = BuildConfig.API_KEY)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMarketService(): MarketService {
+        return HttpMarketService(baseUrl = BASE_URL, apiKey = BuildConfig.API_KEY)
     }
 }

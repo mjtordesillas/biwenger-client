@@ -1,6 +1,6 @@
 package com.biwenger_client.helpers.builders
 
-import com.biwenger_client.features.squad.domain.models.Player
+import com.biwenger_client.domain.models.Player
 
 fun aPlayer(
     id: Int = 1,

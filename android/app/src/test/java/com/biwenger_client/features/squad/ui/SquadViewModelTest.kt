@@ -15,7 +15,7 @@ import com.biwenger_client.features.squad.domain.coeffects.FetchMatchDayDetailsC
 import com.biwenger_client.features.squad.domain.coeffects.FetchPerformanceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
-import com.biwenger_client.features.squad.domain.models.Player
+import com.biwenger_client.domain.models.Player
 import com.biwenger_client.helpers.builders.aMatchDayDetails
 import com.biwenger_client.helpers.builders.aPerformanceHistory
 import com.biwenger_client.helpers.builders.aPlayer

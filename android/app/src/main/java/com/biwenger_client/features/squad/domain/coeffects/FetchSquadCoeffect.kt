@@ -2,7 +2,7 @@ package com.biwenger_client.features.squad.domain.coeffects
 
 import com.biwenger_client.core.coeffects.Coeffect
 import com.biwenger_client.core.coeffects.CoeffectHandler
-import com.biwenger_client.features.squad.domain.models.Player
+import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.squad.infrastructure.SquadService
 import com.biwenger_client.infrastructure.network.Response
 

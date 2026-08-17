@@ -17,7 +17,7 @@ import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoef
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
 import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
-import com.biwenger_client.features.squad.domain.models.Player
+import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.PriceHistory
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject

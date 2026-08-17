@@ -1,6 +1,8 @@
 package com.biwenger_client.shared
 
 import com.biwenger_client.core.mvi.Registry
+import com.biwenger_client.features.market.MarketCoeffectsHandlerRegistration
+import com.biwenger_client.features.market.infrastructure.MarketService
 import com.biwenger_client.features.squad.SquadCoeffectsHandlerRegistration
 import com.biwenger_client.features.squad.infrastructure.MatchDayDetailsService
 import com.biwenger_client.features.squad.infrastructure.PerformanceHistoryService
@@ -13,6 +15,7 @@ class CoeffectsHandlerRegistration(
     private val priceHistoryService: PriceHistoryService,
     private val performanceHistoryService: PerformanceHistoryService,
     private val matchDayDetailsService: MatchDayDetailsService,
+    private val marketService: MarketService,
 ) {
     fun register() {
         SquadCoeffectsHandlerRegistration(
@@ -21,6 +24,10 @@ class CoeffectsHandlerRegistration(
             priceHistoryService = priceHistoryService,
             performanceHistoryService = performanceHistoryService,
             matchDayDetailsService = matchDayDetailsService,
+        ).register()
+        MarketCoeffectsHandlerRegistration(
+            registry = registry,
+            marketService = marketService,
         ).register()
     }
 }
