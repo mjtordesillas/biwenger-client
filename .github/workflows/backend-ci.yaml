@@ -1,12 +1,19 @@
-name: biwenger-client CI
+name: backend CI
 
 concurrency:
-  group: biwenger-client
+  group: biwenger-client-backend
   cancel-in-progress: false
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yaml'
+
+defaults:
+  run:
+    working-directory: backend
 
 jobs:
   test:
@@ -17,6 +24,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: npm test
 
@@ -37,6 +45,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: backend/package-lock.json
       - run: npm ci
       - run: cat .env.production >> $GITHUB_ENV
       - run: npx serverless deploy
