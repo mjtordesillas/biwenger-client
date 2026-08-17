@@ -852,12 +852,19 @@ private fun MatchDayPlayerSummary(player: Player, points: Int?) {
     ) {
         PlayerAvatar(player = player, size = 68.dp)
         Text(text = player.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
-        Text(
-            text = "${points ?: "–"} points",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = performanceBarColor(points)
-        )
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = "${points ?: "–"}",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                color = performanceBarColor(points)
+            )
+            Text(
+                text = " points",
+                style = MaterialTheme.typography.headlineSmall,
+                color = performanceBarColor(points)
+            )
+        }
     }
 }
 
