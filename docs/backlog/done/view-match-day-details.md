@@ -119,4 +119,17 @@ value in re-slicing already-available data:
   the Media row, and substitution rows. **Shipped**
   (`biwenger-client-android` commit `82c7f51`).
 
+Polish, post-parity (`biwenger-client-android`):
+- `b63e8e1` — center the loading spinner (was pinned top-left).
+- `ade6588` — translate row wording to English and swap the picas icon
+  from clovers (♣) to spades (♠), matching what picas actually are.
+- `f7a9bce` — move the match day number/kickoff date into the title bar
+  next to the back chevron, replacing the separate centered line.
+- `7b912af` — add a player summary above the match score: photo + team
+  crest (`PlayerAvatar`, reused from `PlayerDetailScreen`), name, and
+  the match day's points total colored via the same `performanceBarColor`
+  bands the tapped bar itself uses.
+- `5c72c63` — only bold the points number in that summary, not the
+  "points" label.
+
 Done: both repos now fully implement this feature end to end.
