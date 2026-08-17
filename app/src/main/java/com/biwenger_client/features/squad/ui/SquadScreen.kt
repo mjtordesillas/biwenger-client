@@ -806,7 +806,9 @@ private fun MatchDayDetailsScreen(matchDayDetails: Loadable<MatchDayDetails>?, o
         }
 
         when (matchDayDetails) {
-            null, is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.padding(20.dp))
+            null, is Loadable.Loading -> Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
             is Loadable.Failed -> Text(
                 text = "Could not load match day details right now.",
                 modifier = Modifier.padding(20.dp)
