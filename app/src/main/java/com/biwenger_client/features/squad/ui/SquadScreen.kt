@@ -141,7 +141,7 @@ private fun SquadScreen(
     // time, so there's nothing behind it for an unclaimed tap to fall
     // through to.
     if (selectedPlayer != null && selectedMatchDay != null) {
-        MatchDayDetailsScreen(matchDayDetails = matchDayDetails, onBack = onMatchDayDetailsDismissed)
+        MatchDayDetailsScreen(player = selectedPlayer, matchDayDetails = matchDayDetails, onBack = onMatchDayDetailsDismissed)
     } else if (selectedPlayer != null) {
         PlayerDetailScreen(
             player = selectedPlayer,
@@ -787,7 +787,7 @@ private fun performanceBarColor(points: Int?): Color = when {
 }
 
 @Composable
-private fun MatchDayDetailsScreen(matchDayDetails: Loadable<MatchDayDetails>?, onBack: () -> Unit) {
+private fun MatchDayDetailsScreen(player: Player, matchDayDetails: Loadable<MatchDayDetails>?, onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -813,7 +813,7 @@ private fun MatchDayDetailsScreen(matchDayDetails: Loadable<MatchDayDetails>?, o
                 text = "Could not load match day details right now.",
                 modifier = Modifier.padding(20.dp)
             )
-            is Loadable.Success -> MatchDayContent(details = matchDayDetails.value)
+            is Loadable.Success -> MatchDayContent(player = player, details = matchDayDetails.value)
         }
     }
 }
@@ -826,13 +826,14 @@ private fun matchDayTitle(matchDayDetails: Loadable<MatchDayDetails>?): String =
     }
 
 @Composable
-private fun MatchDayContent(details: MatchDayDetails) {
+private fun MatchDayContent(player: Player, details: MatchDayDetails) {
     Column(
         modifier = Modifier
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp)
             .padding(bottom = 24.dp)
     ) {
+        MatchDayPlayerSummary(player = player, points = details.media)
         MatchDayHeader(details = details)
         if (details.substitutions.isNotEmpty()) {
             SubstitutionsSection(substitutions = details.substitutions)
@@ -840,6 +841,23 @@ private fun MatchDayContent(details: MatchDayDetails) {
         ScoreBreakdownSection(title = "Diario AS", breakdown = details.diarioAs)
         ScoreBreakdownSection(title = "SofaScore", breakdown = details.sofaScore)
         MediaSection(diarioAs = details.diarioAs.points, sofaScore = details.sofaScore.points, media = details.media)
+    }
+}
+
+@Composable
+private fun MatchDayPlayerSummary(player: Player, points: Int?) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp)
+    ) {
+        PlayerAvatar(player = player, size = 68.dp)
+        Text(text = player.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
+        Text(
+            text = "${points ?: "–"} points",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = performanceBarColor(points)
+        )
     }
 }
 
