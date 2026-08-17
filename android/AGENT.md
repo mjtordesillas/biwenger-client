@@ -1,4 +1,11 @@
-# AGENT.md
+# AGENT.md (android)
+
+Stack-specific rules for `android/` — the native Android client (Kotlin,
+Jetpack Compose). Process-level rules (git workflow, vertical slicing,
+backlog, credentials, the manual-deploy-via-`make install` note) live in
+the root `../AGENT.md` and apply here too. The backend this app calls is
+`../backend`; API shape/quirks worth knowing on this side are in
+`../docs/rat.md` and `../docs/biwenger-api-notes.md`.
 
 ## Conventions
 
@@ -71,6 +78,7 @@ an on-load event in `init`.
   from interest-tracker-android and adapted to this app's single feature.
 - `docs/coding-conventions/` — naming, named parameters, project
   structure, stateless composables, coeffects, ViewModels.
+- `docs/design-system/` — Nocturne, this app's design system.
 
 Deliberately not ported yet: response caching (`ResponseCache`/
 `CachingXxxService`), navigation (`NavigationEffect`/`Navigator`/`Routes`)

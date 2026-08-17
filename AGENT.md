@@ -23,7 +23,7 @@ subdirectory has its own `AGENT.md` for stack-specific conventions —
 - `docs/biwenger-api-notes.md` — ongoing Biwenger API discoveries made outside the original RAT, relevant to both stacks; explorable via `backend/requests/` (JetBrains HTTP Client)
 - `docs/ways-of-working/` — git workflow, vertical slicing, backlog, concerns guide, test-refactoring-in-micro-steps (stack-agnostic technique)
 - `docs/concerns/` — deferred design/workflow issues that span both stacks or the repo itself; usage guide at `docs/ways-of-working/concerns.md`. Stack-specific concerns live under `backend/docs/concerns/`.
-- Stack-specific ADRs and coding conventions live under `backend/docs/` and `android/docs/` respectively — see each subdirectory's own `AGENT.md`.
+- `docs/adrs/` — repo-level Architecture Decision Records (Nygard format; e.g. this monorepo decision itself). Stack-specific ADRs and coding conventions live under `backend/docs/` and `android/docs/` respectively — see each subdirectory's own `AGENT.md`.
 
 ### Deploy
 

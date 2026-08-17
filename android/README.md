@@ -1,9 +1,12 @@
 # Biwenger Client (Android)
 
-Native Android client for [biwenger-client](https://github.com/mjtordesillas/biwenger-client)'s
-backend. The backend is unusable from a plain browser URL once protected
-by a native API key (see its `docs/adrs/002-native-api-gateway-key-for-squad-endpoint.md`) —
-this app exists to be the caller that can actually hold and send that key.
+Native Android client for [`../backend`](../backend). The backend is
+unusable from a plain browser URL once protected by a native API key (see
+its `docs/adrs/002-native-api-gateway-key-for-squad-endpoint.md`) — this
+app exists to be the caller that can actually hold and send that key.
+
+Formerly its own repo (`biwenger-client-android`), merged into this
+monorepo — see `../docs/adrs/` for why.
 
 ## Tech Stack
 
