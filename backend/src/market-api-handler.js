@@ -1,5 +1,5 @@
 import { createBiwengerClient } from './biwenger-client.js'
-import { toPlayerView } from './player-view.js'
+import { toMarketListingView } from './market-listing-view.js'
 
 // Protection is enforced by API Gateway itself (native API key + usage
 // plan — private: true in serverless.yml), same as squad-api-handler.js.
@@ -11,11 +11,11 @@ export const createMarketApiHandler = (dependencies = {}) => {
 
   return async () => {
     try {
-      const players = await biwengerClient.getCurrentMarket(credentials)
+      const listings = await biwengerClient.getCurrentMarket(credentials)
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify({ players: players.map(toPlayerView) }),
+        body: JSON.stringify({ players: listings.map(toMarketListingView) }),
       }
     } catch {
       // Never leak upstream error details — they could echo back

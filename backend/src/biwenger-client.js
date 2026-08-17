@@ -62,10 +62,13 @@ export const createBiwengerClient = (dependencies = {}) => {
     return playerIds.map((id) => catalogue[String(id)]).filter(Boolean)
   }
 
-  // League transfer market — see docs/biwenger-api-notes.md. `sale.price`
-  // is the asking price (what a bid actually costs), which can diverge
-  // from the catalogue's `price` (the player's live market value, tracked
-  // separately by `priceIncrement`) — override it, don't join it away.
+  // League transfer market — see docs/biwenger-api-notes.md. Returns
+  // {sale, player} pairs rather than a merged object: `sale.price` (the
+  // asking price, what a bid actually costs) and `player.price` (the
+  // catalogue's live market value, tracked separately by
+  // `priceIncrement`) are two different numbers a market view needs
+  // side by side, not one overriding the other — see
+  // market-listing-view.js for how they're shaped into the response.
   // Excludes the requester's own listings, same as market.go's IsMyPlayer.
   const getCurrentMarket = async ({ email, password }) => {
     const token = await login({ email, password })
@@ -84,7 +87,7 @@ export const createBiwengerClient = (dependencies = {}) => {
       .filter((sale) => sale.user?.id !== userId)
       .map((sale) => {
         const player = catalogue[String(sale.player.id)]
-        return player && { ...player, price: sale.price }
+        return player && { sale, player }
       })
       .filter(Boolean)
   }
