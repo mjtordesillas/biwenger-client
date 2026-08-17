@@ -908,7 +908,7 @@ private fun ScoreBreakdownSection(title: String, breakdown: ScoreBreakdown) {
             .background(ColorSurface)
             .padding(14.dp)
     ) {
-        DetailRow(label = title, value = "${breakdown.points ?: "–"} Puntos", emphasized = true)
+        DetailRow(label = title, value = "${breakdown.points ?: "–"} Points", emphasized = true)
         breakdown.rows.forEach { row ->
             DetailRow(label = scoreRowLabel(row), value = signed(row.points))
         }
@@ -925,8 +925,8 @@ private fun MediaSection(diarioAs: Int?, sofaScore: Int?, media: Int?) {
             .padding(14.dp)
     ) {
         DetailRow(
-            label = "Media: (${diarioAs ?: "–"} + ${sofaScore ?: "–"}) / 2",
-            value = "${media ?: "–"} puntos",
+            label = "Average: (${diarioAs ?: "–"} + ${sofaScore ?: "–"}) / 2",
+            value = "${media ?: "–"} points",
             emphasized = true
         )
     }
@@ -951,12 +951,12 @@ private fun signed(points: Int?): String = when {
 }
 
 private fun scoreRowLabel(row: ScoreRow): String = when (row.type) {
-    "picas" -> "${row.count} Picas ${"♣".repeat(row.count ?: 0)}"
+    "picas" -> "${row.count} Spades ${"♠".repeat(row.count ?: 0)}"
     "sofascore" -> "${row.rating} SofaScore"
-    "goal" -> if (row.count == 1) "1 Gol ⚽" else "${row.count} Goles ⚽"
-    "penalty" -> if (row.count == 1) "1 Gol de penalti ⚽" else "${row.count} Goles de penalti ⚽"
-    "assist" -> if (row.count == 1) "1 Asistencia" else "${row.count} Asistencias"
-    "redCard" -> "Tarjeta roja"
-    "secondYellowCard" -> "Segunda amarilla"
+    "goal" -> if (row.count == 1) "1 Goal ⚽" else "${row.count} Goals ⚽"
+    "penalty" -> if (row.count == 1) "1 Penalty goal ⚽" else "${row.count} Penalty goals ⚽"
+    "assist" -> if (row.count == 1) "1 Assist" else "${row.count} Assists"
+    "redCard" -> "Red card"
+    "secondYellowCard" -> "Second yellow"
     else -> row.type
 }
