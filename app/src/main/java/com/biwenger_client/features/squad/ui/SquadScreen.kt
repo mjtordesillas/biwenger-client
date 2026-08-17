@@ -802,7 +802,7 @@ private fun MatchDayDetailsScreen(matchDayDetails: Loadable<MatchDayDetails>?, o
                 fontSize = 22.sp,
                 modifier = Modifier.clickable(onClick = onBack).padding(end = 10.dp)
             )
-            Text(text = "Match day", style = MaterialTheme.typography.titleMedium)
+            Text(text = matchDayTitle(matchDayDetails), style = MaterialTheme.typography.titleMedium, maxLines = 1)
         }
 
         when (matchDayDetails) {
@@ -817,6 +817,13 @@ private fun MatchDayDetailsScreen(matchDayDetails: Loadable<MatchDayDetails>?, o
         }
     }
 }
+
+private fun matchDayTitle(matchDayDetails: Loadable<MatchDayDetails>?): String =
+    if (matchDayDetails is Loadable.Success) {
+        "Match day ${matchDayDetails.value.matchDay} | ${formatKickoff(matchDayDetails.value.kickoff)}"
+    } else {
+        "Match day"
+    }
 
 @Composable
 private fun MatchDayContent(details: MatchDayDetails) {
@@ -850,13 +857,6 @@ private fun MatchDayHeader(details: MatchDayDetails) {
         )
         MatchDayTeamColumn(team = details.away)
     }
-    Text(
-        text = "Match day ${details.matchDay} | ${formatKickoff(details.kickoff)}",
-        fontSize = 12.sp,
-        color = Neutral500,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth()
-    )
 }
 
 @Composable
