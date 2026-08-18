@@ -8,10 +8,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -34,8 +36,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -147,7 +152,6 @@ private fun SquadScreen(
         var selectedSubTab by remember { mutableStateOf(SquadSubTab.Players) }
 
         Column(modifier = Modifier.fillMaxSize()) {
-            SquadHeader()
             SquadSubTabRow(selected = selectedSubTab, onSelect = { selectedSubTab = it })
 
             when (selectedSubTab) {
@@ -175,33 +179,62 @@ private fun SquadScreen(
     }
 }
 
+// Full-width, equal-split tab bar with an underline under the selected
+// tab — same shape as PlayerDetailScreen's PriceHistoryTabButton, just
+// with an icon added and the selected color following the app's own
+// accent instead of onSurface, so it reads as a top-level nav bar
+// rather than a card-local toggle.
 @Composable
 private fun SquadSubTabRow(selected: SquadSubTab, onSelect: (SquadSubTab) -> Unit) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        FilterChip(
+    Row(modifier = Modifier.fillMaxWidth()) {
+        SquadSubTabButton(
             label = "Players",
-            color = MaterialTheme.colorScheme.primary,
-            active = selected == SquadSubTab.Players,
+            icon = { color -> Icon(imageVector = Icons.Default.Groups, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
+            selected = selected == SquadSubTab.Players,
             onClick = { onSelect(SquadSubTab.Players) },
-            icon = { color -> Icon(imageVector = Icons.Default.Groups, contentDescription = null, tint = color, modifier = Modifier.size(15.dp)) }
+            modifier = Modifier.weight(1f)
         )
-        FilterChip(
+        SquadSubTabButton(
             label = "Lineup",
-            color = MaterialTheme.colorScheme.primary,
-            active = selected == SquadSubTab.Lineup,
+            icon = { color -> FootballPitch(modifier = Modifier.size(16.dp), lineColor = color) },
+            selected = selected == SquadSubTab.Lineup,
             onClick = { onSelect(SquadSubTab.Lineup) },
-            icon = { color -> FootballPitch(modifier = Modifier.size(15.dp), lineColor = color) }
+            modifier = Modifier.weight(1f)
         )
     }
 }
 
 @Composable
-private fun SquadHeader() {
-    Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-        Text(text = "My Squad", style = MaterialTheme.typography.titleLarge)
+private fun SquadSubTabButton(
+    label: String,
+    icon: @Composable (Color) -> Unit,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val color = if (selected) MaterialTheme.colorScheme.primary else Neutral500
+    Box(
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .drawBehind {
+                drawLine(
+                    color = if (selected) color else Color.Transparent,
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 2.dp.toPx()
+                )
+            }
+            .padding(vertical = 12.dp)
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            icon(color)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = color)
+        }
     }
 }
 
