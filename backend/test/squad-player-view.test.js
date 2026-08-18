@@ -22,11 +22,25 @@ test('shapes a {player, owner, inMarket, offerAmount} tuple, carrying the transf
     points: 0,
     photoUrl: 'https://cdn.biwenger.com/i/p/8747.png',
     teamCrestUrl: 'https://cdn.biwenger.com/i/t/93.png',
+    signedAt: 1786943457,
+    signedPrice: 3850123,
     lockedUntil: 1787202657,
     inMarket: false,
     offerAmount: null,
     status: 'ok',
   })
+})
+
+test('sets signedPrice to null when owner has no price (draft-owned — never bought)', () => {
+  const view = toSquadPlayerView({
+    player: { id: 15396, name: 'Brugué', teamID: 10, position: 4, price: 250000, status: 'ok' },
+    owner: { date: 1786573790 },
+    inMarket: false,
+    offerAmount: null,
+  })
+
+  assert.equal(view.signedAt, 1786573790)
+  assert.equal(view.signedPrice, null)
 })
 
 test('sets lockedUntil to null when owner has no lock (draft-owned, or past the lock)', () => {
