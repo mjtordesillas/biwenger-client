@@ -100,6 +100,45 @@ real API before trusting it).
   not part of "view the market", closer to a negotiation/recommendations
   feature.
 
+## Squad player status (owner lock, market listing, offers, fitness)
+
+Verified empirically (2026-08-18) against a real account/league, for
+`enrich-squad-player-cards`.
+
+- **Transfer lock** — `GET /user?fields=players(id,owner)` (the same call
+  `getSquadPlayerIds` already makes) returns more on `owner` than `date`:
+  for a player bought from the market (not owned since the league draft),
+  `owner.lockedUntil` is a unix-seconds timestamp for when the player
+  becomes sellable/listable again (observed 1-2 days out from the
+  purchase). Absent entirely for players already past their lock (or
+  never locked, e.g. draft-owned) — treat missing as "sellable now", not
+  as `0`/`null` meaning "locked forever". `owner.price` (what was paid)
+  and `owner.clause` (buyout clause, when the club/league sets one) are
+  also present but unrelated to the lock.
+- **Currently listed on the market** — same shape `getCurrentMarket`
+  already fetches from `GET /market`'s `data.sales[]`, just not filtered
+  out: a sale entry with `sale.user.id` equal to the requester's own user
+  id (excluded by `getCurrentMarket`, since that endpoint is "what can I
+  bid on") means *I've* listed that player. Every clause-buy sale
+  observed had `sale.price` equal to `sale.player.owner.clause` — makes
+  sense, a clause-buy's asking price is always the clause value.
+- **Standing offer on an owned player** — same `GET /market` response,
+  `data.offers[]` (noted as out-of-scope for `view-current-market`,
+  relevant here): each entry has `requestedPlayers: [playerId, ...]`,
+  `to: {id, name, icon}` (whoever's receiving the offer), `from` (`null`
+  in every sample seen — the offering party wasn't identifiable from
+  this field), `amount`, `status` (`"waiting"` in every sample), `type:
+  "purchase"`. An offer on one of my players has `to.id` equal to my own
+  user id and my player's id in `requestedPlayers`.
+- **Fitness status** — the catalogue endpoint's per-player `status` field
+  (already fetched by `getCatalogue()`, never surfaced) is one of `"ok"`
+  (511/566 players in the sample), `"injured"` (33), `"doubt"` (13),
+  `"sanctioned"` (4), `"unknown"` (4), `"discarded"` (1 — presumably
+  retired/left the league, not seen elsewhere). There's also a `fitness`
+  array (recent-match fitness/points history, mixes numbers and status
+  strings) that wasn't needed for this feature and isn't otherwise
+  understood yet.
+
 ## Per-gameweek points via `reports`
 
 `GET https://biwenger.as.com/api/v2/players/la-liga/{playerId}?fields=id,name,reports&season={seasonId}`

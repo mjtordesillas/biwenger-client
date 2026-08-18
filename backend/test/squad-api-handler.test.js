@@ -6,10 +6,15 @@ const fakeBiwengerClient = (players) => ({
   getMySquad: async () => players,
 })
 
-test('returns a 200 JSON body with the squad, shaped via toPlayerView, on success', async () => {
+test('returns a 200 JSON body with the squad, shaped via toSquadPlayerView, on success', async () => {
   const handler = createSquadApiHandler({
     biwengerClient: fakeBiwengerClient([
-      { id: 1, name: 'Brugué', teamID: 87, position: 4, price: 280000, priceIncrement: 10000, points: 5 },
+      {
+        player: { id: 1, name: 'Brugué', teamID: 87, position: 4, price: 280000, priceIncrement: 10000, points: 5, status: 'ok' },
+        owner: { date: 1786573790 },
+        inMarket: false,
+        hasOffer: false,
+      },
     ]),
     credentials: { email: 'test@example.com', password: 'secret' },
   })
@@ -29,6 +34,10 @@ test('returns a 200 JSON body with the squad, shaped via toPlayerView, on succes
       points: 5,
       photoUrl: 'https://cdn.biwenger.com/i/p/1.png',
       teamCrestUrl: 'https://cdn.biwenger.com/i/t/87.png',
+      lockedUntil: null,
+      inMarket: false,
+      hasOffer: false,
+      status: 'ok',
     }],
   })
 })
