@@ -190,8 +190,8 @@ private fun SquadPlayerList(players: List<SquadPlayer>, onPlayerTapped: (Int) ->
 }
 
 // Same header/content/footer shape as Market's MarketListingRow: a
-// header line about ownership (signed/drafted-on date left, listable
-// status right — every player has both, so the header always renders,
+// header line about ownership (listable status left, signed/drafted-on
+// date right — every player has both, so the header always renders,
 // unlike Market's conditional one), the avatar/name/price content, then
 // a footer (signed/drafted-at price left, status icons right).
 @Composable
@@ -223,7 +223,7 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "$onLabel: ${formatDate(player.signedAt)}",
+                text = listableLabel,
                 fontSize = 13.sp,
                 color = Neutral500,
                 maxLines = 1,
@@ -231,7 +231,7 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = listableLabel,
+                text = "$onLabel: ${formatDate(player.signedAt)}",
                 fontSize = 13.sp,
                 color = Neutral500,
                 maxLines = 1,
