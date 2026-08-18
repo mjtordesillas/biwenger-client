@@ -13,7 +13,7 @@ test('returns a 200 JSON body with the squad, shaped via toSquadPlayerView, on s
         player: { id: 1, name: 'Brugué', teamID: 87, position: 4, price: 280000, priceIncrement: 10000, points: 5, status: 'ok' },
         owner: { date: 1786573790 },
         inMarket: false,
-        hasOffer: false,
+        offerAmount: null,
       },
     ]),
     credentials: { email: 'test@example.com', password: 'secret' },
@@ -36,7 +36,7 @@ test('returns a 200 JSON body with the squad, shaped via toSquadPlayerView, on s
       teamCrestUrl: 'https://cdn.biwenger.com/i/t/87.png',
       lockedUntil: null,
       inMarket: false,
-      hasOffer: false,
+      offerAmount: null,
       status: 'ok',
     }],
   })

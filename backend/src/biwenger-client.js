@@ -72,9 +72,9 @@ export const createBiwengerClient = (dependencies = {}) => {
   // Log in, resolve league/user, fetch the owned players (with their
   // `owner` data), join against the catalogue for name/position/price/
   // status, and cross-reference the market for "is this one of mine
-  // that's currently listed" / "does someone have a standing offer on
-  // it" — see docs/biwenger-api-notes.md § "Squad player status".
-  // Returns {player, owner, inMarket, hasOffer} tuples rather than a
+  // that's currently listed" / "what's the standing offer on it, if any"
+  // — see docs/biwenger-api-notes.md § "Squad player status".
+  // Returns {player, owner, inMarket, offerAmount} tuples rather than a
   // merged object, same reasoning as getCurrentMarket's {sale, player} —
   // squad-player-view.js does the shaping.
   const getMySquad = async ({ email, password }) => {
@@ -90,8 +90,11 @@ export const createBiwengerClient = (dependencies = {}) => {
         const player = catalogue[String(id)]
         if (!player) return null
         const inMarket = sales.some((sale) => sale.user?.id === userId && sale.player.id === id)
-        const hasOffer = offers.some((offer) => offer.to?.id === userId && offer.requestedPlayers?.includes(id))
-        return { player, owner, inMarket, hasOffer }
+        // First matching offer's amount — a player hasn't been observed
+        // with more than one standing offer at once; not disambiguated
+        // further without a concrete case that needs it.
+        const offer = offers.find((offer) => offer.to?.id === userId && offer.requestedPlayers?.includes(id))
+        return { player, owner, inMarket, offerAmount: offer?.amount ?? null }
       })
       .filter(Boolean)
   }
