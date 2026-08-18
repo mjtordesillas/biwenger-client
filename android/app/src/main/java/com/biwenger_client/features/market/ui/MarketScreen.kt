@@ -47,6 +47,14 @@ import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
 import com.biwenger_client.ui.theme.NocturneRadius
 
+// Expiry ascending first (soonest-to-expire listings are the most
+// actionable, so they lead), then position and market value both
+// descending.
+val MarketListingOrder =
+    compareBy<MarketListing> { it.until }
+        .thenByDescending { it.position }
+        .thenByDescending { it.marketValue }
+
 // Slice 1 shipped list-only (name/position/price); this fills in the
 // three fields deferred then — expiry, seller, and market value — since
 // a bare asking price without knowing what the player's actually worth
@@ -125,7 +133,10 @@ private fun MarketScreen(
                         text = "Could not load the market right now.",
                         modifier = Modifier.align(Alignment.Center).padding(16.dp)
                     )
-                    is Loadable.Success -> MarketListingList(listings = players.value, onPlayerTapped = onPlayerTapped)
+                    is Loadable.Success -> MarketListingList(
+                        listings = players.value.sortedWith(MarketListingOrder),
+                        onPlayerTapped = onPlayerTapped
+                    )
                 }
             }
         }
