@@ -7,15 +7,17 @@ import com.biwenger_client.domain.models.Player
 // one") a market listing or a bare catalogue player doesn't have:
 // `signedAt` (unix seconds for when this ownership started — always
 // present), `signedPrice` (what was paid, or null for a draft-owned
-// player who was never bought), `lockedUntil` (Biwenger's post-purchase
-// transfer lock — unix seconds for when it lifts, or null if already
-// sellable), `inMarket` (I've currently listed this player),
-// `offerAmount` (a standing offer's amount, or null — the raw number
-// rather than a boolean, so the UI can judge it against `price`, this
-// view's market value), and `status` (fitness — "ok"/"injured"/
-// "doubt"/...). Kept feature-local rather than bolting these onto the
-// shared model, same reasoning as MarketListing. Field names match
-// biwenger-client's src/squad-player-view.js response shape.
+// player who was never bought), `draftedPrice` (that player's market
+// value on `signedAt` — only meaningful when `signedPrice` is null),
+// `lockedUntil` (Biwenger's post-purchase transfer lock — unix seconds
+// for when it lifts, or null if already sellable), `inMarket` (I've
+// currently listed this player), `offerAmount` (a standing offer's
+// amount, or null — the raw number rather than a boolean, so the UI can
+// judge it against `price`, this view's market value), and `status`
+// (fitness — "ok"/"injured"/"doubt"/...). Kept feature-local rather than
+// bolting these onto the shared model, same reasoning as MarketListing.
+// Field names match biwenger-client's src/squad-player-view.js response
+// shape.
 data class SquadPlayer(
     val id: Int,
     val name: String,
@@ -28,6 +30,7 @@ data class SquadPlayer(
     val teamCrestUrl: String,
     val signedAt: Long,
     val signedPrice: Long?,
+    val draftedPrice: Long?,
     val lockedUntil: Long?,
     val inMarket: Boolean,
     val offerAmount: Long?,

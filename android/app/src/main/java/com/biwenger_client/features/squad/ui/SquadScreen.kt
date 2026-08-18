@@ -189,14 +189,22 @@ private fun SquadPlayerList(players: List<SquadPlayer>, onPlayerTapped: (Int) ->
 }
 
 // Same header/content/footer shape as Market's MarketListingRow: a
-// header line about ownership (lock countdown left, signed-on date
-// right — every player has a signed-on date, so the header always
-// renders, unlike Market's conditional one), the avatar/name/price
-// content, then a footer (signed-for price left, status icons right).
+// header line about ownership (lock countdown left, signed/drafted-on
+// date right — every player has one, so the header always renders,
+// unlike Market's conditional one), the avatar/name/price content, then
+// a footer (signed/drafted-at price left, status icons right).
 @Composable
 private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
+    // Draft-owned (never bought via the market) gets "Drafted"
+    // wording and the market value on the draft date in place of what
+    // was actually paid, which doesn't apply to a draft pick.
+    val drafted = player.signedPrice == null
+    val onLabel = if (drafted) "Drafted on" else "Signed on"
+    val forLabel = if (drafted) "Drafted at" else "Signed for"
+    val forAmount = if (drafted) player.draftedPrice else player.signedPrice
+
     val lockLabel = player.lockedUntil?.let { "Sellable ${formatRelativeTime(it)}" }
-    val signedForLabel = player.signedPrice?.let { "Signed for: ${formatPrice(it)}" }
+    val signedForLabel = forAmount?.let { "$forLabel: ${formatPrice(it)}" }
     val statusIcons = squadPlayerStatusIcons(player)
     val hasFooter = signedForLabel != null || statusIcons.isNotEmpty()
 
@@ -222,7 +230,7 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "Signed on: ${formatDate(player.signedAt)}",
+                text = "$onLabel: ${formatDate(player.signedAt)}",
                 fontSize = 13.sp,
                 color = Neutral500,
                 maxLines = 1,

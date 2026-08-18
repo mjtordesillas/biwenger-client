@@ -189,11 +189,14 @@ fun priceTrend(priceIncrement: Long) = when {
     else -> "–" to TrendFlat
 }
 
-fun formatPrice(price: Long): String =
-    NumberFormat.getCurrencyInstance(Locale("es", "ES")).format(price)
+// Prices are always whole units in this API — no observed value has ever
+// carried cents, so the currency formatter's decimals are just noise.
+private fun currencyFormat(): NumberFormat =
+    NumberFormat.getCurrencyInstance(Locale("es", "ES")).apply { maximumFractionDigits = 0 }
 
-fun formatPriceChange(priceIncrement: Long): String =
-    NumberFormat.getCurrencyInstance(Locale("es", "ES")).format(abs(priceIncrement))
+fun formatPrice(price: Long): String = currencyFormat().format(price)
+
+fun formatPriceChange(priceIncrement: Long): String = currencyFormat().format(abs(priceIncrement))
 
 // Promoted out of features/squad/ui/SquadScreen.kt alongside
 // PlayerDetailScreen.kt — used by both squad's position filter row and
