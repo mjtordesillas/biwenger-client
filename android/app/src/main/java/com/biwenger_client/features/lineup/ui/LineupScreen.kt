@@ -33,14 +33,16 @@ import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.lineup.domain.models.Lineup
 import com.biwenger_client.ui.FootballPitch
+import com.biwenger_client.ui.PositionColors
 import com.biwenger_client.ui.theme.Neutral900
 
-// A green pitch is the one deliberate exception to Nocturne's "keep
-// chroma low outside the accent" rule here — same carve-out reasoning
-// as PlayerColors.kt's position/trend colors, just representational
-// (a pitch has to read as a pitch) rather than functional.
-private val PitchGreen = Color(0xFF1E5631)
-private val PitchLineColor = Color.White.copy(alpha = 0.55f)
+// The same translucent green a midfielder's PositionTag already uses,
+// not a new bespoke pitch color — the turf reuses the palette that's
+// already on screen (player pills) rather than adding one just for
+// this. Lines at full opacity, unlike a PositionTag's fill, so the
+// markings stay crisp against it.
+private val PitchGreen = PositionColors.getValue(3).copy(alpha = 0.24f)
+private val PitchLineColor = Color.White
 
 @Composable
 fun LineupScreen(
@@ -97,12 +99,19 @@ private fun LineupContent(lineup: Lineup) {
 // or trusting list order (see docs/biwenger-api-notes.md § "Starting
 // lineup"). Fixed four rows, even when a group is empty, so each
 // position band always claims the same share of pitch height.
+// Defenders anchor to the bottom of their band rather than the center,
+// sitting closer to the goalkeeper than a plain even split would put
+// them — the rest stay centered in theirs.
 @Composable
 private fun PitchLineup(players: List<Player>, modifier: Modifier = Modifier) {
     val byPosition = players.groupBy { it.position }
     Column(modifier = modifier, verticalArrangement = Arrangement.SpaceBetween) {
         listOf(4, 3, 2, 1).forEach { position ->
-            PitchRow(players = byPosition[position].orEmpty(), modifier = Modifier.weight(1f))
+            PitchRow(
+                players = byPosition[position].orEmpty(),
+                verticalAlignment = if (position == 2) Alignment.Bottom else Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
@@ -111,15 +120,15 @@ private fun PitchLineup(players: List<Player>, modifier: Modifier = Modifier) {
 // into a shallow valley: edges sit highest (closest to the row's own
 // top), the middle player(s) pushed down toward the row below, same
 // shape a real back/midfield line reads as on a tactics board.
-private val RowCurveDepth = 16.dp
+private val RowCurveDepth = 28.dp
 
 @Composable
-private fun PitchRow(players: List<Player>, modifier: Modifier = Modifier) {
+private fun PitchRow(players: List<Player>, verticalAlignment: Alignment.Vertical, modifier: Modifier = Modifier) {
     val curved = players.size > 2
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = verticalAlignment
     ) {
         players.forEachIndexed { index, player ->
             val t = if (players.size > 1) index / (players.size - 1).toFloat() else 0.5f
@@ -153,9 +162,11 @@ private fun PitchPlayer(player: Player, modifier: Modifier = Modifier) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
+            // Wider cap than a straight row would risk — curved rows
+            // space players out horizontally, so neighboring name pills
+            // are less likely to crowd each other.
             modifier = Modifier
-                .padding(top = 3.dp)
-                .widthIn(max = 68.dp)
+                .widthIn(max = 88.dp)
                 .clip(RoundedCornerShape(percent = 50))
                 .background(Neutral900)
                 .padding(horizontal = 8.dp, vertical = 2.dp)

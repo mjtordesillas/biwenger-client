@@ -47,6 +47,7 @@ fun FootballPitch(modifier: Modifier = Modifier, lineColor: Color = Color.White,
         val boxWidth = size.width * 0.6f
         val boxHeight = size.height * 0.14f
         val boxLeft = (size.width - boxWidth) / 2
+        val centerX = size.width / 2
         drawRect(
             color = lineColor,
             topLeft = Offset(boxLeft, inset),
@@ -59,5 +60,32 @@ fun FootballPitch(modifier: Modifier = Modifier, lineColor: Color = Color.White,
             size = Size(boxWidth, boxHeight),
             style = stroke
         )
+
+        // The "D" — a half-circle sitting on each box's outer edge,
+        // bulging away from the goal — plus the penalty spot inside it.
+        val arcRadius = size.minDimension * 0.13f
+        val arcBox = Size(arcRadius * 2, arcRadius * 2)
+        drawArc(
+            color = lineColor,
+            startAngle = 0f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = Offset(centerX - arcRadius, boxHeight - arcRadius),
+            size = arcBox,
+            style = stroke
+        )
+        drawArc(
+            color = lineColor,
+            startAngle = 180f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = Offset(centerX - arcRadius, size.height - boxHeight - arcRadius),
+            size = arcBox,
+            style = stroke
+        )
+
+        val spotRadius = strokeWidth * 1.3f
+        drawCircle(color = lineColor, radius = spotRadius, center = Offset(centerX, boxHeight * 0.72f))
+        drawCircle(color = lineColor, radius = spotRadius, center = Offset(centerX, size.height - boxHeight * 0.72f))
     }
 }
