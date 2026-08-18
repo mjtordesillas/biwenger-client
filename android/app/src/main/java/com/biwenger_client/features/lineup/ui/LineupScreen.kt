@@ -1,10 +1,9 @@
 package com.biwenger_client.features.lineup.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -26,7 +25,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -95,73 +94,77 @@ private fun LineupContent(lineup: Lineup) {
     }
 }
 
+// Every player is placed at an absolute (x, y) fraction of the pitch
+// rather than laid out in a Row per position band — the midfield curve
+// needs specific, non-band-relative height targets (see below), and
+// absolute placement is also what keeps wide rows (5 midfielders) from
+// ever overflowing the pitch horizontally, unlike fixed-width Row
+// children whose total width Row can't shrink to fit.
+//
+// Y fractions are top-down (0 = goal line at the top/forwards' end, 1 =
+// goal line at the bottom/goalkeeper's end) and mark where the BOTTOM
+// of a player's name pill lands, not the top of their photo.
+private const val ForwardYFraction = 0.16f
+
+// A central midfielder dips to 40% "up the pitch" from their own goal
+// (60% top-down); the widest midfielders sit at 70% up the pitch (30%
+// top-down) — everyone between interpolated by the same parabola the
+// row's width uses.
+private const val MidfielderEdgeYFraction = 0.30f
+private const val MidfielderCenterYFraction = 0.60f
+private const val DefenderYFraction = 0.80f
+private const val GoalkeeperYFraction = 0.95f
+
+// Fixed regardless of avatar/pill content, so placement math (and the
+// x-spacing below) doesn't depend on how long a name is.
+private val PitchPlayerWidth = 56.dp
+private val PitchPlayerHeight = 58.dp
+
 // Forwards nearest the top (closest to goal, attacking direction is
 // "up"), then midfielders, defenders, goalkeeper at the bottom —
 // grouped by each player's own `position`, not by parsing `formation`
 // or trusting list order (see docs/biwenger-api-notes.md § "Starting
-// lineup"). Fixed four rows, even when a group is empty, so each
-// position band always claims the same share of pitch height.
-// Defenders and midfielders anchor to the bottom of their band rather
-// than the center, sitting closer to the row below them; midfielders
-// on top of that get a bigger base drop and a much deeper curve, so a
-// central midfielder dips toward the lower edge of the center circle
-// while the wide ones still sit clearly lower than a plain split would
-// put them.
+// lineup").
 @Composable
 private fun PitchLineup(players: List<Player>, modifier: Modifier = Modifier) {
     val byPosition = players.groupBy { it.position }
-    Column(modifier = modifier, verticalArrangement = Arrangement.SpaceBetween) {
-        listOf(4, 3, 2, 1).forEach { position ->
-            PitchRow(
-                players = byPosition[position].orEmpty(),
-                verticalAlignment = if (position == 3 || position == 2) Alignment.Bottom else Alignment.CenterVertically,
-                curveDepth = if (position == 3) MidfielderRowCurveDepth else RowCurveDepth,
-                baseOffset = if (position == 3) MidfielderRowBaseOffset else 0.dp,
-                modifier = Modifier.weight(1f)
-            )
-        }
+    BoxWithConstraints(modifier = modifier) {
+        PitchPositionRow(players = byPosition[4].orEmpty(), pitchSize = DpSize(maxWidth, maxHeight)) { _, _ -> ForwardYFraction }
+        PitchPositionRow(players = byPosition[3].orEmpty(), pitchSize = DpSize(maxWidth, maxHeight), yFraction = ::midfielderYFraction)
+        PitchPositionRow(players = byPosition[2].orEmpty(), pitchSize = DpSize(maxWidth, maxHeight)) { _, _ -> DefenderYFraction }
+        PitchPositionRow(players = byPosition[1].orEmpty(), pitchSize = DpSize(maxWidth, maxHeight)) { _, _ -> GoalkeeperYFraction }
     }
 }
 
-// Level for one or two players — nothing to curve. Three or more bows
-// into a shallow valley: edges sit highest (closest to the row's own
-// top), the middle player(s) pushed down toward the row below, same
-// shape a real back/midfield line reads as on a tactics board.
-private val RowCurveDepth = 28.dp
-private val MidfielderRowCurveDepth = 84.dp
-private val MidfielderRowBaseOffset = 40.dp
-
-// Every player slot in a row is the same fixed width regardless of how
-// long its name is — otherwise an odd-sized middle slot (e.g. a longer
-// name pill) skews Row's SpaceEvenly gaps and the middle player reads
-// as off-center even though the arrangement math is symmetric.
-private val PitchPlayerWidth = 88.dp
+// Level (all at MidfielderEdgeYFraction) for one or two players —
+// nothing to curve. Three or more bows into a shallow valley: the
+// widest pair sit highest (shallowest), whoever's in the middle
+// dips deepest, same shape a real midfield line reads as on a tactics
+// board. Parabola: 0 at both edges (t=0, t=1), 1 at the center (t=0.5).
+private fun midfielderYFraction(index: Int, count: Int): Float {
+    val t = if (count > 1) index / (count - 1).toFloat() else 0.5f
+    val curveFraction = if (count > 2) 4f * t * (1f - t) else 0f
+    return MidfielderEdgeYFraction + (MidfielderCenterYFraction - MidfielderEdgeYFraction) * curveFraction
+}
 
 @Composable
-private fun PitchRow(
+private fun PitchPositionRow(
     players: List<Player>,
-    verticalAlignment: Alignment.Vertical,
-    modifier: Modifier = Modifier,
-    curveDepth: Dp = RowCurveDepth,
-    baseOffset: Dp = 0.dp,
+    pitchSize: DpSize,
+    yFraction: (index: Int, count: Int) -> Float,
 ) {
-    val curved = players.size > 2
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = verticalAlignment
-    ) {
-        players.forEachIndexed { index, player ->
-            val t = if (players.size > 1) index / (players.size - 1).toFloat() else 0.5f
-            // Parabola: 0 at both edges (t=0, t=1), 1 at the center (t=0.5).
-            val curveFraction = if (curved) 4f * t * (1f - t) else 0f
-            PitchPlayer(
-                player = player,
-                modifier = Modifier
-                    .width(PitchPlayerWidth)
-                    .offset(y = baseOffset + curveDepth * curveFraction)
-            )
-        }
+    players.forEachIndexed { index, player ->
+        // Evenly spaced, strictly between the pitch's edges (never at
+        // 0 or 1), so a wide row never touches the sideline.
+        val xFraction = (index + 1) / (players.size + 1f)
+        val centerX = pitchSize.width * xFraction
+        val bottomY = pitchSize.height * yFraction(index, players.size)
+        PitchPlayer(
+            player = player,
+            modifier = Modifier
+                .width(PitchPlayerWidth)
+                .offset(x = centerX - PitchPlayerWidth / 2, y = bottomY - PitchPlayerHeight)
+        )
     }
 }
 
@@ -175,24 +178,21 @@ private fun PitchPlayer(player: Player, modifier: Modifier = Modifier) {
             model = player.photoUrl,
             contentDescription = player.name,
             contentScale = ContentScale.Fit,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(40.dp)
         )
         Text(
             text = player.name,
-            fontSize = 11.sp,
+            fontSize = 10.sp,
             fontWeight = FontWeight.SemiBold,
             color = Color.White,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            // Wider cap than a straight row would risk — curved rows
-            // space players out horizontally, so neighboring name pills
-            // are less likely to crowd each other.
             modifier = Modifier
-                .widthIn(max = 88.dp)
+                .widthIn(max = PitchPlayerWidth)
                 .clip(RoundedCornerShape(percent = 50))
                 .background(Neutral900)
-                .padding(horizontal = 8.dp, vertical = 2.dp)
+                .padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
 }
