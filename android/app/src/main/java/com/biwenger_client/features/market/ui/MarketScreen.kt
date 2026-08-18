@@ -1,14 +1,17 @@
 package com.biwenger_client.features.market.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,7 +24,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,7 +45,10 @@ import com.biwenger_client.ui.formatPrice
 import com.biwenger_client.ui.formatPriceChange
 import com.biwenger_client.ui.priceTrend
 import com.biwenger_client.ui.theme.ColorSurface
+import com.biwenger_client.ui.theme.Neutral100
 import com.biwenger_client.ui.theme.Neutral500
+import com.biwenger_client.ui.theme.Neutral700
+import com.biwenger_client.ui.theme.Neutral900
 import com.biwenger_client.ui.theme.NocturneRadius
 import java.util.Calendar
 import kotlin.math.ceil
@@ -156,75 +166,146 @@ private fun MarketListingRow(listing: MarketListing, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // maxLines/overflow as a guard against a long seller name
-            // overflowing the row — not observed to actually wrap in
-            // practice; the perceived top-row misalignment this was
-            // chasing turned out not to be one (same fontSize/color on
-            // both, neither wraps — likely just the usual left-vs-right
-            // text optical effect). CenterVertically kept anyway, it's a
-            // correct choice regardless.
-            Text(
-                text = sellerLabel(listing.seller),
-                fontSize = 12.sp,
-                color = Neutral500,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
-            Text(
-                text = "Expires ${formatExpiry(listing.until)}",
-                fontSize = 12.sp,
-                color = Neutral500,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
+        // Listing metadata (who's selling, how long it's live) — not
+        // about the player itself, hence its own row above the content.
+        MarketListingHeader(listing = listing)
+        // The player being sold and the asking price against its trend —
+        // the card's headline fact.
+        MarketListingContent(listing = listing)
+        // Supporting context (catalogue value + its own increment) that
+        // qualifies the content above rather than being the headline.
+        MarketListingFooter(listing = listing)
+    }
+}
 
-        Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+@Composable
+private fun MarketListingHeader(listing: MarketListing) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // maxLines/overflow as a guard against a long seller name
+        // overflowing the row — not observed to actually wrap in
+        // practice; the perceived top-row misalignment this was
+        // chasing turned out not to be one (same fontSize/color on
+        // both, neither wraps — likely just the usual left-vs-right
+        // text optical effect). CenterVertically kept anyway, it's a
+        // correct choice regardless.
+        Text(
+            text = sellerLabel(listing.seller),
+            fontSize = 13.sp,
+            color = Neutral500,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            // The time component ("tomorrow", "2 days", "2 hours"...) is
+            // the urgent part of this label — bolded so it reads at a
+            // glance, "Expires" stays regular weight as the lead-in.
+            text = buildAnnotatedString {
+                append("Expires ")
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(formatExpiry(listing.until))
+                }
+            },
+            fontSize = 13.sp,
+            color = Neutral500,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun MarketListingContent(listing: MarketListing) {
+    Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box {
             PlayerAvatar(
                 photoUrl = listing.photoUrl,
                 teamCrestUrl = listing.teamCrestUrl,
                 contentDescription = listing.name,
-                size = 48.dp
+                size = 56.dp,
+                crestSize = 26.dp,
+                crestOffsetX = -PlayerOverlayOffsetX,
+                crestOffsetY = PlayerOverlayOffsetY
             )
+            PointsBadge(
+                points = listing.points,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = PlayerOverlayOffsetX, y = PlayerOverlayOffsetY)
+            )
+        }
 
-            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-                Text(text = listing.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-                Row(modifier = Modifier.padding(top = 4.dp)) {
-                    PositionTag(position = listing.position, secondaryPosition = listing.secondaryPosition)
-                }
-            }
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(text = formatPrice(listing.price), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
-                // How the asking price compares to market value — same
-                // up/down/flat styling as the market value increment
-                // below, just a different underlying number (price -
-                // marketValue, not the catalogue's own day-over-day move).
-                val (icon, color) = priceTrend(listing.price - listing.marketValue)
-                Text(
-                    text = "$icon ${formatPriceChange(listing.price - listing.marketValue)}",
-                    fontSize = 12.sp,
-                    color = color,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
+        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+            Text(text = listing.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+            Row(modifier = Modifier.padding(top = 4.dp)) {
+                PositionTag(position = listing.position, secondaryPosition = listing.secondaryPosition)
             }
         }
 
-        // The increment tracks the catalogue's live value, not the fixed
-        // asking price above — it goes right after market value, not
-        // under the price.
-        Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(text = "Market value: ${formatPrice(listing.marketValue)} ", fontSize = 12.sp, color = Neutral500)
-            val (icon, color) = priceTrend(listing.priceIncrement)
-            Text(text = "$icon ${formatPriceChange(listing.priceIncrement)}", fontSize = 12.sp, color = color)
+        Column(horizontalAlignment = Alignment.End) {
+            Text(text = formatPrice(listing.price), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
+            // How the asking price compares to market value — same
+            // up/down/flat styling as the market value increment
+            // below, just a different underlying number (price -
+            // marketValue, not the catalogue's own day-over-day move).
+            val (icon, color) = priceTrend(listing.price - listing.marketValue)
+            Text(
+                text = "$icon ${formatPriceChange(listing.price - listing.marketValue)}",
+                fontSize = 12.sp,
+                color = color,
+                modifier = Modifier.padding(top = 2.dp)
+            )
         }
+    }
+}
+
+@Composable
+private fun MarketListingFooter(listing: MarketListing) {
+    // The increment tracks the catalogue's live value, not the fixed
+    // asking price above — it goes right after market value, not
+    // under the price. Top padding is content's 8dp plus the points
+    // badge/crest overhang (PlayerOverlayOffsetY) — that overlay pokes
+    // past the content row's layout bounds without adding to its
+    // measured height, so matching header-to-content's 8dp exactly here
+    // would look tighter than it is.
+    Row(
+        modifier = Modifier.padding(top = 8.dp + PlayerOverlayOffsetY),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = "Market value: ${formatPrice(listing.marketValue)} ", fontSize = 13.sp, color = Neutral500)
+        val (icon, color) = priceTrend(listing.priceIncrement)
+        Text(text = "$icon ${formatPriceChange(listing.priceIncrement)}", fontSize = 13.sp, color = color)
+    }
+}
+
+// Shared by the badge and the crest's crestOffsetX/Y so both sit the same
+// distance past the avatar's edge — pushed outward horizontally (crest
+// left, badge right) and down, away from the picture's center — and their
+// bottom edges line up. See PlayerAvatar.
+private val PlayerOverlayOffsetX = 3.dp
+private val PlayerOverlayOffsetY = 6.dp
+
+// Overlaid bottom-right of the avatar (the crest already claims
+// bottom-start). A pill rather than a fixed-size circle since three-digit
+// season totals (up to ~300) are as common as single digits and a circle
+// would either clip them or waste space padding the common case.
+@Composable
+private fun PointsBadge(points: Int, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .defaultMinSize(minWidth = 22.dp, minHeight = 17.dp)
+            .clip(RoundedCornerShape(percent = 50))
+            .background(Neutral900)
+            .border(width = 1.dp, color = Neutral700, shape = RoundedCornerShape(percent = 50))
+            .padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = points.toString(), color = Neutral100, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
 

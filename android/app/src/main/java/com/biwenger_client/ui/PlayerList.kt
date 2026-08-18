@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -91,7 +92,19 @@ fun PlayerRow(player: Player, onClick: () -> Unit) {
 }
 
 @Composable
-fun PlayerAvatar(photoUrl: String, teamCrestUrl: String, contentDescription: String, size: Dp) {
+fun PlayerAvatar(
+    photoUrl: String,
+    teamCrestUrl: String,
+    contentDescription: String,
+    size: Dp,
+    crestSize: Dp = size * 0.4f,
+    // Lets a caller that overlays something else (e.g. Market's points
+    // badge) at the bottom of the avatar push the crest down/outward to
+    // match — 0dp defaults keep every other call site flush with the
+    // avatar edge.
+    crestOffsetX: Dp = 0.dp,
+    crestOffsetY: Dp = 0.dp,
+) {
     Box(modifier = Modifier.size(size)) {
         Box(
             modifier = Modifier
@@ -114,8 +127,9 @@ fun PlayerAvatar(photoUrl: String, teamCrestUrl: String, contentDescription: Str
             contentDescription = null,
             contentScale = ContentScale.Fit,
             modifier = Modifier
-                .size(size * 0.4f)
+                .size(crestSize)
                 .align(Alignment.BottomStart)
+                .offset(x = crestOffsetX, y = crestOffsetY)
         )
     }
 }
