@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -33,7 +34,9 @@ import coil.compose.AsyncImage
 import com.biwenger_client.domain.models.Player
 import com.biwenger_client.ui.theme.ColorDivider
 import com.biwenger_client.ui.theme.ColorSurface
+import com.biwenger_client.ui.theme.Neutral100
 import com.biwenger_client.ui.theme.Neutral500
+import com.biwenger_client.ui.theme.Neutral700
 import com.biwenger_client.ui.theme.Neutral900
 import com.biwenger_client.ui.theme.NocturneRadius
 import java.text.NumberFormat
@@ -70,17 +73,17 @@ fun PlayerRow(player: Player, onClick: () -> Unit) {
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        PlayerAvatar(photoUrl = player.photoUrl, teamCrestUrl = player.teamCrestUrl, contentDescription = player.name, size = 48.dp)
+        PlayerAvatarWithPoints(
+            photoUrl = player.photoUrl,
+            teamCrestUrl = player.teamCrestUrl,
+            contentDescription = player.name,
+            points = player.points
+        )
 
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
             Text(text = player.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
                 PositionTag(position = player.position, secondaryPosition = player.secondaryPosition)
-                Text(
-                    text = "  ${player.points} pts",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Neutral500
-                )
             }
         }
 
@@ -98,10 +101,9 @@ fun PlayerAvatar(
     contentDescription: String,
     size: Dp,
     crestSize: Dp = size * 0.4f,
-    // Lets a caller that overlays something else (e.g. Market's points
-    // badge) at the bottom of the avatar push the crest down/outward to
-    // match — 0dp defaults keep every other call site flush with the
-    // avatar edge.
+    // Lets a caller that overlays something else at the bottom of the
+    // avatar (see PlayerAvatarWithPoints) push the crest down/outward to
+    // match — 0dp defaults keep a bare PlayerAvatar flush with its edge.
     crestOffsetX: Dp = 0.dp,
     crestOffsetY: Dp = 0.dp,
 ) {
@@ -131,6 +133,62 @@ fun PlayerAvatar(
                 .align(Alignment.BottomStart)
                 .offset(x = crestOffsetX, y = crestOffsetY)
         )
+    }
+}
+
+// Shared by the badge and the crest's crestOffsetX/Y so both sit the same
+// distance past the avatar's edge — pushed outward horizontally (crest
+// left, badge right) and down, away from the picture's center — and their
+// bottom edges line up.
+val PlayerAvatarOverlayOffsetX = 3.dp
+val PlayerAvatarOverlayOffsetY = 6.dp
+
+// The avatar plus its season-points pill, overlaid bottom-right (the
+// crest already claims bottom-start) — Squad and Market both show this
+// same combination, just with different Player-shaped inputs.
+@Composable
+fun PlayerAvatarWithPoints(
+    photoUrl: String,
+    teamCrestUrl: String,
+    contentDescription: String,
+    points: Int,
+    size: Dp = 56.dp,
+    crestSize: Dp = 26.dp,
+) {
+    Box {
+        PlayerAvatar(
+            photoUrl = photoUrl,
+            teamCrestUrl = teamCrestUrl,
+            contentDescription = contentDescription,
+            size = size,
+            crestSize = crestSize,
+            crestOffsetX = -PlayerAvatarOverlayOffsetX,
+            crestOffsetY = PlayerAvatarOverlayOffsetY
+        )
+        PointsBadge(
+            points = points,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = PlayerAvatarOverlayOffsetX, y = PlayerAvatarOverlayOffsetY)
+        )
+    }
+}
+
+// A pill rather than a fixed-size circle since three-digit season totals
+// (up to ~300) are as common as single digits and a circle would either
+// clip them or waste space padding the common case.
+@Composable
+fun PointsBadge(points: Int, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .defaultMinSize(minWidth = 22.dp, minHeight = 17.dp)
+            .clip(RoundedCornerShape(percent = 50))
+            .background(Neutral900)
+            .border(width = 1.dp, color = Neutral700, shape = RoundedCornerShape(percent = 50))
+            .padding(horizontal = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = points.toString(), color = Neutral100, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
 

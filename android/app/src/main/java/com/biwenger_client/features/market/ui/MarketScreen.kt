@@ -1,17 +1,14 @@
 package com.biwenger_client.features.market.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -38,17 +35,15 @@ import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.PriceHistory
 import com.biwenger_client.ui.MatchDayDetailsScreen
-import com.biwenger_client.ui.PlayerAvatar
+import com.biwenger_client.ui.PlayerAvatarOverlayOffsetY
+import com.biwenger_client.ui.PlayerAvatarWithPoints
 import com.biwenger_client.ui.PlayerDetailScreen
 import com.biwenger_client.ui.PositionTag
 import com.biwenger_client.ui.formatPrice
 import com.biwenger_client.ui.formatPriceChange
 import com.biwenger_client.ui.priceTrend
 import com.biwenger_client.ui.theme.ColorSurface
-import com.biwenger_client.ui.theme.Neutral100
 import com.biwenger_client.ui.theme.Neutral500
-import com.biwenger_client.ui.theme.Neutral700
-import com.biwenger_client.ui.theme.Neutral900
 import com.biwenger_client.ui.theme.NocturneRadius
 import java.util.Calendar
 import kotlin.math.ceil
@@ -222,23 +217,12 @@ private fun MarketListingHeader(listing: MarketListing) {
 @Composable
 private fun MarketListingContent(listing: MarketListing) {
     Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box {
-            PlayerAvatar(
-                photoUrl = listing.photoUrl,
-                teamCrestUrl = listing.teamCrestUrl,
-                contentDescription = listing.name,
-                size = 56.dp,
-                crestSize = 26.dp,
-                crestOffsetX = -PlayerOverlayOffsetX,
-                crestOffsetY = PlayerOverlayOffsetY
-            )
-            PointsBadge(
-                points = listing.points,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .offset(x = PlayerOverlayOffsetX, y = PlayerOverlayOffsetY)
-            )
-        }
+        PlayerAvatarWithPoints(
+            photoUrl = listing.photoUrl,
+            teamCrestUrl = listing.teamCrestUrl,
+            contentDescription = listing.name,
+            points = listing.points
+        )
 
         Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
             Text(text = listing.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
@@ -269,43 +253,17 @@ private fun MarketListingFooter(listing: MarketListing) {
     // The increment tracks the catalogue's live value, not the fixed
     // asking price above — it goes right after market value, not
     // under the price. Top padding is content's 8dp plus the points
-    // badge/crest overhang (PlayerOverlayOffsetY) — that overlay pokes
-    // past the content row's layout bounds without adding to its
+    // badge/crest overhang (PlayerAvatarOverlayOffsetY) — that overlay
+    // pokes past the content row's layout bounds without adding to its
     // measured height, so matching header-to-content's 8dp exactly here
     // would look tighter than it is.
     Row(
-        modifier = Modifier.padding(top = 8.dp + PlayerOverlayOffsetY),
+        modifier = Modifier.padding(top = 8.dp + PlayerAvatarOverlayOffsetY),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(text = "Market value: ${formatPrice(listing.marketValue)} ", fontSize = 13.sp, color = Neutral500)
         val (icon, color) = priceTrend(listing.priceIncrement)
         Text(text = "$icon ${formatPriceChange(listing.priceIncrement)}", fontSize = 13.sp, color = color)
-    }
-}
-
-// Shared by the badge and the crest's crestOffsetX/Y so both sit the same
-// distance past the avatar's edge — pushed outward horizontally (crest
-// left, badge right) and down, away from the picture's center — and their
-// bottom edges line up. See PlayerAvatar.
-private val PlayerOverlayOffsetX = 3.dp
-private val PlayerOverlayOffsetY = 6.dp
-
-// Overlaid bottom-right of the avatar (the crest already claims
-// bottom-start). A pill rather than a fixed-size circle since three-digit
-// season totals (up to ~300) are as common as single digits and a circle
-// would either clip them or waste space padding the common case.
-@Composable
-private fun PointsBadge(points: Int, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .defaultMinSize(minWidth = 22.dp, minHeight = 17.dp)
-            .clip(RoundedCornerShape(percent = 50))
-            .background(Neutral900)
-            .border(width = 1.dp, color = Neutral700, shape = RoundedCornerShape(percent = 50))
-            .padding(horizontal = 6.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(text = points.toString(), color = Neutral100, fontSize = 11.sp, fontWeight = FontWeight.Bold)
     }
 }
 
