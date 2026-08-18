@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,6 +26,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -99,9 +101,12 @@ private fun LineupContent(lineup: Lineup) {
 // or trusting list order (see docs/biwenger-api-notes.md § "Starting
 // lineup"). Fixed four rows, even when a group is empty, so each
 // position band always claims the same share of pitch height.
-// Defenders anchor to the bottom of their band rather than the center,
-// sitting closer to the goalkeeper than a plain even split would put
-// them — the rest stay centered in theirs.
+// Defenders and midfielders anchor to the bottom of their band rather
+// than the center, sitting closer to the row below them; midfielders
+// on top of that get a bigger base drop and a much deeper curve, so a
+// central midfielder dips toward the lower edge of the center circle
+// while the wide ones still sit clearly lower than a plain split would
+// put them.
 @Composable
 private fun PitchLineup(players: List<Player>, modifier: Modifier = Modifier) {
     val byPosition = players.groupBy { it.position }
@@ -109,7 +114,9 @@ private fun PitchLineup(players: List<Player>, modifier: Modifier = Modifier) {
         listOf(4, 3, 2, 1).forEach { position ->
             PitchRow(
                 players = byPosition[position].orEmpty(),
-                verticalAlignment = if (position == 2) Alignment.Bottom else Alignment.CenterVertically,
+                verticalAlignment = if (position == 3 || position == 2) Alignment.Bottom else Alignment.CenterVertically,
+                curveDepth = if (position == 3) MidfielderRowCurveDepth else RowCurveDepth,
+                baseOffset = if (position == 3) MidfielderRowBaseOffset else 0.dp,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -121,9 +128,23 @@ private fun PitchLineup(players: List<Player>, modifier: Modifier = Modifier) {
 // top), the middle player(s) pushed down toward the row below, same
 // shape a real back/midfield line reads as on a tactics board.
 private val RowCurveDepth = 28.dp
+private val MidfielderRowCurveDepth = 84.dp
+private val MidfielderRowBaseOffset = 40.dp
+
+// Every player slot in a row is the same fixed width regardless of how
+// long its name is — otherwise an odd-sized middle slot (e.g. a longer
+// name pill) skews Row's SpaceEvenly gaps and the middle player reads
+// as off-center even though the arrangement math is symmetric.
+private val PitchPlayerWidth = 88.dp
 
 @Composable
-private fun PitchRow(players: List<Player>, verticalAlignment: Alignment.Vertical, modifier: Modifier = Modifier) {
+private fun PitchRow(
+    players: List<Player>,
+    verticalAlignment: Alignment.Vertical,
+    modifier: Modifier = Modifier,
+    curveDepth: Dp = RowCurveDepth,
+    baseOffset: Dp = 0.dp,
+) {
     val curved = players.size > 2
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -133,10 +154,12 @@ private fun PitchRow(players: List<Player>, verticalAlignment: Alignment.Vertica
         players.forEachIndexed { index, player ->
             val t = if (players.size > 1) index / (players.size - 1).toFloat() else 0.5f
             // Parabola: 0 at both edges (t=0, t=1), 1 at the center (t=0.5).
-            val curveFraction = 4f * t * (1f - t)
+            val curveFraction = if (curved) 4f * t * (1f - t) else 0f
             PitchPlayer(
                 player = player,
-                modifier = if (curved) Modifier.offset(y = RowCurveDepth * curveFraction) else Modifier
+                modifier = Modifier
+                    .width(PitchPlayerWidth)
+                    .offset(y = baseOffset + curveDepth * curveFraction)
             )
         }
     }

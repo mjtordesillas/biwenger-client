@@ -84,7 +84,7 @@ fun FootballPitch(modifier: Modifier = Modifier, lineColor: Color = Color.White,
             style = stroke
         )
 
-        val spotRadius = strokeWidth * 1.3f
+        val spotRadius = strokeWidth * 0.6f
         drawCircle(color = lineColor, radius = spotRadius, center = Offset(centerX, boxHeight * 0.72f))
         drawCircle(color = lineColor, radius = spotRadius, center = Offset(centerX, size.height - boxHeight * 0.72f))
     }
