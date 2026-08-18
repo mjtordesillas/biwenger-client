@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
@@ -275,19 +274,21 @@ private fun squadPlayerStatusIcons(player: SquadPlayer): List<SquadPlayerStatusI
     if (player.inMarket) add(SquadPlayerStatusIcon(Icons.Default.LocalOffer, Neutral500, "Listed on the market"))
 }
 
+// Same pill treatment as PositionTag — tinted low-alpha background,
+// colored glyph instead of white-on-solid — just an icon instead of
+// text, sized to sit inside one text line rather than tower over it.
 @Composable
 private fun StatusIconBadge(statusIcon: SquadPlayerStatusIcon) {
     Box(
         modifier = Modifier
-            .size(20.dp)
-            .clip(CircleShape)
-            .background(statusIcon.color),
-        contentAlignment = Alignment.Center
+            .clip(RoundedCornerShape(NocturneRadius.md * 0.75f))
+            .background(statusIcon.color.copy(alpha = 0.24f))
+            .padding(horizontal = 6.dp, vertical = 3.dp)
     ) {
         Icon(
             imageVector = statusIcon.icon,
             contentDescription = statusIcon.contentDescription,
-            tint = Color.White,
+            tint = statusIcon.color,
             modifier = Modifier.size(13.dp)
         )
     }
