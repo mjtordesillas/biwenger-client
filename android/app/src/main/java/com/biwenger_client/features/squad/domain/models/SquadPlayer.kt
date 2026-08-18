@@ -50,4 +50,26 @@ data class SquadPlayer(
         photoUrl = photoUrl,
         teamCrestUrl = teamCrestUrl,
     )
+
+    // The squad list's ascending sort order: goalkeepers, then each
+    // outfield position banded by secondary role — the role shared with
+    // the adjacent lower position first, no secondary in the middle,
+    // the role shared with the adjacent higher position last (skipped
+    // where that neighbor doesn't apply, e.g. defenders have no lower
+    // neighbor to share a secondary with). A combination the request
+    // didn't cover (e.g. a defender with a forward secondary) sorts
+    // last — not expected in practice; `altPositions` has only ever
+    // been observed with a single, adjacent entry.
+    val positionSortRank: Int
+        get() = when {
+            position == 1 -> 0
+            position == 2 && secondaryPosition == null -> 1
+            position == 2 && secondaryPosition == 3 -> 2
+            position == 3 && secondaryPosition == 2 -> 3
+            position == 3 && secondaryPosition == null -> 4
+            position == 3 && secondaryPosition == 4 -> 5
+            position == 4 && secondaryPosition == 3 -> 6
+            position == 4 && secondaryPosition == null -> 7
+            else -> 8
+        }
 }

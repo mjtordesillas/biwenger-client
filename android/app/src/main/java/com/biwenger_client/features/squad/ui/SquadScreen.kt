@@ -112,7 +112,9 @@ private fun SquadScreen(
     onMatchDayDetailsDismissed: () -> Unit,
 ) {
     val allPlayers = (players as? Loadable.Success)?.value.orEmpty()
-    val filteredPlayers = allPlayers.filter { selectedPosition == null || it.position == selectedPosition }
+    val filteredPlayers = allPlayers
+        .filter { selectedPosition == null || it.position == selectedPosition }
+        .sortedBy { it.positionSortRank }
     val selectedPlayer = allPlayers.find { it.id == selectedPlayerId }
 
     // Exclusive, not overlaid: only one screen is ever composed at a
