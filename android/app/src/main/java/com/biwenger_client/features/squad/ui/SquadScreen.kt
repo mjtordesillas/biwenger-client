@@ -155,24 +155,26 @@ private fun SquadScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             SquadSubTabRow(selected = selectedSubTab, onSelect = { selectedSubTab = it })
 
-            when (selectedSubTab) {
-                SquadSubTab.Players -> {
-                    PositionFilterRow(selectedPosition = selectedPosition, onPositionSelected = onPositionSelected)
+            Column(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp)) {
+                when (selectedSubTab) {
+                    SquadSubTab.Players -> {
+                        PositionFilterRow(selectedPosition = selectedPosition, onPositionSelected = onPositionSelected)
 
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        when (players) {
-                            is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                            is Loadable.Failed -> Text(
-                                text = "Could not load your squad right now.",
-                                modifier = Modifier.align(Alignment.Center).padding(16.dp)
-                            )
-                            is Loadable.Success -> SquadPlayerList(players = filteredPlayers, onPlayerTapped = onPlayerTapped)
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            when (players) {
+                                is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                                is Loadable.Failed -> Text(
+                                    text = "Could not load your squad right now.",
+                                    modifier = Modifier.align(Alignment.Center).padding(16.dp)
+                                )
+                                is Loadable.Success -> SquadPlayerList(players = filteredPlayers, onPlayerTapped = onPlayerTapped)
+                            }
                         }
                     }
-                }
-                SquadSubTab.Lineup -> {
-                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                        LineupScreen()
+                    SquadSubTab.Lineup -> {
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            LineupScreen()
+                        }
                     }
                 }
             }
@@ -186,10 +188,11 @@ private fun SquadScreen(
 // accent instead of onSurface, so it reads as a top-level nav bar
 // rather than a card-local toggle. A shade darker than the page
 // background (ColorBgDeep, not ColorBg) marks it as a distinct layer
-// from the content underneath, with some breathing room below it.
+// from the content underneath — the breathing room below it is the
+// content container's own top padding, not part of this dark strip.
 @Composable
 private fun SquadSubTabRow(selected: SquadSubTab, onSelect: (SquadSubTab) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth().background(ColorBgDeep).padding(bottom = 8.dp)) {
+    Row(modifier = Modifier.fillMaxWidth().background(ColorBgDeep)) {
         SquadSubTabButton(
             label = "Players",
             icon = { color -> Icon(imageVector = Icons.Default.Groups, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },

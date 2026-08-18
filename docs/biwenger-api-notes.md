@@ -26,6 +26,15 @@ candidate URLs against a real player/team id until one returned `200`:
 
 Used in `src/player-view.js`.
 
+`https://cdn.biwenger.com/i/p/0.png` — player id `0` specifically — is
+Biwenger's own generic placeholder (a plain gray head-and-shoulders
+silhouette, 160x160), not a 404. Verified empirically (2026-08-18) by
+probing candidate paths after `view-my-lineup` needed one for a vacant
+lineup slot (Biwenger's own lineup data can be short of a formation's
+full count — see "Starting lineup" below). Confirmed distinct from a
+real player photo by content (grayscale silhouette vs. a real color
+headshot) and by size (~2KB vs. tens of KB).
+
 ## Position codes
 
 `position` on a catalogue player is an integer: `1=GK 2=DF 3=MF 4=FW`.
@@ -170,6 +179,14 @@ those separately).
 - No `fields=players` join needed for name/photo/team — the ids in
   `playersID` are catalogue ids, joinable via `getCatalogue()` exactly
   like `getSquadEntries`'s ids.
+- A vacant slot (formation has a spot the manager hasn't filled) is
+  presumed to simply shorten `playersID` below 11, rather than a null/
+  placeholder id — **not independently verified** (would require
+  leaving a real slot vacant on a live account to observe), going on
+  the user's own report of Biwenger's behavior. `view-my-lineup`'s
+  Android side treats any shortfall against the formation's expected
+  per-band count as vacant slots, rendered with the id-`0` default
+  photo (see "Image CDN" above) rather than left undrawn.
 
 ## Per-gameweek points via `reports`
 

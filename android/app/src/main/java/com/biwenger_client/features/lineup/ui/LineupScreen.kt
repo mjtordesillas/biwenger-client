@@ -89,7 +89,7 @@ private fun LineupContent(lineup: Lineup) {
                 lineColor = PitchLineColor,
                 fillColor = PitchGreen
             )
-            PitchLineup(players = lineup.players, modifier = Modifier.fillMaxSize().padding(12.dp))
+            PitchLineup(players = lineup.players, formation = lineup.formation, modifier = Modifier.fillMaxSize().padding(12.dp))
         }
     }
 }
@@ -114,19 +114,66 @@ private const val PairHalfSpanColumns = 5f // exactly 2 players: centers on colu
 
 // Forwards nearest the top (closest to goal, attacking direction is
 // "up"), then midfielders, defenders, goalkeeper at the bottom —
-// grouped by each player's own `position`, not by parsing `formation`
-// or trusting list order (see docs/biwenger-api-notes.md § "Starting
-// lineup").
+// grouped by each player's own `position`, not by trusting list order
+// (see docs/biwenger-api-notes.md § "Starting lineup"). `formation` is
+// only used here, to tell a genuinely vacant slot (Biwenger's own
+// lineup short of the formation's count) apart from "nothing in this
+// band" — every band still renders its expected count, padding any
+// shortfall with vacant placeholders rather than silently drawing
+// fewer players than the formation says.
 @Composable
-private fun PitchLineup(players: List<Player>, modifier: Modifier = Modifier) {
+private fun PitchLineup(players: List<Player>, formation: String, modifier: Modifier = Modifier) {
     val byPosition = players.groupBy { it.position }
+    val counts = parseFormation(formation)
     BoxWithConstraints(modifier = modifier) {
         val pitchSize = DpSize(maxWidth, maxHeight)
-        PitchPositionRow(players = byPosition[4].orEmpty(), band = ForwardBand, pitchSize = pitchSize)
-        PitchPositionRow(players = byPosition[3].orEmpty(), band = MidfielderBand, pitchSize = pitchSize)
-        PitchPositionRow(players = byPosition[2].orEmpty(), band = DefenderBand, pitchSize = pitchSize)
-        PitchPositionRow(players = byPosition[1].orEmpty(), band = PositionBand(GoalkeeperRow, GoalkeeperRow), pitchSize = pitchSize)
+        PitchPositionRow(players = withVacantSlots(byPosition[4].orEmpty(), counts.forwards), band = ForwardBand, pitchSize = pitchSize)
+        PitchPositionRow(players = withVacantSlots(byPosition[3].orEmpty(), counts.midfielders), band = MidfielderBand, pitchSize = pitchSize)
+        PitchPositionRow(players = withVacantSlots(byPosition[2].orEmpty(), counts.defenders), band = DefenderBand, pitchSize = pitchSize)
+        PitchPositionRow(
+            players = withVacantSlots(byPosition[1].orEmpty(), expectedCount = 1),
+            band = PositionBand(GoalkeeperRow, GoalkeeperRow),
+            pitchSize = pitchSize
+        )
     }
+}
+
+// "D-M-F" (e.g. "3-5-2") — goalkeeper is always exactly 1 and never
+// part of the string, see docs/biwenger-api-notes.md § "Starting
+// lineup".
+data class FormationCounts(val defenders: Int, val midfielders: Int, val forwards: Int)
+
+fun parseFormation(formation: String): FormationCounts {
+    val counts = formation.split("-").mapNotNull { it.toIntOrNull() }
+    return FormationCounts(
+        defenders = counts.getOrElse(0) { 0 },
+        midfielders = counts.getOrElse(1) { 0 },
+        forwards = counts.getOrElse(2) { 0 },
+    )
+}
+
+// A "?" over Biwenger's own default player photo (see docs/
+// biwenger-api-notes.md § "Image CDN") for any slot the formation
+// expects but the lineup doesn't actually fill — only `photoUrl`/`name`
+// ever get read off this by PitchPlayer, so the rest of the fields are
+// unused filler.
+private const val VacantPlayerPhotoUrl = "https://cdn.biwenger.com/i/p/0.png"
+
+fun withVacantSlots(players: List<Player>, expectedCount: Int): List<Player> {
+    val vacancies = (expectedCount - players.size).coerceAtLeast(0)
+    if (vacancies == 0) return players
+    val vacantSlot = Player(
+        id = 0,
+        name = "?",
+        position = 0,
+        secondaryPosition = null,
+        price = 0,
+        priceIncrement = 0,
+        points = 0,
+        photoUrl = VacantPlayerPhotoUrl,
+        teamCrestUrl = "",
+    )
+    return players + List(vacancies) { vacantSlot }
 }
 
 // One player: dead center, at the band's midpoint depth (no edge/
