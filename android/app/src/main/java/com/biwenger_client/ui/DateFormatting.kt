@@ -1,7 +1,17 @@
 package com.biwenger_client.ui
 
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import kotlin.math.ceil
+
+// dd/mm/yyyy, always — an explicit pattern rather than a locale-default
+// date style, so "Signed on" reads the same regardless of device locale.
+// New SimpleDateFormat per call, same as formatPrice's NumberFormat —
+// it isn't thread-safe to share.
+fun formatDate(unixSeconds: Long): String =
+    SimpleDateFormat("dd/MM/yyyy", Locale("es", "ES")).format(Date(unixSeconds * 1000))
 
 // Relative, per how soon `until` is:
 // - <8h away, or today: "in N hours"

@@ -53,6 +53,7 @@ import com.biwenger_client.ui.StatusDoubt
 import com.biwenger_client.ui.StatusInjured
 import com.biwenger_client.ui.TrendDown
 import com.biwenger_client.ui.TrendUp
+import com.biwenger_client.ui.formatDate
 import com.biwenger_client.ui.formatPrice
 import com.biwenger_client.ui.formatRelativeTime
 import com.biwenger_client.ui.theme.ColorSurface
@@ -188,13 +189,16 @@ private fun SquadPlayerList(players: List<SquadPlayer>, onPlayerTapped: (Int) ->
 }
 
 // Same header/content/footer shape as Market's MarketListingRow: a
-// header line about ownership status (just the lock countdown here —
-// unlike Market there's nothing to put on its right), the avatar/name/
-// price content, then a footer for the status icons, bottom-right.
+// header line about ownership (lock countdown left, signed-on date
+// right — every player has a signed-on date, so the header always
+// renders, unlike Market's conditional one), the avatar/name/price
+// content, then a footer (signed-for price left, status icons right).
 @Composable
 private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
     val lockLabel = player.lockedUntil?.let { "Sellable ${formatRelativeTime(it)}" }
+    val signedForLabel = player.signedPrice?.let { "Signed for: ${formatPrice(it)}" }
     val statusIcons = squadPlayerStatusIcons(player)
+    val hasFooter = signedForLabel != null || statusIcons.isNotEmpty()
 
     Column(
         modifier = Modifier
@@ -204,20 +208,30 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        if (lockLabel != null) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-                text = lockLabel,
+                text = lockLabel.orEmpty(),
                 fontSize = 13.sp,
                 color = Neutral500,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "Signed on: ${formatDate(player.signedAt)}",
+                fontSize = 13.sp,
+                color = Neutral500,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 8.dp)
             )
         }
 
-        Row(
-            modifier = Modifier.padding(top = if (lockLabel != null) 8.dp else 0.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             PlayerAvatarWithPoints(
                 photoUrl = player.photoUrl,
                 teamCrestUrl = player.teamCrestUrl,
@@ -238,12 +252,22 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
             }
         }
 
-        if (statusIcons.isNotEmpty()) {
+        if (hasFooter) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp, alignment = Alignment.End)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                statusIcons.forEach { statusIcon -> StatusIconBadge(statusIcon = statusIcon) }
+                Text(
+                    text = signedForLabel.orEmpty(),
+                    fontSize = 13.sp,
+                    color = Neutral500,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    statusIcons.forEach { statusIcon -> StatusIconBadge(statusIcon = statusIcon) }
+                }
             }
         }
     }
