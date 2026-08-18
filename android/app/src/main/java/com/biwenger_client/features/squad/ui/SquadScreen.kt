@@ -11,11 +11,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.LocalOffer
+import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,7 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -43,9 +52,10 @@ import com.biwenger_client.ui.PositionTag
 import com.biwenger_client.ui.PriceTrend
 import com.biwenger_client.ui.StatusDoubt
 import com.biwenger_client.ui.StatusInjured
+import com.biwenger_client.ui.TrendDown
+import com.biwenger_client.ui.TrendUp
 import com.biwenger_client.ui.formatPrice
 import com.biwenger_client.ui.formatRelativeTime
-import com.biwenger_client.ui.theme.ColorAccent
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
 import com.biwenger_client.ui.theme.NocturneRadius
@@ -178,8 +188,16 @@ private fun SquadPlayerList(players: List<SquadPlayer>, onPlayerTapped: (Int) ->
     }
 }
 
+// Same header/content shape as Market's MarketListingRow: a metadata
+// row about the player's ownership status, then the avatar/name/price
+// content. No footer — squad has nothing that belongs below the content
+// the way Market's market-value line does.
 @Composable
 private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
+    val lockLabel = player.lockedUntil?.let { "Sellable ${formatRelativeTime(it)}" }
+    val statusIcons = squadPlayerStatusIcons(player)
+    val hasHeader = lockLabel != null || statusIcons.isNotEmpty()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -188,7 +206,30 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        if (hasHeader) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = lockLabel.orEmpty(),
+                    fontSize = 13.sp,
+                    color = Neutral500,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    statusIcons.forEach { statusIcon -> StatusIconBadge(statusIcon = statusIcon) }
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier.padding(top = if (hasHeader) 8.dp else 0.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             PlayerAvatarWithPoints(
                 photoUrl = player.photoUrl,
                 teamCrestUrl = player.teamCrestUrl,
@@ -208,40 +249,46 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
                 PriceTrend(priceIncrement = player.priceIncrement)
             }
         }
-
-        SquadPlayerBadges(player = player)
     }
 }
 
-// Only the facts that actually apply render a badge — most players show
-// none of these most of the time (sellable, unlisted, no offer, fit), so
-// an empty state here means no row at all rather than an empty one.
-@Composable
-private fun SquadPlayerBadges(player: SquadPlayer) {
-    val badges = buildList {
-        if (player.status == "injured") add("Injured" to StatusInjured)
-        if (player.status == "doubt") add("Doubt" to StatusDoubt)
-        // Locked players can't be listed, so this and "Listed" never
-        // both show — still computed independently, not as an else.
-        player.lockedUntil?.let { add("Sellable ${formatRelativeTime(it)}" to Neutral500) }
-        if (player.inMarket) add("Listed" to ColorAccent)
-        if (player.hasOffer) add("Offer received" to ColorAccent)
-    }
-    if (badges.isEmpty()) return
+private data class SquadPlayerStatusIcon(val icon: ImageVector, val color: Color, val contentDescription: String)
 
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) {
-        badges.forEach { (label, color) -> SquadPlayerBadge(label = label, color = color) }
+// Order matches how urgent/actionable each fact is: fitness first (it
+// affects whether to even start this player), then the offer (is it
+// worth taking), then "already listed" last (already acted on).
+private fun squadPlayerStatusIcons(player: SquadPlayer): List<SquadPlayerStatusIcon> = buildList {
+    if (player.status == "injured") add(SquadPlayerStatusIcon(Icons.Default.Close, StatusInjured, "Injured"))
+    if (player.status == "doubt") add(SquadPlayerStatusIcon(Icons.Default.QuestionMark, StatusDoubt, "Doubt for the next match"))
+    player.offerAmount?.let { offerAmount ->
+        // >= counts as "above value" — no offer sample has landed exactly
+        // on the market value to motivate a third (flat) treatment.
+        val aboveValue = offerAmount >= player.price
+        add(
+            SquadPlayerStatusIcon(
+                icon = Icons.Default.AttachMoney,
+                color = if (aboveValue) TrendUp else TrendDown,
+                contentDescription = if (aboveValue) "Offer above market value" else "Offer below market value"
+            )
+        )
     }
+    if (player.inMarket) add(SquadPlayerStatusIcon(Icons.Default.LocalOffer, Neutral500, "Listed on the market"))
 }
 
 @Composable
-private fun SquadPlayerBadge(label: String, color: Color) {
+private fun StatusIconBadge(statusIcon: SquadPlayerStatusIcon) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(NocturneRadius.md * 0.75f))
-            .background(color.copy(alpha = 0.24f))
-            .padding(horizontal = 8.dp, vertical = 3.dp)
+            .size(20.dp)
+            .clip(CircleShape)
+            .background(statusIcon.color),
+        contentAlignment = Alignment.Center
     ) {
-        Text(text = label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = color)
+        Icon(
+            imageVector = statusIcon.icon,
+            contentDescription = statusIcon.contentDescription,
+            tint = Color.White,
+            modifier = Modifier.size(13.dp)
+        )
     }
 }

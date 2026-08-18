@@ -14,7 +14,7 @@ fun aSquadPlayer(
     teamCrestUrl: String = "https://cdn.biwenger.com/i/t/1.png",
     lockedUntil: Long? = null,
     inMarket: Boolean = false,
-    hasOffer: Boolean = false,
+    offerAmount: Long? = null,
     status: String = "ok",
 ) = SquadPlayer(
     id = id,
@@ -28,6 +28,6 @@ fun aSquadPlayer(
     teamCrestUrl = teamCrestUrl,
     lockedUntil = lockedUntil,
     inMarket = inMarket,
-    hasOffer = hasOffer,
+    offerAmount = offerAmount,
     status = status,
 )

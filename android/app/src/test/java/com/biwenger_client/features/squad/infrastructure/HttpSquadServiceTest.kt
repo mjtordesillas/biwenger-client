@@ -36,7 +36,7 @@ class HttpSquadServiceTest {
                         "price":280000,"priceIncrement":10000,"points":5,
                         "photoUrl":"https://cdn.biwenger.com/i/p/1.png",
                         "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png",
-                        "lockedUntil":1787202657,"inMarket":true,"hasOffer":true,"status":"doubt"
+                        "lockedUntil":1787202657,"inMarket":true,"offerAmount":2100000,"status":"doubt"
                     }]}"""
                 )
             )
@@ -54,7 +54,7 @@ class HttpSquadServiceTest {
             assertThat(player?.teamCrestUrl).isEqualTo("https://cdn.biwenger.com/i/t/87.png")
             assertThat(player?.lockedUntil).isEqualTo(1787202657)
             assertThat(player?.inMarket).isTrue()
-            assertThat(player?.hasOffer).isTrue()
+            assertThat(player?.offerAmount).isEqualTo(2100000)
             assertThat(player?.status).isEqualTo("doubt")
         }
     }
