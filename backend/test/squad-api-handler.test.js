@@ -36,6 +36,7 @@ test('returns a 200 JSON body with the squad, shaped via toSquadPlayerView, on s
       teamCrestUrl: 'https://cdn.biwenger.com/i/t/87.png',
       signedAt: 1786573790,
       signedPrice: null,
+      draftedPrice: null,
       lockedUntil: null,
       inMarket: false,
       offerAmount: null,

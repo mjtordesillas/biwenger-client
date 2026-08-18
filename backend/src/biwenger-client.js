@@ -69,14 +69,25 @@ export const createBiwengerClient = (dependencies = {}) => {
     return data.players
   }
 
+  // Biwenger's own price-history entries are keyed by a YYMMDD number
+  // (see getPlayerPrices/docs/biwenger-api-notes.md), not an ISO date —
+  // needed to look up a draft-owned player's value on their signing date.
+  const yymmddFromUnixSeconds = (unixSeconds) => {
+    const date = new Date(unixSeconds * 1000)
+    const yy = String(date.getUTCFullYear() % 100).padStart(2, '0')
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0')
+    const dd = String(date.getUTCDate()).padStart(2, '0')
+    return Number(`${yy}${mm}${dd}`)
+  }
+
   // Log in, resolve league/user, fetch the owned players (with their
   // `owner` data), join against the catalogue for name/position/price/
   // status, and cross-reference the market for "is this one of mine
   // that's currently listed" / "what's the standing offer on it, if any"
   // — see docs/biwenger-api-notes.md § "Squad player status".
-  // Returns {player, owner, inMarket, offerAmount} tuples rather than a
-  // merged object, same reasoning as getCurrentMarket's {sale, player} —
-  // squad-player-view.js does the shaping.
+  // Returns {player, owner, inMarket, offerAmount, draftedPrice} tuples
+  // rather than a merged object, same reasoning as getCurrentMarket's
+  // {sale, player} — squad-player-view.js does the shaping.
   const getMySquad = async ({ email, password }) => {
     const token = await login({ email, password })
     const { leagueId, userId } = await getAccount({ token })
@@ -85,6 +96,22 @@ export const createBiwengerClient = (dependencies = {}) => {
       getCatalogue(),
       getMarketData({ token, leagueId, userId }),
     ])
+
+    // Draft-owned players (owner.price absent — never bought) don't
+    // carry their market value at draft time anywhere in the squad or
+    // market responses; the only place it exists is each player's own
+    // price history, keyed by day.
+    const draftedEntries = squadEntries.filter(({ owner }) => owner.price == null)
+    const draftedPriceById = new Map(
+      await Promise.all(
+        draftedEntries.map(async ({ id, owner }) => {
+          const prices = await getPlayerPrices({ playerId: id })
+          const entry = prices.find(([yymmdd]) => yymmdd === yymmddFromUnixSeconds(owner.date))
+          return [id, entry?.[1] ?? null]
+        })
+      )
+    )
+
     return squadEntries
       .map(({ id, owner }) => {
         const player = catalogue[String(id)]
@@ -94,7 +121,13 @@ export const createBiwengerClient = (dependencies = {}) => {
         // with more than one standing offer at once; not disambiguated
         // further without a concrete case that needs it.
         const offer = offers.find((offer) => offer.to?.id === userId && offer.requestedPlayers?.includes(id))
-        return { player, owner, inMarket, offerAmount: offer?.amount ?? null }
+        return {
+          player,
+          owner,
+          inMarket,
+          offerAmount: offer?.amount ?? null,
+          draftedPrice: draftedPriceById.get(id) ?? null,
+        }
       })
       .filter(Boolean)
   }
