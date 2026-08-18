@@ -43,6 +43,7 @@ import com.biwenger_client.features.squad.domain.models.PriceHistory
 import com.biwenger_client.features.squad.domain.models.SquadPlayer
 import com.biwenger_client.ui.FilterChip
 import com.biwenger_client.ui.MatchDayDetailsScreen
+import com.biwenger_client.ui.PlayerAvatarOverlayOffsetY
 import com.biwenger_client.ui.PlayerAvatarWithPoints
 import com.biwenger_client.ui.PlayerDetailScreen
 import com.biwenger_client.ui.PositionColors
@@ -189,8 +190,8 @@ private fun SquadPlayerList(players: List<SquadPlayer>, onPlayerTapped: (Int) ->
 }
 
 // Same header/content/footer shape as Market's MarketListingRow: a
-// header line about ownership (lock countdown left, signed/drafted-on
-// date right — every player has one, so the header always renders,
+// header line about ownership (signed/drafted-on date left, listable
+// status right — every player has both, so the header always renders,
 // unlike Market's conditional one), the avatar/name/price content, then
 // a footer (signed/drafted-at price left, status icons right).
 @Composable
@@ -203,7 +204,7 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
     val forLabel = if (drafted) "Drafted at" else "Signed for"
     val forAmount = if (drafted) player.draftedPrice else player.signedPrice
 
-    val lockLabel = player.lockedUntil?.let { "Sellable ${formatRelativeTime(it)}" }
+    val listableLabel = player.lockedUntil?.let { "Listable ${formatRelativeTime(it)}" } ?: "Listable"
     val signedForLabel = forAmount?.let { "$forLabel: ${formatPrice(it)}" }
     val statusIcons = squadPlayerStatusIcons(player)
     val hasFooter = signedForLabel != null || statusIcons.isNotEmpty()
@@ -222,7 +223,7 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = lockLabel.orEmpty(),
+                text = "$onLabel: ${formatDate(player.signedAt)}",
                 fontSize = 13.sp,
                 color = Neutral500,
                 maxLines = 1,
@@ -230,7 +231,7 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "$onLabel: ${formatDate(player.signedAt)}",
+                text = listableLabel,
                 fontSize = 13.sp,
                 color = Neutral500,
                 maxLines = 1,
@@ -261,8 +262,14 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
         }
 
         if (hasFooter) {
+            // Top padding is content's 8dp plus the points badge/crest
+            // overhang (PlayerAvatarOverlayOffsetY) — that overlay pokes
+            // past the content row's layout bounds without adding to its
+            // measured height, so matching 8dp exactly here would look
+            // tighter than the header-to-content gap. Same reasoning as
+            // Market's MarketListingFooter.
             Row(
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp + PlayerAvatarOverlayOffsetY),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
