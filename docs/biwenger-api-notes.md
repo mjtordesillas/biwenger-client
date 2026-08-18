@@ -139,6 +139,38 @@ Verified empirically (2026-08-18) against a real account/league, for
   strings) that wasn't needed for this feature and isn't otherwise
   understood yet.
 
+## Starting lineup
+
+`GET https://biwenger.as.com/api/v2/user?fields=lineup(type,playersID)`
+Headers: `Authorization`, `X-League`, `X-User` (same shape as
+`getSquadEntries`). Verified empirically (2026-08-18) against a real
+account, for `view-my-lineup`. Found via `lineup.go` in the
+[pablopb3/biwenger-api](https://github.com/pablopb3/biwenger-api)
+reference project (unofficial wrapper, not assumed correct — the field
+shape re-verified against the real API before trusting it; that
+project's own fetch also chains in `players`/`market`/`offers` on the
+same call, not needed here since `getMySquad`/`getCurrentMarket` cover
+those separately).
+
+- `data.lineup.type` is the formation as a hyphen-separated string of
+  outfield player counts, e.g. `"3-5-2"` (3 defenders, 5 midfielders, 2
+  forwards — goalkeeper is implicit, always exactly 1, not counted in
+  the string).
+- `data.lineup.playersID` is an **ordered** array of 11 ids — not
+  arbitrary order. Cross-checked against the real account's formation
+  (`"3-5-2"`) and each id's catalogue `position`: the array is exactly
+  `[goalkeeper, defender × 3, midfielder × 5, forward × 2]` — i.e.
+  grouped back-to-front by position, counts matching the formation
+  string (plus the always-1 goalkeeper first). Parsing the formation
+  string's three numbers plus the fixed goalkeeper slot is enough to
+  slice `playersID` into its position groups without any extra field.
+- `data.lineup.date` is a unix-seconds timestamp, presumably the
+  fixture/matchday this lineup applies to — not investigated further,
+  not needed for `view-my-lineup`.
+- No `fields=players` join needed for name/photo/team — the ids in
+  `playersID` are catalogue ids, joinable via `getCatalogue()` exactly
+  like `getSquadEntries`'s ids.
+
 ## Per-gameweek points via `reports`
 
 `GET https://biwenger.as.com/api/v2/players/la-liga/{playerId}?fields=id,name,reports&season={seasonId}`

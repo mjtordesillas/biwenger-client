@@ -30,6 +30,13 @@ functions:
           method: GET
           path: /market
           private: true
+  lineup:
+    handler: src/index.lineup
+    events:
+      - http:
+          method: GET
+          path: /lineup
+          private: true
   priceHistory:
     handler: src/index.priceHistory
     events:

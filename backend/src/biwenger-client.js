@@ -156,6 +156,38 @@ export const createBiwengerClient = (dependencies = {}) => {
       .filter(Boolean)
   }
 
+  const getLineupData = async ({ token, leagueId, userId }) => {
+    const response = await httpFetch(`${baseUrl}/user?fields=lineup(type,playersID)`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-League': String(leagueId),
+        'X-User': String(userId),
+        Accept: 'application/json',
+      },
+    })
+    const { data } = await response.json()
+    return data.lineup
+  }
+
+  // Starting lineup — see docs/biwenger-api-notes.md § "Starting
+  // lineup". Returns {formation, players} rather than a merged object:
+  // `players` here are catalogue players in `playersID`'s order
+  // (goalkeeper, then defenders/midfielders/forwards, grouped
+  // back-to-front per the formation counts) — lineup-view.js does the
+  // shaping into named position groups.
+  const getLineup = async ({ email, password }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    const [lineup, catalogue] = await Promise.all([
+      getLineupData({ token, leagueId, userId }),
+      getCatalogue(),
+    ])
+    return {
+      formation: lineup.type,
+      players: lineup.playersID.map((id) => catalogue[String(id)]).filter(Boolean),
+    }
+  }
+
   const getPlayerPrices = async ({ playerId }) => {
     const response = await httpFetch(`${baseUrl}/players/la-liga/${playerId}?fields=id,name,prices`, {
       headers: { Accept: 'application/json' },
@@ -185,5 +217,5 @@ export const createBiwengerClient = (dependencies = {}) => {
     return data.reports
   }
 
-  return { getMySquad, getCurrentMarket, getPlayerPrices, getPlayerGameweekPoints }
+  return { getMySquad, getCurrentMarket, getLineup, getPlayerPrices, getPlayerGameweekPoints }
 }
