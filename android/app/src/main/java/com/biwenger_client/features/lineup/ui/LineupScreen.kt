@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -16,19 +19,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.lineup.domain.models.Lineup
 import com.biwenger_client.ui.FootballPitch
-import com.biwenger_client.ui.PlayerAvatar
-import com.biwenger_client.ui.theme.ColorSurface
+import com.biwenger_client.ui.theme.Neutral900
 
 // A green pitch is the one deliberate exception to Nocturne's "keep
 // chroma low outside the accent" rule here — same carve-out reasoning
@@ -102,25 +107,43 @@ private fun PitchLineup(players: List<Player>, modifier: Modifier = Modifier) {
     }
 }
 
+// Level for one or two players — nothing to curve. Three or more bows
+// into a shallow valley: edges sit highest (closest to the row's own
+// top), the middle player(s) pushed down toward the row below, same
+// shape a real back/midfield line reads as on a tactics board.
+private val RowCurveDepth = 16.dp
+
 @Composable
 private fun PitchRow(players: List<Player>, modifier: Modifier = Modifier) {
+    val curved = players.size > 2
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        players.forEach { player -> PitchPlayer(player = player) }
+        players.forEachIndexed { index, player ->
+            val t = if (players.size > 1) index / (players.size - 1).toFloat() else 0.5f
+            // Parabola: 0 at both edges (t=0, t=1), 1 at the center (t=0.5).
+            val curveFraction = 4f * t * (1f - t)
+            PitchPlayer(
+                player = player,
+                modifier = if (curved) Modifier.offset(y = RowCurveDepth * curveFraction) else Modifier
+            )
+        }
     }
 }
 
 @Composable
-private fun PitchPlayer(player: Player) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        PlayerAvatar(
-            photoUrl = player.photoUrl,
-            teamCrestUrl = player.teamCrestUrl,
+private fun PitchPlayer(player: Player, modifier: Modifier = Modifier) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
+        // The plain mugshot, not PlayerAvatar's circle-masked photo +
+        // team crest — those make sense in a list row, not stood on a
+        // pitch where the shirt/crest is already visually redundant.
+        AsyncImage(
+            model = player.photoUrl,
             contentDescription = player.name,
-            size = 44.dp
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.size(48.dp)
         )
         Text(
             text = player.name,
@@ -133,7 +156,9 @@ private fun PitchPlayer(player: Player) {
             modifier = Modifier
                 .padding(top = 3.dp)
                 .widthIn(max = 68.dp)
-                .background(ColorSurface.copy(alpha = 0.55f))
+                .clip(RoundedCornerShape(percent = 50))
+                .background(Neutral900)
+                .padding(horizontal = 8.dp, vertical = 2.dp)
         )
     }
 }
