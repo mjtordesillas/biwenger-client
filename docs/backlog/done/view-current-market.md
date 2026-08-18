@@ -1,6 +1,6 @@
 View the current transfer market.
 
-Three increments, all shipped:
+Six increments, all shipped:
 
 1. **Backend** — `GET /market` (`backend/src/market-api-handler.js`,
    `getCurrentMarket()` in `backend/src/biwenger-client.js`). Joins the
@@ -43,6 +43,40 @@ Three increments, all shipped:
    `Player`, so `MarketListingRow` could reuse them without constructing
    a fake `Player`.
 
+4. **Card polish** — several rounds of layout feedback on the listing
+   card: header row (seller/expiry) got explicit `CenterVertically` plus
+   a `maxLines`/ellipsis guard against a long seller name, header/footer
+   text size and header-to-content spacing were tuned, and the asking
+   price gained a second line showing its delta vs. market value
+   (`priceTrend`/`formatPriceChange` reused as-is against a different
+   underlying number).
+
+5. **Tapping a listing opens the shared player-detail sheet** — market
+   rows now open the same detail sheet Squad's player rows do (price
+   history, performance history, match-day drill-down) instead of doing
+   nothing. Required promoting `PlayerDetailScreen`/
+   `MatchDayDetailsScreen` — and everything they exclusively used
+   (charts, shimmer, score breakdowns, substitutions) — out of
+   `features/squad` into shared `ui/`, since Market is the first second
+   consumer; moved unchanged in behavior, along with the season
+   constants and their coeffect-driven requests, now dispatched by both
+   view models.
+
+6. **Points bubble, bigger avatar, and a card layout refresh** — a
+   season-points pill overlaid bottom-right of each listing's avatar
+   (dark fill, subtle border, grows horizontally for double/triple-digit
+   totals), avatar and crest sized up, `MarketListingRow` split into
+   `MarketListingHeader`/`Content`/`Footer` composables, the expiry's
+   relative-time phrase ("tomorrow", "in 2 days"...) bolded, header/
+   footer font bumped, and card spacing rebalanced end to end. The
+   avatar+crest+points-bubble combination (`PlayerAvatarWithPoints`) and
+   `PointsBadge` were promoted to shared `ui/PlayerList.kt` once Squad
+   became a second consumer of the same combo — Squad's player row now
+   shows the same bubble and drops its now-redundant "N pts" text next
+   to the position tag.
+
 Verified end-to-end on a real device throughout: the app shows real
-market listings with the correct asking price, and — for slice 3 — real
-expiry/seller/market-value data alongside it.
+market listings with the correct asking price, and — from slice 3
+onward — real expiry/seller/market-value data, tap-through to the
+player-detail sheet, and the points-bubble/card-polish styling
+alongside it.
