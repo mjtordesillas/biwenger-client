@@ -1,15 +1,15 @@
 package com.biwenger_client.features.lineup.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,6 +25,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -93,54 +94,82 @@ private fun LineupContent(lineup: Lineup) {
     }
 }
 
+// Calibrated against a 24-column x 20-row grid overlaid on the pitch
+// during design: vertical reference is the BOTTOM of the name pill,
+// horizontal reference is the CENTER of the player. Row/column values
+// are grid line indices (row 0 = forwards' goal line, row 20 =
+// goalkeeper's; column 0 = left edge, column 24 = right edge).
+private data class PositionBand(val highestRow: Int, val lowestRow: Int)
+
+private val ForwardBand = PositionBand(highestRow = 3, lowestRow = 5)
+private val MidfielderBand = PositionBand(highestRow = 8, lowestRow = 10)
+private val DefenderBand = PositionBand(highestRow = 14, lowestRow = 16)
+private const val GoalkeeperRow = 20
+
+private const val GridColumns = 24
+private const val GridRows = 20
+private const val CenterColumn = 12
+private const val MaxHalfSpanColumns = 9 // the fixed curve's edges: columns 3 and 21
+private const val PairHalfSpanColumns = 5f // exactly 2 players: centers on columns 7 and 17
+
 // Forwards nearest the top (closest to goal, attacking direction is
 // "up"), then midfielders, defenders, goalkeeper at the bottom —
 // grouped by each player's own `position`, not by parsing `formation`
 // or trusting list order (see docs/biwenger-api-notes.md § "Starting
-// lineup"). Fixed four rows, even when a group is empty, so each
-// position band always claims the same share of pitch height.
-// Defenders anchor to the bottom of their band rather than the center,
-// sitting closer to the goalkeeper than a plain even split would put
-// them — the rest stay centered in theirs.
+// lineup").
 @Composable
 private fun PitchLineup(players: List<Player>, modifier: Modifier = Modifier) {
     val byPosition = players.groupBy { it.position }
-    Column(modifier = modifier, verticalArrangement = Arrangement.SpaceBetween) {
-        listOf(4, 3, 2, 1).forEach { position ->
-            PitchRow(
-                players = byPosition[position].orEmpty(),
-                verticalAlignment = if (position == 2) Alignment.Bottom else Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            )
-        }
+    BoxWithConstraints(modifier = modifier) {
+        val pitchSize = DpSize(maxWidth, maxHeight)
+        PitchPositionRow(players = byPosition[4].orEmpty(), band = ForwardBand, pitchSize = pitchSize)
+        PitchPositionRow(players = byPosition[3].orEmpty(), band = MidfielderBand, pitchSize = pitchSize)
+        PitchPositionRow(players = byPosition[2].orEmpty(), band = DefenderBand, pitchSize = pitchSize)
+        PitchPositionRow(players = byPosition[1].orEmpty(), band = PositionBand(GoalkeeperRow, GoalkeeperRow), pitchSize = pitchSize)
     }
 }
 
-// Level for one or two players — nothing to curve. Three or more bows
-// into a shallow valley: edges sit highest (closest to the row's own
-// top), the middle player(s) pushed down toward the row below, same
-// shape a real back/midfield line reads as on a tactics board.
-private val RowCurveDepth = 28.dp
-
+// One player: dead center, at the band's midpoint depth (no edge/
+// center distinction with just one player). Two: level, at the band's
+// midpoint depth, spread to a fixed 10-column gap (further apart than
+// the curve below would put them, so a sparse row doesn't read as two
+// players standing right on top of each other). Three or more sample N
+// evenly-spaced points along ONE fixed curve — always column 3/highest
+// to column 12/lowest to column 21/highest, the same physical curve
+// regardless of count — rather than a count-scaled, narrower copy of
+// it. A row with fewer than 5 players still spans the full width; it
+// just has fewer, more sparsely sampled points along that curve, so
+// its inner players land close to but not exactly at the lowest point.
 @Composable
-private fun PitchRow(players: List<Player>, verticalAlignment: Alignment.Vertical, modifier: Modifier = Modifier) {
-    val curved = players.size > 2
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = verticalAlignment
-    ) {
-        players.forEachIndexed { index, player ->
-            val t = if (players.size > 1) index / (players.size - 1).toFloat() else 0.5f
-            // Parabola: 0 at both edges (t=0, t=1), 1 at the center (t=0.5).
+private fun PitchPositionRow(players: List<Player>, band: PositionBand, pitchSize: DpSize) {
+    val count = players.size
+    val midpointRow = (band.highestRow + band.lowestRow) / 2f
+    val halfSpan = if (count == 2) PairHalfSpanColumns else MaxHalfSpanColumns.toFloat()
+
+    players.forEachIndexed { index, player ->
+        val t = if (count > 1) index / (count - 1).toFloat() else 0.5f
+        val column = CenterColumn + (t - 0.5f) * (2 * halfSpan)
+        val row = if (count <= 2) {
+            midpointRow
+        } else {
             val curveFraction = 4f * t * (1f - t)
-            PitchPlayer(
-                player = player,
-                modifier = if (curved) Modifier.offset(y = RowCurveDepth * curveFraction) else Modifier
-            )
+            band.highestRow + (band.lowestRow - band.highestRow) * curveFraction
         }
+
+        val centerX = pitchSize.width * (column / GridColumns)
+        val bottomY = pitchSize.height * (row / GridRows)
+
+        PitchPlayer(
+            player = player,
+            modifier = Modifier
+                .width(PitchPlayerWidth)
+                .offset(x = centerX - PitchPlayerWidth / 2, y = bottomY - PitchPlayerHeight)
+        )
     }
 }
+
+private val PitchPlayerWidth = 88.dp
+private val PitchPlayerHeight = 66.dp
 
 @Composable
 private fun PitchPlayer(player: Player, modifier: Modifier = Modifier) {
