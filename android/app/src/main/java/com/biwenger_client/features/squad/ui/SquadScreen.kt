@@ -19,8 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.QuestionMark
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -187,15 +187,14 @@ private fun SquadPlayerList(players: List<SquadPlayer>, onPlayerTapped: (Int) ->
     }
 }
 
-// Same header/content shape as Market's MarketListingRow: a metadata
-// row about the player's ownership status, then the avatar/name/price
-// content. No footer — squad has nothing that belongs below the content
-// the way Market's market-value line does.
+// Same header/content/footer shape as Market's MarketListingRow: a
+// header line about ownership status (just the lock countdown here —
+// unlike Market there's nothing to put on its right), the avatar/name/
+// price content, then a footer for the status icons, bottom-right.
 @Composable
 private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
     val lockLabel = player.lockedUntil?.let { "Sellable ${formatRelativeTime(it)}" }
     val statusIcons = squadPlayerStatusIcons(player)
-    val hasHeader = lockLabel != null || statusIcons.isNotEmpty()
 
     Column(
         modifier = Modifier
@@ -205,28 +204,18 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        if (hasHeader) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = lockLabel.orEmpty(),
-                    fontSize = 13.sp,
-                    color = Neutral500,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    statusIcons.forEach { statusIcon -> StatusIconBadge(statusIcon = statusIcon) }
-                }
-            }
+        if (lockLabel != null) {
+            Text(
+                text = lockLabel,
+                fontSize = 13.sp,
+                color = Neutral500,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
 
         Row(
-            modifier = Modifier.padding(top = if (hasHeader) 8.dp else 0.dp),
+            modifier = Modifier.padding(top = if (lockLabel != null) 8.dp else 0.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             PlayerAvatarWithPoints(
@@ -246,6 +235,15 @@ private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
             Column(horizontalAlignment = Alignment.End) {
                 Text(text = formatPrice(player.price), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
                 PriceTrend(priceIncrement = player.priceIncrement)
+            }
+        }
+
+        if (statusIcons.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp, alignment = Alignment.End)
+            ) {
+                statusIcons.forEach { statusIcon -> StatusIconBadge(statusIcon = statusIcon) }
             }
         }
     }
@@ -271,7 +269,7 @@ private fun squadPlayerStatusIcons(player: SquadPlayer): List<SquadPlayerStatusI
             )
         )
     }
-    if (player.inMarket) add(SquadPlayerStatusIcon(Icons.Default.LocalOffer, Neutral500, "Listed on the market"))
+    if (player.inMarket) add(SquadPlayerStatusIcon(Icons.Default.Storefront, Neutral500, "Listed on the market"))
 }
 
 // Same pill treatment as PositionTag — tinted low-alpha background,
@@ -283,13 +281,13 @@ private fun StatusIconBadge(statusIcon: SquadPlayerStatusIcon) {
         modifier = Modifier
             .clip(RoundedCornerShape(NocturneRadius.md * 0.75f))
             .background(statusIcon.color.copy(alpha = 0.24f))
-            .padding(horizontal = 6.dp, vertical = 3.dp)
+            .padding(horizontal = 5.dp, vertical = 2.dp)
     ) {
         Icon(
             imageVector = statusIcon.icon,
             contentDescription = statusIcon.contentDescription,
             tint = statusIcon.color,
-            modifier = Modifier.size(13.dp)
+            modifier = Modifier.size(10.dp)
         )
     }
 }
