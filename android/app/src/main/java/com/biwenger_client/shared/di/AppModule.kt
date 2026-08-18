@@ -8,6 +8,9 @@ import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.navigation.NavigationProvider
 import com.biwenger_client.core.navigation.Navigator
 import com.biwenger_client.core.state.Database
+import com.biwenger_client.features.lineup.LineupStateInitializer
+import com.biwenger_client.features.lineup.infrastructure.HttpLineupService
+import com.biwenger_client.features.lineup.infrastructure.LineupService
 import com.biwenger_client.features.market.MarketStateInitializer
 import com.biwenger_client.features.market.infrastructure.HttpMarketService
 import com.biwenger_client.features.market.infrastructure.MarketService
@@ -58,7 +61,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(): Database {
-        val state = SquadStateInitializer().initialState() + MarketStateInitializer().initialState()
+        val state = SquadStateInitializer().initialState() +
+            MarketStateInitializer().initialState() +
+            LineupStateInitializer().initialState()
         return Database(initialState = state)
     }
 
@@ -99,6 +104,7 @@ object AppModule {
         performanceHistoryService: PerformanceHistoryService,
         matchDayDetailsService: MatchDayDetailsService,
         marketService: MarketService,
+        lineupService: LineupService,
     ): CoeffectsHandlerRegistration {
         return CoeffectsHandlerRegistration(
             registry = registry,
@@ -107,6 +113,7 @@ object AppModule {
             performanceHistoryService = performanceHistoryService,
             matchDayDetailsService = matchDayDetailsService,
             marketService = marketService,
+            lineupService = lineupService,
         )
     }
 
@@ -138,5 +145,11 @@ object AppModule {
     @Singleton
     fun provideMarketService(): MarketService {
         return HttpMarketService(baseUrl = BASE_URL, apiKey = BuildConfig.API_KEY)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLineupService(): LineupService {
+        return HttpLineupService(baseUrl = BASE_URL, apiKey = BuildConfig.API_KEY)
     }
 }

@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,6 +28,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,11 +41,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.biwenger_client.core.state.Loadable
+import com.biwenger_client.features.lineup.ui.LineupScreen
 import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.PriceHistory
 import com.biwenger_client.features.squad.domain.models.SquadPlayer
 import com.biwenger_client.ui.FilterChip
+import com.biwenger_client.ui.FootballPitch
 import com.biwenger_client.ui.MatchDayDetailsScreen
 import com.biwenger_client.ui.PlayerAvatarOverlayOffsetY
 import com.biwenger_client.ui.PlayerAvatarWithPoints
@@ -60,6 +66,8 @@ import com.biwenger_client.ui.formatRelativeTime
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
 import com.biwenger_client.ui.theme.NocturneRadius
+
+private enum class SquadSubTab { Players, Lineup }
 
 private val FilterPositions = listOf(null, 1, 2, 3, 4) // null = All
 
@@ -133,21 +141,60 @@ private fun SquadScreen(
             onBack = onSheetDismissed
         )
     } else {
+        // Local to this composable, not routed through the Registry —
+        // nothing outside this screen depends on which subtab is
+        // showing, same as PositionFilterRow's rememberScrollState.
+        var selectedSubTab by remember { mutableStateOf(SquadSubTab.Players) }
+
         Column(modifier = Modifier.fillMaxSize()) {
             SquadHeader()
-            PositionFilterRow(selectedPosition = selectedPosition, onPositionSelected = onPositionSelected)
+            SquadSubTabRow(selected = selectedSubTab, onSelect = { selectedSubTab = it })
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                when (players) {
-                    is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    is Loadable.Failed -> Text(
-                        text = "Could not load your squad right now.",
-                        modifier = Modifier.align(Alignment.Center).padding(16.dp)
-                    )
-                    is Loadable.Success -> SquadPlayerList(players = filteredPlayers, onPlayerTapped = onPlayerTapped)
+            when (selectedSubTab) {
+                SquadSubTab.Players -> {
+                    PositionFilterRow(selectedPosition = selectedPosition, onPositionSelected = onPositionSelected)
+
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        when (players) {
+                            is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                            is Loadable.Failed -> Text(
+                                text = "Could not load your squad right now.",
+                                modifier = Modifier.align(Alignment.Center).padding(16.dp)
+                            )
+                            is Loadable.Success -> SquadPlayerList(players = filteredPlayers, onPlayerTapped = onPlayerTapped)
+                        }
+                    }
+                }
+                SquadSubTab.Lineup -> {
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        LineupScreen()
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SquadSubTabRow(selected: SquadSubTab, onSelect: (SquadSubTab) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        FilterChip(
+            label = "Players",
+            color = MaterialTheme.colorScheme.primary,
+            active = selected == SquadSubTab.Players,
+            onClick = { onSelect(SquadSubTab.Players) },
+            icon = { color -> Icon(imageVector = Icons.Default.Groups, contentDescription = null, tint = color, modifier = Modifier.size(15.dp)) }
+        )
+        FilterChip(
+            label = "Lineup",
+            color = MaterialTheme.colorScheme.primary,
+            active = selected == SquadSubTab.Lineup,
+            onClick = { onSelect(SquadSubTab.Lineup) },
+            icon = { color -> FootballPitch(modifier = Modifier.size(15.dp), lineColor = color) }
+        )
     }
 }
 

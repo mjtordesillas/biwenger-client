@@ -4,11 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -199,10 +202,13 @@ fun formatPrice(price: Long): String = currencyFormat().format(price)
 fun formatPriceChange(priceIncrement: Long): String = currencyFormat().format(abs(priceIncrement))
 
 // Promoted out of features/squad/ui/SquadScreen.kt alongside
-// PlayerDetailScreen.kt — used by both squad's position filter row and
-// the shared detail screen's season filter.
+// PlayerDetailScreen.kt — used by squad's position filter row, the
+// shared detail screen's season filter, and (with an icon) squad's
+// Players/Lineup subtab row. `icon` takes content rather than an
+// ImageVector so a caller can pass a custom-drawn icon (e.g.
+// FootballPitch) as easily as a Material one.
 @Composable
-fun FilterChip(label: String, color: Color, active: Boolean, onClick: () -> Unit) {
+fun FilterChip(label: String, color: Color, active: Boolean, onClick: () -> Unit, icon: (@Composable (Color) -> Unit)? = null) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(NocturneRadius.md))
@@ -211,10 +217,13 @@ fun FilterChip(label: String, color: Color, active: Boolean, onClick: () -> Unit
             .clickable(onClick = onClick)
             .padding(horizontal = 13.dp, vertical = 7.dp)
     ) {
-        Text(
-            text = label,
-            fontSize = 12.5.sp,
-            color = if (active) color else MaterialTheme.colorScheme.onSurface,
-        )
+        val contentColor = if (active) color else MaterialTheme.colorScheme.onSurface
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                icon(contentColor)
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+            Text(text = label, fontSize = 12.5.sp, color = contentColor)
+        }
     }
 }
