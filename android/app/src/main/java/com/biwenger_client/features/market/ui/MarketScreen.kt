@@ -41,12 +41,11 @@ import com.biwenger_client.ui.PlayerDetailScreen
 import com.biwenger_client.ui.PositionTag
 import com.biwenger_client.ui.formatPrice
 import com.biwenger_client.ui.formatPriceChange
+import com.biwenger_client.ui.formatRelativeTime
 import com.biwenger_client.ui.priceTrend
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
 import com.biwenger_client.ui.theme.NocturneRadius
-import java.util.Calendar
-import kotlin.math.ceil
 
 // Slice 1 shipped list-only (name/position/price); this fills in the
 // three fields deferred then — expiry, seller, and market value — since
@@ -202,7 +201,7 @@ private fun MarketListingHeader(listing: MarketListing) {
             text = buildAnnotatedString {
                 append("Expires ")
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                    append(formatExpiry(listing.until))
+                    append(formatRelativeTime(listing.until))
                 }
             },
             fontSize = 13.sp,
@@ -268,33 +267,3 @@ private fun MarketListingFooter(listing: MarketListing) {
 }
 
 private fun sellerLabel(seller: String?): String = seller ?: "Free agent"
-
-// Relative, per how urgent a listing is:
-// - <8h away, or expiring today: "in N hours"
-// - expiring tomorrow: "tomorrow"
-// - otherwise: "in N days"
-fun formatExpiry(until: Long, now: Long = System.currentTimeMillis()): String {
-    val untilMillis = until * 1000
-    val diffHours = (untilMillis - now) / (1000.0 * 60 * 60)
-    val dayDiff = calendarDayDiff(untilMillis = untilMillis, nowMillis = now)
-
-    return when {
-        dayDiff <= 0 || diffHours < 8 -> "in ${ceil(diffHours).toLong().coerceAtLeast(1)} hours"
-        dayDiff == 1L -> "tomorrow"
-        else -> "in $dayDiff days"
-    }
-}
-
-private fun calendarDayDiff(untilMillis: Long, nowMillis: Long): Long {
-    fun startOfDay(millis: Long): Long {
-        val calendar = Calendar.getInstance()
-        calendar.timeInMillis = millis
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        return calendar.timeInMillis
-    }
-    val millisPerDay = 1000L * 60 * 60 * 24
-    return (startOfDay(untilMillis) - startOfDay(nowMillis)) / millisPerDay
-}

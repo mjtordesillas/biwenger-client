@@ -4,18 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -31,7 +24,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.biwenger_client.domain.models.Player
 import com.biwenger_client.ui.theme.ColorDivider
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral100
@@ -44,55 +36,13 @@ import java.util.Locale
 import kotlin.math.abs
 
 // Promoted out of features/squad/ui/SquadScreen.kt — market is a second
-// consumer of the same player-row rendering (same Player shape, same
-// design). See docs/coding-conventions/project-structure.md.
+// consumer of some of these (avatar/points-badge, position tag, price
+// formatting). See docs/coding-conventions/project-structure.md. The
+// player-row composable itself stayed feature-local on both sides
+// (SquadPlayerRow, MarketListingRow) once each needed fields the plain
+// Player shape doesn't have.
 
 val PositionLabels = mapOf(1 to "GK", 2 to "DF", 3 to "MF", 4 to "FW")
-
-@Composable
-fun PlayerList(players: List<Player>, onPlayerTapped: (Int) -> Unit) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(players) { player ->
-            PlayerRow(player = player, onClick = { onPlayerTapped(player.id) })
-        }
-    }
-}
-
-@Composable
-fun PlayerRow(player: Player, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(NocturneRadius.md))
-            .background(ColorSurface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        PlayerAvatarWithPoints(
-            photoUrl = player.photoUrl,
-            teamCrestUrl = player.teamCrestUrl,
-            contentDescription = player.name,
-            points = player.points
-        )
-
-        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
-            Text(text = player.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                PositionTag(position = player.position, secondaryPosition = player.secondaryPosition)
-            }
-        }
-
-        Column(horizontalAlignment = Alignment.End) {
-            Text(text = formatPrice(player.price), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
-            PriceTrend(priceIncrement = player.priceIncrement)
-        }
-    }
-}
 
 @Composable
 fun PlayerAvatar(

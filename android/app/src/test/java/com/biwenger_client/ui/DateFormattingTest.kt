@@ -1,4 +1,4 @@
-package com.biwenger_client.features.market.ui
+package com.biwenger_client.ui
 
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Test
@@ -14,22 +14,22 @@ private fun at(hour: Int, dayOffset: Int = 0): Long {
     return calendar.timeInMillis
 }
 
-class MarketScreenTest {
+class DateFormattingTest {
 
     @Test
-    fun `shows hours when the listing expires later today, under 8h away`() {
+    fun `shows hours when the target is later today, under 8h away`() {
         val now = at(hour = 10)
         val until = at(hour = 13) / 1000 // 3h later, same day
 
-        assertThat(formatExpiry(until = until, now = now)).isEqualTo("in 3 hours")
+        assertThat(formatRelativeTime(until = until, now = now)).isEqualTo("in 3 hours")
     }
 
     @Test
-    fun `shows hours when the listing expires later today, even 8h or more away`() {
+    fun `shows hours when the target is later today, even 8h or more away`() {
         val now = at(hour = 8)
         val until = at(hour = 23) / 1000 // 15h later, still today
 
-        assertThat(formatExpiry(until = until, now = now)).isEqualTo("in 15 hours")
+        assertThat(formatRelativeTime(until = until, now = now)).isEqualTo("in 15 hours")
     }
 
     @Test
@@ -37,22 +37,22 @@ class MarketScreenTest {
         val now = at(hour = 23)
         val until = at(hour = 1, dayOffset = 1) / 1000 // 2h later, next calendar day
 
-        assertThat(formatExpiry(until = until, now = now)).isEqualTo("in 2 hours")
+        assertThat(formatRelativeTime(until = until, now = now)).isEqualTo("in 2 hours")
     }
 
     @Test
-    fun `shows tomorrow when expiring tomorrow, 8h or more away`() {
+    fun `shows tomorrow when the target is tomorrow, 8h or more away`() {
         val now = at(hour = 8)
         val until = at(hour = 14, dayOffset = 1) / 1000 // 30h later, next calendar day
 
-        assertThat(formatExpiry(until = until, now = now)).isEqualTo("tomorrow")
+        assertThat(formatRelativeTime(until = until, now = now)).isEqualTo("tomorrow")
     }
 
     @Test
-    fun `shows days when expiring beyond tomorrow`() {
+    fun `shows days when the target is beyond tomorrow`() {
         val now = at(hour = 8)
         val until = at(hour = 8, dayOffset = 3) / 1000
 
-        assertThat(formatExpiry(until = until, now = now)).isEqualTo("in 3 days")
+        assertThat(formatRelativeTime(until = until, now = now)).isEqualTo("in 3 days")
     }
 }

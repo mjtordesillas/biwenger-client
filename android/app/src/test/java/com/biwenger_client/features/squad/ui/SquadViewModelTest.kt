@@ -15,11 +15,11 @@ import com.biwenger_client.features.squad.domain.coeffects.FetchMatchDayDetailsC
 import com.biwenger_client.features.squad.domain.coeffects.FetchPerformanceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
-import com.biwenger_client.domain.models.Player
+import com.biwenger_client.features.squad.domain.models.SquadPlayer
 import com.biwenger_client.helpers.builders.aMatchDayDetails
 import com.biwenger_client.helpers.builders.aPerformanceHistory
-import com.biwenger_client.helpers.builders.aPlayer
 import com.biwenger_client.helpers.builders.aPriceHistory
+import com.biwenger_client.helpers.builders.aSquadPlayer
 import com.biwenger_client.ui.MatchDayDetailsRequest
 import com.biwenger_client.ui.PerformanceHistoryRequest
 import org.assertj.core.api.Assertions.assertThat
@@ -51,7 +51,7 @@ class SquadViewModelTest {
     fun `subscribes to squad_players`() {
         verify(store).subscribe(
             eq("squad.players"),
-            any<(Loadable<List<Player>>?) -> Unit>()
+            any<(Loadable<List<SquadPlayer>>?) -> Unit>()
         )
     }
 
@@ -190,7 +190,7 @@ class SquadViewModelTest {
 
     @Test
     fun `handleOnLoad returns UpdateState with loaded players`() {
-        val players = listOf(aPlayer())
+        val players = listOf(aSquadPlayer())
         val coeffects = Coeffects(
             values = mapOf(FetchSquadCoeffect to Loadable.Success(players))
         )

@@ -1,14 +1,20 @@
 package com.biwenger_client.features.squad.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -16,19 +22,33 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.biwenger_client.core.state.Loadable
-import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.PriceHistory
+import com.biwenger_client.features.squad.domain.models.SquadPlayer
 import com.biwenger_client.ui.FilterChip
 import com.biwenger_client.ui.MatchDayDetailsScreen
+import com.biwenger_client.ui.PlayerAvatarWithPoints
 import com.biwenger_client.ui.PlayerDetailScreen
-import com.biwenger_client.ui.PlayerList
 import com.biwenger_client.ui.PositionColors
 import com.biwenger_client.ui.PositionLabels
+import com.biwenger_client.ui.PositionTag
+import com.biwenger_client.ui.PriceTrend
+import com.biwenger_client.ui.StatusDoubt
+import com.biwenger_client.ui.StatusInjured
+import com.biwenger_client.ui.formatPrice
+import com.biwenger_client.ui.formatRelativeTime
+import com.biwenger_client.ui.theme.ColorAccent
+import com.biwenger_client.ui.theme.ColorSurface
+import com.biwenger_client.ui.theme.Neutral500
+import com.biwenger_client.ui.theme.NocturneRadius
 
 private val FilterPositions = listOf(null, 1, 2, 3, 4) // null = All
 
@@ -65,7 +85,7 @@ fun SquadScreen(
 
 @Composable
 private fun SquadScreen(
-    players: Loadable<List<Player>>,
+    players: Loadable<List<SquadPlayer>>,
     selectedPosition: Int?,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
@@ -88,10 +108,10 @@ private fun SquadScreen(
     // time, so there's nothing behind it for an unclaimed tap to fall
     // through to.
     if (selectedPlayer != null && selectedMatchDay != null) {
-        MatchDayDetailsScreen(player = selectedPlayer, matchDayDetails = matchDayDetails, onBack = onMatchDayDetailsDismissed)
+        MatchDayDetailsScreen(player = selectedPlayer.toPlayer(), matchDayDetails = matchDayDetails, onBack = onMatchDayDetailsDismissed)
     } else if (selectedPlayer != null) {
         PlayerDetailScreen(
-            player = selectedPlayer,
+            player = selectedPlayer.toPlayer(),
             priceHistory = priceHistory,
             performanceHistory = performanceHistory,
             performanceHistorySeason = performanceHistorySeason,
@@ -111,7 +131,7 @@ private fun SquadScreen(
                         text = "Could not load your squad right now.",
                         modifier = Modifier.align(Alignment.Center).padding(16.dp)
                     )
-                    is Loadable.Success -> PlayerList(players = filteredPlayers, onPlayerTapped = onPlayerTapped)
+                    is Loadable.Success -> SquadPlayerList(players = filteredPlayers, onPlayerTapped = onPlayerTapped)
                 }
             }
         }
@@ -144,5 +164,84 @@ private fun PositionFilterRow(selectedPosition: Int?, onPositionSelected: (Int?)
                 onClick = { onPositionSelected(position) }
             )
         }
+    }
+}
+
+@Composable
+private fun SquadPlayerList(players: List<SquadPlayer>, onPlayerTapped: (Int) -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(players) { player -> SquadPlayerRow(player = player, onClick = { onPlayerTapped(player.id) }) }
+    }
+}
+
+@Composable
+private fun SquadPlayerRow(player: SquadPlayer, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(NocturneRadius.md))
+            .background(ColorSurface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PlayerAvatarWithPoints(
+                photoUrl = player.photoUrl,
+                teamCrestUrl = player.teamCrestUrl,
+                contentDescription = player.name,
+                points = player.points
+            )
+
+            Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+                Text(text = player.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                    PositionTag(position = player.position, secondaryPosition = player.secondaryPosition)
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(text = formatPrice(player.price), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
+                PriceTrend(priceIncrement = player.priceIncrement)
+            }
+        }
+
+        SquadPlayerBadges(player = player)
+    }
+}
+
+// Only the facts that actually apply render a badge — most players show
+// none of these most of the time (sellable, unlisted, no offer, fit), so
+// an empty state here means no row at all rather than an empty one.
+@Composable
+private fun SquadPlayerBadges(player: SquadPlayer) {
+    val badges = buildList {
+        if (player.status == "injured") add("Injured" to StatusInjured)
+        if (player.status == "doubt") add("Doubt" to StatusDoubt)
+        // Locked players can't be listed, so this and "Listed" never
+        // both show — still computed independently, not as an else.
+        player.lockedUntil?.let { add("Sellable ${formatRelativeTime(it)}" to Neutral500) }
+        if (player.inMarket) add("Listed" to ColorAccent)
+        if (player.hasOffer) add("Offer received" to ColorAccent)
+    }
+    if (badges.isEmpty()) return
+
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 8.dp)) {
+        badges.forEach { (label, color) -> SquadPlayerBadge(label = label, color = color) }
+    }
+}
+
+@Composable
+private fun SquadPlayerBadge(label: String, color: Color) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(NocturneRadius.md * 0.75f))
+            .background(color.copy(alpha = 0.24f))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    ) {
+        Text(text = label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = color)
     }
 }

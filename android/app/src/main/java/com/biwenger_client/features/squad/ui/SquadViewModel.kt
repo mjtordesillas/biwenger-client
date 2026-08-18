@@ -17,8 +17,8 @@ import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoef
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
 import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
-import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.squad.domain.models.PriceHistory
+import com.biwenger_client.features.squad.domain.models.SquadPlayer
 import com.biwenger_client.ui.CURRENT_SEASON
 import com.biwenger_client.ui.MatchDayDetailsRequest
 import com.biwenger_client.ui.PerformanceHistoryRequest
@@ -32,8 +32,8 @@ class SquadViewModel @Inject constructor(
 
     private val squadCoeffect = FetchSquadCoeffect
 
-    private val _players = mutableStateOf<Loadable<List<Player>>>(Loadable.Loading)
-    val players: State<Loadable<List<Player>>> = _players
+    private val _players = mutableStateOf<Loadable<List<SquadPlayer>>>(Loadable.Loading)
+    val players: State<Loadable<List<SquadPlayer>>> = _players
 
     private val _selectedPosition = mutableStateOf<Int?>(null)
     val selectedPosition: State<Int?> = _selectedPosition
@@ -57,7 +57,7 @@ class SquadViewModel @Inject constructor(
     val matchDayDetails: State<Loadable<MatchDayDetails>?> = _matchDayDetails
 
     init {
-        store.subscribe<Loadable<List<Player>>?>(path = "squad.players") {
+        store.subscribe<Loadable<List<SquadPlayer>>?>(path = "squad.players") {
             it?.let { v -> _players.value = v }
         }
         store.subscribe<Int?>(path = "squad.selectedPosition") { _selectedPosition.value = it }

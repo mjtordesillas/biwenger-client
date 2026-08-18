@@ -23,3 +23,8 @@ val PerformanceLow = Color(0xFFE0554F) // < 2 pts
 val PerformanceMid = Color(0xFFE3C23F) // 2–4 pts
 val PerformanceHigh = Color(0xFF3ECF72) // 5–9 pts
 val PerformanceGreat = Color(0xFF4C8FD9) // 10+ pts
+
+// Squad player fitness status — same semantic-color exception, aliased
+// from the closest existing functional color rather than new hex values.
+val StatusInjured = TrendDown
+val StatusDoubt = PerformanceMid

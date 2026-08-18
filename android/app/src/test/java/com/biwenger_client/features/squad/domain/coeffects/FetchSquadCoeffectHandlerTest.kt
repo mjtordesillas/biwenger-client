@@ -1,7 +1,7 @@
 package com.biwenger_client.features.squad.domain.coeffects
 
 import com.biwenger_client.features.squad.infrastructure.SquadService
-import com.biwenger_client.helpers.builders.aPlayer
+import com.biwenger_client.helpers.builders.aSquadPlayer
 import com.biwenger_client.infrastructure.network.Response
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
@@ -18,7 +18,7 @@ class FetchSquadCoeffectHandlerTest {
     @Test
     fun `extract returns the squad on success`() {
         runBlocking {
-            val players = listOf(aPlayer())
+            val players = listOf(aSquadPlayer())
             whenever(squadService.squad()).thenReturn(Response.Success(players))
 
             val result = handler.extract(FetchSquadCoeffect)

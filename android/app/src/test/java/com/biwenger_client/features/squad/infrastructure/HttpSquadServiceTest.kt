@@ -35,7 +35,8 @@ class HttpSquadServiceTest {
                         "id":1,"name":"Brugué","position":4,"secondaryPosition":null,
                         "price":280000,"priceIncrement":10000,"points":5,
                         "photoUrl":"https://cdn.biwenger.com/i/p/1.png",
-                        "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png"
+                        "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png",
+                        "lockedUntil":1787202657,"inMarket":true,"hasOffer":true,"status":"doubt"
                     }]}"""
                 )
             )
@@ -51,6 +52,10 @@ class HttpSquadServiceTest {
             assertThat(player?.points).isEqualTo(5)
             assertThat(player?.photoUrl).isEqualTo("https://cdn.biwenger.com/i/p/1.png")
             assertThat(player?.teamCrestUrl).isEqualTo("https://cdn.biwenger.com/i/t/87.png")
+            assertThat(player?.lockedUntil).isEqualTo(1787202657)
+            assertThat(player?.inMarket).isTrue()
+            assertThat(player?.hasOffer).isTrue()
+            assertThat(player?.status).isEqualTo("doubt")
         }
     }
 
