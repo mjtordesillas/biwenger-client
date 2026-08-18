@@ -218,6 +218,8 @@ private fun PitchPositionRow(players: List<Player>, band: PositionBand, pitchSiz
 private val PitchPlayerWidth = 88.dp
 private val PitchPlayerHeight = 66.dp
 
+private val PitchPlayerPhotoSize = 48.dp
+
 @Composable
 private fun PitchPlayer(player: Player, modifier: Modifier = Modifier) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
@@ -228,7 +230,7 @@ private fun PitchPlayer(player: Player, modifier: Modifier = Modifier) {
             model = player.photoUrl,
             contentDescription = player.name,
             contentScale = ContentScale.Fit,
-            modifier = Modifier.size(48.dp)
+            modifier = Modifier.size(PitchPlayerPhotoSize)
         )
         Text(
             text = player.name,
@@ -238,11 +240,14 @@ private fun PitchPlayer(player: Player, modifier: Modifier = Modifier) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            // Wider cap than a straight row would risk — curved rows
-            // space players out horizontally, so neighboring name pills
-            // are less likely to crowd each other.
+            // Never narrower than the photo above it, so a short name
+            // (or "?" on a vacant slot) doesn't leave a pill visibly
+            // thinner than the player it's labeling. Wider cap than a
+            // straight row would risk — curved rows space players out
+            // horizontally, so neighboring pills are less likely to
+            // crowd each other.
             modifier = Modifier
-                .widthIn(max = 88.dp)
+                .widthIn(min = PitchPlayerPhotoSize, max = 88.dp)
                 .clip(RoundedCornerShape(percent = 50))
                 .background(Neutral900)
                 .padding(horizontal = 8.dp, vertical = 2.dp)
