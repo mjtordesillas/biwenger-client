@@ -68,6 +68,7 @@ import com.biwenger_client.ui.TrendUp
 import com.biwenger_client.ui.formatDate
 import com.biwenger_client.ui.formatPrice
 import com.biwenger_client.ui.formatRelativeTime
+import com.biwenger_client.ui.theme.ColorBgDeep
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
 import com.biwenger_client.ui.theme.NocturneRadius
@@ -183,10 +184,12 @@ private fun SquadScreen(
 // tab — same shape as PlayerDetailScreen's PriceHistoryTabButton, just
 // with an icon added and the selected color following the app's own
 // accent instead of onSurface, so it reads as a top-level nav bar
-// rather than a card-local toggle.
+// rather than a card-local toggle. A shade darker than the page
+// background (ColorBgDeep, not ColorBg) marks it as a distinct layer
+// from the content underneath, with some breathing room below it.
 @Composable
 private fun SquadSubTabRow(selected: SquadSubTab, onSelect: (SquadSubTab) -> Unit) {
-    Row(modifier = Modifier.fillMaxWidth()) {
+    Row(modifier = Modifier.fillMaxWidth().background(ColorBgDeep).padding(bottom = 8.dp)) {
         SquadSubTabButton(
             label = "Players",
             icon = { color -> Icon(imageVector = Icons.Default.Groups, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },

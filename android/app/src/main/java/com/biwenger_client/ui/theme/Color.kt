@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 // here, matching the source system's "never hard-code a hex" rule.
 
 val ColorBg = Color(0xFF161826)
+val ColorBgDeep = Color(0xFF0F111C) // a shade below ColorBg, for a nav bar that should read as a distinct layer from page content
 val ColorSurface = Color(0xFF232532)
 val ColorText = Color(0xFFE9E9ED)
 val ColorAccent = Color(0xFF9184D9)
