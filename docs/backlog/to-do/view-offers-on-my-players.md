@@ -6,3 +6,10 @@ player status" — `to.id`/`requestedPlayers` matching), but that's just a
 flag; this is the actual detail (amount, offering party where
 identifiable — `from` was `null` in every sample seen so far, worth
 re-checking) behind it.
+
+Lands as a subtab under the Market section, alongside
+`view-my-market-listings` — same subtab-row pattern Squad's
+Players/Lineup already uses (`SquadSubTab`/`SquadSubTabRow` in
+`SquadScreen.kt`: an enum, a full-width equal-split tab bar with an
+underline under the selection), ported to Market rather than invented
+fresh.
