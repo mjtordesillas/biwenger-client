@@ -16,3 +16,14 @@ capped at 3 forwards otherwise) — not verified against the write
 endpoint, and deliberately excluded from this feature's UI entirely,
 not just discouraged. See `docs/biwenger-api-notes.md` § "Starting
 lineup — write" for the full note.
+
+**Shipped** (2026-08-20, `0a67df2`): one slice, Android only — no
+backend change needed. The formation label is a real dropdown
+(`DropdownMenu`), listing the 7 free formations; picking one reshapes
+the current eleven for the new band sizes (`reshapeLineup` — carries
+players over where a band is unchanged or shrinking still fits them,
+pads a growing band with vacant slots, drops overflow from a shrinking
+band to the bench) and saves via the existing write path. A spinner
+replaces the dropdown arrow while the write is in flight. Verified live
+that switching within the free list costs no credits (21 credits
+before and after a round trip).
