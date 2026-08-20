@@ -169,10 +169,24 @@ those separately).
   arbitrary order. Cross-checked against the real account's formation
   (`"3-5-2"`) and each id's catalogue `position`: the array is exactly
   `[goalkeeper, defender × 3, midfielder × 5, forward × 2]` — i.e.
-  grouped back-to-front by position, counts matching the formation
-  string (plus the always-1 goalkeeper first). Parsing the formation
-  string's three numbers plus the fixed goalkeeper slot is enough to
-  slice `playersID` into its position groups without any extra field.
+  grouped back-to-front by count matching the formation string (plus
+  the always-1 goalkeeper first). Parsing the formation string's three
+  numbers plus the fixed goalkeeper slot is enough to slice
+  `playersID` into its position groups without any extra field —
+  **and this positional slice is the only reliable way to do it.** The
+  first cross-check's sample happened to have every player aligned in
+  their own catalogue `position`, which is what made grouping by that
+  field *look* equivalent to slicing by order — it isn't: Biwenger
+  lets a manager align a player in their `secondaryPosition` instead
+  (e.g. a MF/FW player played as a forward) for extra in-game credits,
+  and `playersID`'s order reflects that real alignment while the
+  player's catalogue `position` field stays their nominal one
+  regardless. Confirmed by a real user report (2026-08-20) of exactly
+  this: two off-position-aligned players both rendered in their
+  catalogue position's row instead of where they were actually
+  played. `view-my-lineup`'s Android side slices `players` by count
+  (goalkeeper, then `formation`'s D/M/F counts, in that order) rather
+  than grouping by `position`.
 - `data.lineup.date` is a unix-seconds timestamp, presumably the
   fixture/matchday this lineup applies to — not investigated further,
   not needed for `view-my-lineup`.
@@ -186,7 +200,12 @@ those separately).
   the user's own report of Biwenger's behavior. `view-my-lineup`'s
   Android side treats any shortfall against the formation's expected
   per-band count as vacant slots, rendered with the id-`0` default
-  photo (see "Image CDN" above) rather than left undrawn.
+  photo (see "Image CDN" above) rather than left undrawn. Since bands
+  are now consumed in order (see above), a genuinely vacant *earlier*
+  slot would shift every later band's slice by one and misattribute
+  the gap to whichever band runs out last — only matters if a vacancy
+  and an off-position alignment are both in play on the same lineup at
+  once; not seen yet.
 
 ## Per-gameweek points via `reports`
 

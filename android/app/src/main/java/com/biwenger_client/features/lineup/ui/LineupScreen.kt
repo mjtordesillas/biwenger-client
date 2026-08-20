@@ -114,27 +114,24 @@ private const val PairHalfSpanColumns = 5f // exactly 2 players: centers on colu
 
 // Forwards nearest the top (closest to goal, attacking direction is
 // "up"), then midfielders, defenders, goalkeeper at the bottom —
-// grouped by each player's own `position`, not by trusting list order
-// (see docs/biwenger-api-notes.md § "Starting lineup"). `formation` is
-// only used here, to tell a genuinely vacant slot (Biwenger's own
-// lineup short of the formation's count) apart from "nothing in this
-// band" — every band still renders its expected count, padding any
-// shortfall with vacant placeholders rather than silently drawing
-// fewer players than the formation says.
+// sliced off `players` IN ORDER (goalkeeper, then `formation`'s
+// defender/midfielder/forward counts, back-to-front — see
+// docs/biwenger-api-notes.md § "Starting lineup"), NOT grouped by each
+// player's own catalogue `position`. Those two disagree whenever a
+// player is aligned in their secondary position — Biwenger lets a
+// manager play e.g. a MF/FW player as a forward for extra credits, and
+// at that point their catalogue position is stale for "where do they
+// actually stand on this pitch". `players`' order is the only thing
+// that still reflects the real alignment.
 @Composable
 private fun PitchLineup(players: List<Player>, formation: String, modifier: Modifier = Modifier) {
-    val byPosition = players.groupBy { it.position }
-    val counts = parseFormation(formation)
+    val bands = sliceLineupBands(players, parseFormation(formation))
     BoxWithConstraints(modifier = modifier) {
         val pitchSize = DpSize(maxWidth, maxHeight)
-        PitchPositionRow(players = withVacantSlots(byPosition[4].orEmpty(), counts.forwards), band = ForwardBand, pitchSize = pitchSize)
-        PitchPositionRow(players = withVacantSlots(byPosition[3].orEmpty(), counts.midfielders), band = MidfielderBand, pitchSize = pitchSize)
-        PitchPositionRow(players = withVacantSlots(byPosition[2].orEmpty(), counts.defenders), band = DefenderBand, pitchSize = pitchSize)
-        PitchPositionRow(
-            players = withVacantSlots(byPosition[1].orEmpty(), expectedCount = 1),
-            band = PositionBand(GoalkeeperRow, GoalkeeperRow),
-            pitchSize = pitchSize
-        )
+        PitchPositionRow(players = bands.forwards, band = ForwardBand, pitchSize = pitchSize)
+        PitchPositionRow(players = bands.midfielders, band = MidfielderBand, pitchSize = pitchSize)
+        PitchPositionRow(players = bands.defenders, band = DefenderBand, pitchSize = pitchSize)
+        PitchPositionRow(players = bands.goalkeepers, band = PositionBand(GoalkeeperRow, GoalkeeperRow), pitchSize = pitchSize)
     }
 }
 
@@ -149,6 +146,37 @@ fun parseFormation(formation: String): FormationCounts {
         defenders = counts.getOrElse(0) { 0 },
         midfielders = counts.getOrElse(1) { 0 },
         forwards = counts.getOrElse(2) { 0 },
+    )
+}
+
+data class LineupBands(
+    val goalkeepers: List<Player>,
+    val defenders: List<Player>,
+    val midfielders: List<Player>,
+    val forwards: List<Player>,
+)
+
+// Slices `players` IN ORDER — goalkeeper, then `counts`' defender/
+// midfielder/forward counts, back-to-front — rather than grouping by
+// each player's own catalogue `position`. Those two disagree whenever
+// a player is aligned in their secondary position: Biwenger lets a
+// manager play e.g. a MF/FW player as a forward for extra credits, and
+// at that point their catalogue position is stale for "where do they
+// actually stand on this pitch" — `players`' order is the only thing
+// that still reflects the real alignment (see
+// docs/biwenger-api-notes.md § "Starting lineup").
+fun sliceLineupBands(players: List<Player>, counts: FormationCounts): LineupBands {
+    var remaining = players
+    fun take(expectedCount: Int): List<Player> {
+        val slice = remaining.take(expectedCount)
+        remaining = remaining.drop(slice.size)
+        return withVacantSlots(slice, expectedCount)
+    }
+    return LineupBands(
+        goalkeepers = take(1),
+        defenders = take(counts.defenders),
+        midfielders = take(counts.midfielders),
+        forwards = take(counts.forwards),
     )
 }
 

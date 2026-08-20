@@ -43,4 +43,45 @@ class LineupScreenTest {
 
         assertThat(withVacantSlots(players, expectedCount = 1)).isEqualTo(players)
     }
+
+    // Regression: a player aligned in their secondary position (e.g. a
+    // MF/FW played as a forward, for extra Biwenger credits) must land
+    // in the band they're actually playing, not their catalogue
+    // `position` — only `players`' order (goalkeeper, then D/M/F
+    // counts) tells the two apart.
+    @Test
+    fun `sliceLineupBands follows list order, not each player's catalogue position`() {
+        val goalkeeper = aPlayer(id = 1, position = 1)
+        val defender = aPlayer(id = 2, position = 2)
+        // A MF/FW aligned as a forward: catalogue position is MF (3),
+        // but they're standing in the forward slot.
+        val midfielderPlayedAsForward = aPlayer(id = 3, position = 3)
+        val midfielder = aPlayer(id = 4, position = 3)
+
+        val bands = sliceLineupBands(
+            players = listOf(goalkeeper, defender, midfielder, midfielderPlayedAsForward),
+            counts = FormationCounts(defenders = 1, midfielders = 1, forwards = 1)
+        )
+
+        assertThat(bands.goalkeepers).containsExactly(goalkeeper)
+        assertThat(bands.defenders).containsExactly(defender)
+        assertThat(bands.midfielders).containsExactly(midfielder)
+        assertThat(bands.forwards).containsExactly(midfielderPlayedAsForward)
+    }
+
+    @Test
+    fun `sliceLineupBands pads each band independently when players run short`() {
+        val goalkeeper = aPlayer(id = 1, position = 1)
+        val defender = aPlayer(id = 2, position = 2)
+
+        val bands = sliceLineupBands(
+            players = listOf(goalkeeper, defender),
+            counts = FormationCounts(defenders = 2, midfielders = 1, forwards = 1)
+        )
+
+        assertThat(bands.goalkeepers).containsExactly(goalkeeper)
+        assertThat(bands.defenders.map { it.id }).containsExactly(2, 0)
+        assertThat(bands.midfielders.single().name).isEqualTo("?")
+        assertThat(bands.forwards.single().name).isEqualTo("?")
+    }
 }
