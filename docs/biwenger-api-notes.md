@@ -282,12 +282,17 @@ states plainly what's being written.
   the order Biwenger's own picker lists them, are `3-4-3`, `3-5-2`,
   `4-3-3`, `4-4-2`, `4-5-1`, `5-3-2`, `5-4-1` — every one a max of 3
   forwards, all summing to the fixed 10 outfield slots (11 minus the
-  always-1 goalkeeper). Anything beyond this list (4+ forwards, or any
-  other combination) is presumed to be a paid "extra" formation,
-  **not verified against the write endpoint** — whether writing an
-  unlisted `type` succeeds, is rejected, or silently costs credits
-  like off-position players do is unknown, and worth a spike before
-  `change-lineup-formation` allows anything outside this list.
+  always-1 goalkeeper). Switching between two formations *within* this
+  free list costs nothing — confirmed empirically (2026-08-20) against
+  a real account/lineup: `GET /account`'s `credits` read 21 before a
+  `3-5-2` → `4-4-2` write and 21 after, then again 21 restoring back to
+  `3-5-2`. Anything beyond the free list (4+ forwards, or any other
+  combination) is presumed to be a paid "extra" formation, **not
+  verified against the write endpoint** — whether writing an unlisted
+  `type` succeeds, is rejected, or silently costs credits like
+  off-position players do is unknown, and stays that way deliberately:
+  `change-lineup-formation` never offers anything outside the free
+  list, so there's no shipped code that would need it answered.
 
 ## Per-gameweek points via `reports`
 

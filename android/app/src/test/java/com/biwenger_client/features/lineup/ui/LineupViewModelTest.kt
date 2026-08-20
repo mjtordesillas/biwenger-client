@@ -300,4 +300,59 @@ class LineupViewModelTest {
 
         assertThat(effects).isEmpty()
     }
+
+    @Test
+    fun `changeFormation dispatches formation-changed with the chosen formation`() {
+        viewModel.changeFormation("4-4-2")
+
+        verify(store).dispatch(event = event(name = "lineup.formation-changed", payload = "4-4-2"))
+    }
+
+    @Test
+    fun `registers lineup_formation-changed handler`() {
+        verify(store).registerEventHandler(
+            eq("lineup.formation-changed"),
+            any<List<com.biwenger_client.core.coeffects.Coeffect<*>>>(),
+            any<suspend (Event<String>, Coeffects) -> List<Effect>>()
+        )
+    }
+
+    // Regression guard, same reasoning as handleSlotVacated/Filled: the
+    // saved formation and reshaped playerIds come from a just-fetched
+    // lineup, not a possibly-stale local copy.
+    @Test
+    fun `handleFormationChanged reshapes the current eleven for the new formation`() {
+        val goalkeeper = aPlayer(id = 1)
+        val defenders = listOf(aPlayer(id = 2), aPlayer(id = 3), aPlayer(id = 4))
+        val midfielders = listOf(aPlayer(id = 5), aPlayer(id = 6), aPlayer(id = 7), aPlayer(id = 8), aPlayer(id = 9))
+        val forwards = listOf(aPlayer(id = 10), aPlayer(id = 11))
+        val lineup = aLineup(formation = "3-5-2", players = listOf(goalkeeper) + defenders + midfielders + forwards)
+        val coeffects = Coeffects(values = mapOf(FetchLineupCoeffect to Loadable.Success(lineup)))
+
+        val effects = viewModel.handleFormationChanged(
+            event(name = "lineup.formation-changed", payload = "4-4-2"),
+            coeffects
+        )
+
+        assertThat(effects).containsExactly(
+            UpdateState(path = "lineup.saving", value = true),
+            UpdateState(path = "lineup.saveError", value = false),
+            SaveLineupEffect(
+                formation = "4-4-2",
+                playerIds = listOf(1, 2, 3, 4, null, 5, 6, 7, 8, 10, 11)
+            ),
+        )
+    }
+
+    @Test
+    fun `handleFormationChanged is a no-op when the current lineup isn't loaded`() {
+        val coeffects = Coeffects(values = mapOf(FetchLineupCoeffect to Loadable.Loading))
+
+        val effects = viewModel.handleFormationChanged(
+            event(name = "lineup.formation-changed", payload = "4-4-2"),
+            coeffects
+        )
+
+        assertThat(effects).isEmpty()
+    }
 }

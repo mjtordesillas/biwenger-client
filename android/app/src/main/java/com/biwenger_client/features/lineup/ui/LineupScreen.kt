@@ -2,6 +2,7 @@ package com.biwenger_client.features.lineup.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -17,8 +18,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +52,7 @@ import coil.compose.AsyncImage
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.lineup.domain.models.BenchCandidates
+import com.biwenger_client.features.lineup.domain.models.FreeFormations
 import com.biwenger_client.features.lineup.domain.models.Lineup
 import com.biwenger_client.features.squad.domain.models.SquadPlayer
 import com.biwenger_client.ui.FootballPitch
@@ -81,6 +88,7 @@ fun LineupScreen(
         onRequestBenchOptions = viewModel::requestBenchOptions,
         onFillSlot = viewModel::fillSlot,
         onClosePicker = viewModel::closeSlotPicker,
+        onChangeFormation = viewModel::changeFormation,
     )
 }
 
@@ -94,6 +102,7 @@ private fun LineupScreen(
     onRequestBenchOptions: (LineupSlot) -> Unit,
     onFillSlot: (Int, Int) -> Unit,
     onClosePicker: () -> Unit,
+    onChangeFormation: (String) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (lineup) {
@@ -111,6 +120,7 @@ private fun LineupScreen(
                 onRequestBenchOptions = onRequestBenchOptions,
                 onFillSlot = onFillSlot,
                 onClosePicker = onClosePicker,
+                onChangeFormation = onChangeFormation,
             )
         }
     }
@@ -126,6 +136,7 @@ private fun LineupContent(
     onRequestBenchOptions: (LineupSlot) -> Unit,
     onFillSlot: (Int, Int) -> Unit,
     onClosePicker: () -> Unit,
+    onChangeFormation: (String) -> Unit,
 ) {
     // Which slot the dialog below is open for, if any — purely local UI
     // state, not store-backed: nothing here needs a coeffect or survives
@@ -138,6 +149,9 @@ private fun LineupContent(
     // effect below can tell "a write just finished" apart from "nothing
     // has happened yet" — `saving` alone flips false→true→false on every
     // attempt, indistinguishable from its initial idle value without this.
+    // The formation dropdown doesn't need this: picking an entry closes
+    // it immediately (standard dropdown behavior), there's no "Saving…"
+    // state to hold it open for — see FormationDropdown.
     var awaitingSave by remember { mutableStateOf(false) }
 
     // Keeps the dialog open on a "Saving…" state through the write
@@ -157,12 +171,11 @@ private fun LineupContent(
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(
-            text = lineup.formation,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center
+        FormationDropdown(
+            currentFormation = lineup.formation,
+            saving = saving,
+            onSelect = onChangeFormation,
+            modifier = Modifier.fillMaxWidth()
         )
 
         if (saveError && activeSlot == null) {
@@ -307,6 +320,59 @@ private fun SlotOptionsDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } }
     )
+}
+
+// Free formations only (see FreeFormations) — offering a paid "extra"
+// formation here would need the same disclose-before-spending treatment
+// SlotOptionsDialog gives a jolly, and Biwenger's own picker order/set
+// hasn't been reverse-engineered past this list (see
+// docs/biwenger-api-notes.md § "Starting lineup — write"), so it's left
+// out entirely rather than guessed at. A plain dropdown, not a modal
+// dialog: picking an entry closes it immediately, same as any other
+// select — no "Saving…" hold-open state to manage (contrast
+// SlotOptionsDialog, which does need one; see LineupContent's
+// awaitingSave). Feedback while the write is in flight is a small spinner
+// swapped in for the dropdown arrow, and the control disabled — a picked
+// formation doesn't show as "current" until the save actually lands, so
+// something has to signal "still working" in between. A failed save
+// still surfaces via the outer saveError banner underneath, same place a
+// failed vacate does once its dialog has closed.
+@Composable
+private fun FormationDropdown(currentFormation: String, saving: Boolean, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !saving) { expanded = true },
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = currentFormation,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (saving) {
+                CircularProgressIndicator(modifier = Modifier.padding(start = 4.dp).size(16.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(imageVector = Icons.Default.ArrowDropDown, contentDescription = "Change formation")
+            }
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            FreeFormations.forEach { formation ->
+                val isCurrent = formation == currentFormation
+                DropdownMenuItem(
+                    text = { Text(formation, fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal) },
+                    enabled = !isCurrent,
+                    onClick = {
+                        expanded = false
+                        onSelect(formation)
+                    }
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -472,6 +538,33 @@ fun sliceLineupBands(players: List<Player?>, counts: FormationCounts): LineupBan
         midfielders = take(counts.midfielders, position = 3),
         forwards = take(counts.forwards, position = 4),
     )
+}
+
+// Reshapes the current eleven for a new formation, for
+// change-lineup-formation: switching formation changes every outfield
+// band's size at once (e.g. 3-5-2 -> 4-4-2 is DF 3->4, MF 5->4), so the
+// current eleven can't just carry over as-is, and the write endpoint
+// needs a full array sized to the NEW formation regardless (see
+// docs/biwenger-api-notes.md § "Starting lineup — write"). Best-effort
+// per band, reusing the existing slicing: keep up to the new count of
+// currently-fielded players in that band, in their existing order —
+// anyone beyond the new count is dropped (benched, not deleted — still
+// on the squad) and a bigger new count pads with vacant (`null`) slots,
+// fillable via the already-shipped slot-fill flow. The goalkeeper band
+// is always exactly 1 in any formation, so it always carries over
+// untouched. Returns ids only (`playersID`'s shape), not `LineupSlot`s —
+// this is building a write request, not something rendered.
+fun reshapeLineup(players: List<Player?>, currentFormation: String, newFormation: String): List<Int?> {
+    val oldBands = sliceLineupBands(players, parseFormation(currentFormation))
+    val newCounts = parseFormation(newFormation)
+    fun carryOver(slots: List<LineupSlot>, newCount: Int): List<Int?> {
+        val ids = slots.take(newCount).map { slot -> slot.player.id.takeIf { it != 0 } }
+        return ids + List((newCount - ids.size).coerceAtLeast(0)) { null }
+    }
+    return carryOver(oldBands.goalkeepers, 1) +
+        carryOver(oldBands.defenders, newCounts.defenders) +
+        carryOver(oldBands.midfielders, newCounts.midfielders) +
+        carryOver(oldBands.forwards, newCounts.forwards)
 }
 
 // A "?" over Biwenger's own default player photo (see docs/

@@ -80,6 +80,11 @@ class LineupViewModel @Inject constructor(
             coeffects = listOf(lineupCoeffect),
             handler = ::handleSlotFilled
         )
+        store.registerEventHandler(
+            name = FORMATION_CHANGED_EVENT,
+            coeffects = listOf(lineupCoeffect),
+            handler = ::handleFormationChanged
+        )
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -94,6 +99,7 @@ class LineupViewModel @Inject constructor(
         store.removeEventHandler(name = SLOT_PICKER_REQUESTED_EVENT, handler = ::handleSlotPickerRequested)
         store.removeEventHandler(name = SLOT_PICKER_CLOSED_EVENT, handler = ::handleSlotPickerClosed)
         store.removeEventHandler(name = SLOT_FILLED_EVENT, handler = ::handleSlotFilled)
+        store.removeEventHandler(name = FORMATION_CHANGED_EVENT, handler = ::handleFormationChanged)
     }
 
     // Benches a starter with no replacement — see
@@ -120,6 +126,12 @@ class LineupViewModel @Inject constructor(
     // event handlers, same as vacateSlot passing a bare id through.
     fun fillSlot(index: Int, playerId: Int) {
         store.dispatch(event = event(name = SLOT_FILLED_EVENT, payload = SlotFillRequest(index = index, playerId = playerId)))
+    }
+
+    // `formation` is one of FreeFormations, chosen straight from the
+    // picker — no logic here, same reasoning as vacateSlot/fillSlot.
+    fun changeFormation(formation: String) {
+        store.dispatch(event = event(name = FORMATION_CHANGED_EVENT, payload = formation))
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -227,6 +239,21 @@ class LineupViewModel @Inject constructor(
         )
     }
 
+    // Same freshness reasoning as handleSlotVacated/handleSlotFilled:
+    // reshapes off a just-fetched lineup, not the ViewModel's displayed
+    // copy. See reshapeLineup for the carry-over/bench/vacate rule.
+    fun handleFormationChanged(event: Event<String>, coeffects: Coeffects): List<Effect> {
+        val newFormation = requireNotNull(event.payload)
+        val current = coeffects.load(coeffect = lineupCoeffect)
+        val lineup = (current as? Loadable.Success)?.value ?: return emptyList()
+        val playerIds = reshapeLineup(players = lineup.players, currentFormation = lineup.formation, newFormation = newFormation)
+        return listOf(
+            UpdateState(path = "lineup.saving", value = true),
+            UpdateState(path = "lineup.saveError", value = false),
+            SaveLineupEffect(formation = newFormation, playerIds = playerIds),
+        )
+    }
+
     companion object {
         const val ON_LOAD_EVENT = "lineup.on-load"
         const val SLOT_VACATED_EVENT = "lineup.slot-vacated"
@@ -234,5 +261,6 @@ class LineupViewModel @Inject constructor(
         const val SLOT_PICKER_REQUESTED_EVENT = "lineup.slot-picker-requested"
         const val SLOT_PICKER_CLOSED_EVENT = "lineup.slot-picker-closed"
         const val SLOT_FILLED_EVENT = "lineup.slot-filled"
+        const val FORMATION_CHANGED_EVENT = "lineup.formation-changed"
     }
 }

@@ -144,4 +144,52 @@ class LineupScreenTest {
         assertThat(bands.midfielders.single().player.name).isEqualTo("?")
         assertThat(bands.forwards.single().player.name).isEqualTo("?")
     }
+
+    // change-lineup-formation's core rule: a band that grows pads with
+    // vacant (null) slots, a band that shrinks drops the overflow
+    // (benched, not deleted — reshapeLineup only returns ids), a band
+    // that's unchanged carries over untouched, and the goalkeeper always
+    // carries over regardless of either formation.
+    @Test
+    fun `reshapeLineup pads a growing band, drops overflow from a shrinking band, keeps an unchanged band`() {
+        val goalkeeper = aPlayer(id = 1)
+        val defenders = listOf(aPlayer(id = 2), aPlayer(id = 3), aPlayer(id = 4))
+        val midfielders = listOf(aPlayer(id = 5), aPlayer(id = 6), aPlayer(id = 7), aPlayer(id = 8), aPlayer(id = 9))
+        val forwards = listOf(aPlayer(id = 10), aPlayer(id = 11))
+        val players = listOf(goalkeeper) + defenders + midfielders + forwards
+
+        val playerIds = reshapeLineup(players = players, currentFormation = "3-5-2", newFormation = "4-4-2")
+
+        assertThat(playerIds).containsExactly(
+            1, // goalkeeper, unchanged
+            2, 3, 4, null, // 3 defenders carried over, 1 new vacant slot
+            5, 6, 7, 8, // first 4 of 5 midfielders carried over, the 5th dropped (benched)
+            10, 11, // forwards unchanged (2 -> 2)
+        )
+    }
+
+    @Test
+    fun `reshapeLineup carries the goalkeeper regardless of formation`() {
+        val players = listOf(aPlayer(id = 1)) + List(10) { null }
+
+        val playerIds = reshapeLineup(players = players, currentFormation = "5-3-2", newFormation = "3-4-3")
+
+        assertThat(playerIds.first()).isEqualTo(1)
+    }
+
+    // An already-vacant slot isn't a player to carry over or drop —
+    // reshapeLineup treats it exactly like withVacantSlots does: `null`
+    // in, `null` (or dropped, if the band shrinks) out.
+    @Test
+    fun `reshapeLineup treats an existing vacancy as nothing to carry over`() {
+        val players = listOf(aPlayer(id = 1), null, aPlayer(id = 3))
+
+        val playerIds = reshapeLineup(
+            players = players,
+            currentFormation = "1-1-0", // not a real Biwenger formation, just exercises the band math
+            newFormation = "1-1-0"
+        )
+
+        assertThat(playerIds).containsExactly(1, null, 3)
+    }
 }
