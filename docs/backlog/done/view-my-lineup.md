@@ -16,8 +16,8 @@ The active formation (e.g. "3-5-2") is visible above the pitch.
 (`data.lineup.type`/`playersID` off `/user`, joined against the
 catalogue) — deployed and confirmed live; see
 `docs/biwenger-api-notes.md` § "Starting lineup" for the formation
-string shape and why `playersID`'s order didn't need parsing (each
-player already carries its own `position`). Android (`3a7b233`) adds
+string shape (superseded below — `playersID`'s order turned out to
+matter after all). Android (`3a7b233`) adds
 the Players/Lineup subtab bar and the pitch view — `FootballPitch`
 (`ui/`) draws the markings via Canvas, reused small as the tab icon and
 large as the pitch background. Verified end-to-end against a real
@@ -40,3 +40,15 @@ Players/Lineup subtab bar itself was redone as a full-width underline
 tab bar matching `PlayerDetailScreen`'s price-history tabs, on a
 background a shade darker than the page (`ColorBgDeep`) to read as a
 distinct nav layer (`05f7fa1`, `966d82b`, `d38d40c`).
+
+**Bug fix** (2026-08-20, `1e415af`): players were being grouped onto
+the pitch by their own catalogue `position` — wrong whenever a player
+is aligned in their *secondary* position (Biwenger lets a manager play
+e.g. a MF/FW as a forward for extra credits); their catalogue position
+stays nominal, only `playersID`'s order reflects where they're
+actually standing. Confirmed against a real account: two off-position
+players were both landing in the midfielder row regardless of which
+slot they were actually played in. Fixed by slicing `players` in order
+by the formation's counts instead of grouping by position — see
+`docs/biwenger-api-notes.md` § "Starting lineup" (corrected) for the
+full explanation.
