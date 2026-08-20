@@ -268,6 +268,26 @@ states plainly what's being written.
   second slice already ships) ever costs anything — no reason to
   expect it does, going by Biwenger's own "extra credits for
   off-position" framing, but not independently confirmed at 0.
+- **Formation itself (`type`) has a free/paid split too**, separate
+  from the off-position-player cost above. No API endpoint exposes
+  this (checked: no `fields=` combination on `/user`, `/league/{id}`,
+  or the competition-data endpoint surfaces a formations list; the
+  league `settings.lineupAllowExtra` flag from `GET /account` — see
+  "Squad player status" above — is presumably what gates it, going by
+  Biwenger's own public statements that "extra formations" cost
+  credits even in free leagues, capped at 3 forwards otherwise —
+  https://x.com/biwenger/status/1679868899360231424). Confirmed
+  directly against Biwenger's own formation picker UI (2026-08-20, for
+  `change-lineup-formation`), not the API: the **free** formations, in
+  the order Biwenger's own picker lists them, are `3-4-3`, `3-5-2`,
+  `4-3-3`, `4-4-2`, `4-5-1`, `5-3-2`, `5-4-1` — every one a max of 3
+  forwards, all summing to the fixed 10 outfield slots (11 minus the
+  always-1 goalkeeper). Anything beyond this list (4+ forwards, or any
+  other combination) is presumed to be a paid "extra" formation,
+  **not verified against the write endpoint** — whether writing an
+  unlisted `type` succeeds, is rejected, or silently costs credits
+  like off-position players do is unknown, and worth a spike before
+  `change-lineup-formation` allows anything outside this list.
 
 ## Per-gameweek points via `reports`
 
