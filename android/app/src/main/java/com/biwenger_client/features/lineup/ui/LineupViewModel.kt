@@ -17,6 +17,7 @@ import com.biwenger_client.features.lineup.domain.effects.LINEUP_SAVE_SUCCEEDED_
 import com.biwenger_client.features.lineup.domain.effects.SaveLineupEffect
 import com.biwenger_client.features.lineup.domain.models.BenchCandidates
 import com.biwenger_client.features.lineup.domain.models.Lineup
+import com.biwenger_client.features.lineup.domain.models.OffPositionCreditCost
 import com.biwenger_client.features.lineup.domain.models.SlotFillRequest
 import com.biwenger_client.features.lineup.domain.models.SlotPickerRequest
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
@@ -37,6 +38,9 @@ class LineupViewModel @Inject constructor(
     private val _saveError = mutableStateOf(false)
     val saveError: State<Boolean> = _saveError
 
+    private val _saving = mutableStateOf(false)
+    val saving: State<Boolean> = _saving
+
     private val _slotPicker = mutableStateOf<Loadable<BenchCandidates>?>(null)
     val slotPicker: State<Loadable<BenchCandidates>?> = _slotPicker
 
@@ -46,6 +50,9 @@ class LineupViewModel @Inject constructor(
         }
         store.subscribe<Boolean?>(path = "lineup.saveError") {
             it?.let { v -> _saveError.value = v }
+        }
+        store.subscribe<Boolean?>(path = "lineup.saving") {
+            it?.let { v -> _saving.value = v }
         }
         store.subscribe<Loadable<BenchCandidates>?>(path = "lineup.slotPicker") { _slotPicker.value = it }
 
@@ -126,30 +133,41 @@ class LineupViewModel @Inject constructor(
         val current = coeffects.load(coeffect = lineupCoeffect)
         val lineup = (current as? Loadable.Success)?.value ?: return emptyList()
         val playerIds = lineup.players.map { player -> if (player?.id == event.payload) null else player?.id }
-        return listOf(SaveLineupEffect(formation = lineup.formation, playerIds = playerIds))
+        return listOf(
+            UpdateState(path = "lineup.saving", value = true),
+            UpdateState(path = "lineup.saveError", value = false),
+            SaveLineupEffect(formation = lineup.formation, playerIds = playerIds),
+        )
     }
 
     fun handleSaveSucceeded(event: Event<Lineup?>): List<Effect> = listOf(
         UpdateState(
             path = "lineup.lineup",
-            value = Loadable.Success(value = event.payload ?: Lineup(formation = "", players = emptyList()))
+            value = Loadable.Success(value = event.payload ?: Lineup(formation = "", players = emptyList(), credits = 0))
         ),
         UpdateState(path = "lineup.saveError", value = false),
+        UpdateState(path = "lineup.saving", value = false),
     )
 
     fun handleSaveFailed(event: Event<Unit>): List<Effect> =
-        listOf(UpdateState(path = "lineup.saveError", value = true))
+        listOf(
+            UpdateState(path = "lineup.saveError", value = true),
+            UpdateState(path = "lineup.saving", value = false),
+        )
 
     // Shows the picker as Loading immediately, same two-step
     // Loading-then-DispatchEvent pattern SquadViewModel's
     // handlePlayerTapped/PRICE_HISTORY_REQUESTED_EVENT already uses —
     // computing the actual candidate list needs coeffects (a fresh
     // lineup + squad fetch), which a plain, coeffect-less handler can't
-    // load itself.
+    // load itself. Clears any saveError left over from a previous
+    // attempt on a different slot — otherwise this new dialog would
+    // open straight onto that stale error instead of the picker.
     fun handleSlotTapped(event: Event<LineupSlot>): List<Effect> {
         val slot = requireNotNull(event.payload)
         return listOf(
             UpdateState(path = "lineup.slotPicker", value = Loadable.Loading),
+            UpdateState(path = "lineup.saveError", value = false),
             DispatchEvent(
                 event = event(
                     name = SLOT_PICKER_REQUESTED_EVENT,
@@ -159,10 +177,12 @@ class LineupViewModel @Inject constructor(
         )
     }
 
-    // Eligible = on the bench (owned, not currently in the eleven) and
-    // the same primary position as the tapped slot's band. Secondary-
-    // position eligibility is out of scope for this slice — see
-    // BenchCandidates.
+    // Eligible = on the bench (owned, not currently in the eleven), same
+    // primary position as the tapped slot's band ("specialists") or
+    // that band only as a secondary position ("jollies") — see
+    // BenchCandidates. `canAffordJolly` gates jolly cards in the UI
+    // rather than blocking them here, so the picker can still show a
+    // manager what a jolly *would* look like even short on credits.
     fun handleSlotPickerRequested(event: Event<SlotPickerRequest>, coeffects: Coeffects): List<Effect> {
         val request = requireNotNull(event.payload)
         val lineupResult = coeffects.load(coeffect = lineupCoeffect)
@@ -172,8 +192,15 @@ class LineupViewModel @Inject constructor(
             squadResult is Loadable.Failed -> squadResult
             lineupResult is Loadable.Success && squadResult is Loadable.Success -> {
                 val startingIds = lineupResult.value.players.mapNotNull { it?.id }.toSet()
-                val eligible = squadResult.value.filter { it.id !in startingIds && it.position == request.position }
-                Loadable.Success(BenchCandidates(slotIndex = request.index, players = eligible))
+                val bench = squadResult.value.filter { it.id !in startingIds }
+                Loadable.Success(
+                    BenchCandidates(
+                        slotIndex = request.index,
+                        specialists = bench.filter { it.position == request.position },
+                        jollies = bench.filter { it.position != request.position && it.secondaryPosition == request.position },
+                        canAffordJolly = lineupResult.value.credits >= OffPositionCreditCost,
+                    )
+                )
             }
             else -> Loadable.Loading
         }
@@ -185,14 +212,18 @@ class LineupViewModel @Inject constructor(
 
     // Same freshness reasoning as handleSlotVacated: rebuilds playerIds
     // off a just-fetched lineup, not the ViewModel's displayed copy.
+    // Doesn't clear the picker itself — the dialog stays open showing a
+    // saving state until handleSaveSucceeded/Failed land, then the UI
+    // closes it (see LineupContent's awaitingSave).
     fun handleSlotFilled(event: Event<SlotFillRequest>, coeffects: Coeffects): List<Effect> {
         val request = requireNotNull(event.payload)
         val current = coeffects.load(coeffect = lineupCoeffect)
         val lineup = (current as? Loadable.Success)?.value ?: return emptyList()
         val playerIds = lineup.players.mapIndexed { index, player -> if (index == request.index) request.playerId else player?.id }
         return listOf(
+            UpdateState(path = "lineup.saving", value = true),
+            UpdateState(path = "lineup.saveError", value = false),
             SaveLineupEffect(formation = lineup.formation, playerIds = playerIds),
-            UpdateState(path = "lineup.slotPicker", value = null),
         )
     }
 

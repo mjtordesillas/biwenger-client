@@ -245,11 +245,29 @@ states plainly what's being written.
   follow-up `GET` both returned that index as `null`, all untouched
   ids unchanged. See the note above — this contradicts the read side's
   earlier "shortened array" assumption.
-- Not tested: swapping in a *different* player id (only vacancy was
-  tried), an off-position write (aligning a player via
-  `secondaryPosition`), or changing `type` (the formation string)
-  itself — out of scope for this spike, needed before
-  `change-lineup-formation`.
+- Not tested here: swapping in a *different* player id at a vacant slot
+  (`swap-lineup-players`' second slice covers that — same-primary-
+  -position only, no cost involved, see below) or changing `type` (the
+  formation string) itself — needed before `change-lineup-formation`.
+- **Off-position alignment costs account-wide credits, silently.**
+  Verified empirically (2026-08-20) against a real account, for
+  secondary-position eligibility (`swap-lineup-players`): assigning a
+  player via their `secondaryPosition` rather than their primary
+  `position` (e.g. Terrats, a MF/FW, aligned as a forward) dropped
+  `GET /account`'s `data.account.credits` from 20 to 18 — a flat 2
+  credits, matching what Biwenger's own UI states this costs. Vacating
+  that same slot first (writing `null`) cost nothing. The **write
+  response itself carries no hint of the charge** — same `200` and same
+  echoed `playersID` either way; the only way to detect it is a
+  separate `GET /account` before and after. `credits` is account-wide
+  (`data.account.credits`, not per-league — see the "Squad player
+  status"/`GET /account` shape above `getAccount` already calls, just
+  never kept `credits` off it), so a manager assigning off-position
+  across *any* of their leagues spends from the same pool. Not tested:
+  whether a same-primary-position fill (what `swap-lineup-players`'
+  second slice already ships) ever costs anything — no reason to
+  expect it does, going by Biwenger's own "extra credits for
+  off-position" framing, but not independently confirmed at 0.
 
 ## Per-gameweek points via `reports`
 

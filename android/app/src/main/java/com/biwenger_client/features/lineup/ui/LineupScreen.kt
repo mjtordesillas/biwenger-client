@@ -23,12 +23,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -68,10 +70,12 @@ fun LineupScreen(
 ) {
     val lineup by viewModel.lineup
     val saveError by viewModel.saveError
+    val saving by viewModel.saving
     val slotPicker by viewModel.slotPicker
     LineupScreen(
         lineup = lineup,
         saveError = saveError,
+        saving = saving,
         slotPicker = slotPicker,
         onVacate = viewModel::vacateSlot,
         onRequestBenchOptions = viewModel::requestBenchOptions,
@@ -84,6 +88,7 @@ fun LineupScreen(
 private fun LineupScreen(
     lineup: Loadable<Lineup>,
     saveError: Boolean,
+    saving: Boolean,
     slotPicker: Loadable<BenchCandidates>?,
     onVacate: (Int) -> Unit,
     onRequestBenchOptions: (LineupSlot) -> Unit,
@@ -100,6 +105,7 @@ private fun LineupScreen(
             is Loadable.Success -> LineupContent(
                 lineup = lineup.value,
                 saveError = saveError,
+                saving = saving,
                 slotPicker = slotPicker,
                 onVacate = onVacate,
                 onRequestBenchOptions = onRequestBenchOptions,
@@ -114,6 +120,7 @@ private fun LineupScreen(
 private fun LineupContent(
     lineup: Lineup,
     saveError: Boolean,
+    saving: Boolean,
     slotPicker: Loadable<BenchCandidates>?,
     onVacate: (Int) -> Unit,
     onRequestBenchOptions: (LineupSlot) -> Unit,
@@ -127,6 +134,28 @@ private fun LineupContent(
     // squad/lineup fetch, not just what was tapped.
     var activeSlot by remember { mutableStateOf<LineupSlot?>(null) }
 
+    // Set the moment a fill/vacate is dispatched from the dialog, so the
+    // effect below can tell "a write just finished" apart from "nothing
+    // has happened yet" — `saving` alone flips false→true→false on every
+    // attempt, indistinguishable from its initial idle value without this.
+    var awaitingSave by remember { mutableStateOf(false) }
+
+    // Keeps the dialog open on a "Saving…" state through the write
+    // (see SlotOptionsDialog) instead of closing immediately on tap, and
+    // only auto-closes it once that write actually lands successfully —
+    // on failure it stays open so the inline error/retry is visible
+    // right where the action was taken, not just the outer saveError
+    // banner underneath the dialog.
+    LaunchedEffect(saving) {
+        if (awaitingSave && !saving) {
+            awaitingSave = false
+            if (!saveError) {
+                activeSlot = null
+                onClosePicker()
+            }
+        }
+    }
+
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
             text = lineup.formation,
@@ -136,7 +165,7 @@ private fun LineupContent(
             textAlign = TextAlign.Center
         )
 
-        if (saveError) {
+        if (saveError && activeSlot == null) {
             Text(
                 text = "Could not save your lineup right now.",
                 color = MaterialTheme.colorScheme.error,
@@ -173,13 +202,15 @@ private fun LineupContent(
         SlotOptionsDialog(
             player = slot.player,
             picker = slotPicker,
+            saving = saving,
+            saveError = saveError,
             onSelect = { candidate ->
+                awaitingSave = true
                 onFillSlot(slot.index, candidate.id)
-                activeSlot = null
             },
             onVacate = {
+                awaitingSave = true
                 onVacate(slot.player.id)
-                activeSlot = null
             },
             onDismiss = {
                 activeSlot = null
@@ -195,7 +226,12 @@ private fun LineupContent(
 // an occupied slot, bench them with the "Vacate" button instead of
 // picking a replacement. `player.id == 0` (see VacantPlayer) means the
 // slot was already empty — nothing to vacate, so that button doesn't
-// apply.
+// apply. Candidates split into "Specialists" (the slot's position as
+// their primary) and "Jollies" (as their secondary, costs credits — see
+// docs/biwenger-api-notes.md § "Starting lineup — write") the way
+// Biwenger's own editor does; a jolly card is disabled, not hidden,
+// when short on credits, same as an unaffordable option anywhere else
+// in the app.
 //
 // `usePlatformDefaultWidth = false` + a fillMaxWidth modifier: the
 // platform default caps a dialog around 80% of a phone's width, too
@@ -204,30 +240,60 @@ private fun LineupContent(
 private fun SlotOptionsDialog(
     player: Player,
     picker: Loadable<BenchCandidates>?,
+    saving: Boolean,
+    saveError: Boolean,
     onSelect: (SquadPlayer) -> Unit,
     onVacate: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val occupied = player.id != 0
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!saving) onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.fillMaxWidth(fraction = 0.95f),
         title = { Text(if (occupied) "Replace ${player.name}" else "Fill this slot") },
         text = {
-            when (picker) {
-                null, is Loadable.Loading -> Box(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+            when {
+                saving -> Box(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Text(text = "Saving…", modifier = Modifier.padding(top = 12.dp))
+                    }
+                }
+                saveError -> Text(
+                    "Could not save your lineup right now.",
+                    color = MaterialTheme.colorScheme.error
+                )
+                picker == null || picker is Loadable.Loading -> Box(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator()
                 }
-                is Loadable.Failed -> Text("Could not load your bench right now.")
-                is Loadable.Success -> {
-                    val candidates = picker.value.players
-                    if (candidates.isEmpty()) {
+                picker is Loadable.Failed -> Text("Could not load your bench right now.")
+                picker is Loadable.Success -> {
+                    val candidates = picker.value
+                    if (candidates.specialists.isEmpty() && candidates.jollies.isEmpty()) {
                         Text("No eligible players on your bench.")
                     } else {
                         Column(modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
-                            candidates.forEach { candidate ->
-                                BenchCandidateCard(player = candidate, onClick = { onSelect(candidate) })
+                            if (candidates.specialists.isNotEmpty()) {
+                                BenchCandidateSection(title = "Specialists") {
+                                    candidates.specialists.forEach { candidate ->
+                                        BenchCandidateCard(player = candidate, onClick = { onSelect(candidate) })
+                                    }
+                                }
+                            }
+                            if (candidates.jollies.isNotEmpty()) {
+                                BenchCandidateSection(title = "Jollies") {
+                                    candidates.jollies.forEach { candidate ->
+                                        BenchCandidateCard(
+                                            player = candidate,
+                                            enabled = candidates.canAffordJolly,
+                                            onClick = { onSelect(candidate) }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -236,11 +302,22 @@ private fun SlotOptionsDialog(
         },
         confirmButton = {
             if (occupied) {
-                TextButton(onClick = onVacate) { Text("Vacate") }
+                TextButton(onClick = onVacate, enabled = !saving) { Text("Vacate") }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") } }
     )
+}
+
+@Composable
+private fun BenchCandidateSection(title: String, content: @Composable () -> Unit) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+    )
+    content()
 }
 
 // Same avatar/points-badge + name + position-tag shape as
@@ -250,15 +327,19 @@ private fun SlotOptionsDialog(
 // PositionTag are reused from ui/PlayerList.kt but the row composable
 // itself isn't (see docs/coding-conventions/project-structure.md — feature-local
 // rows are the norm, only the pieces shared across features get promoted).
+// `enabled = false` (a jolly the manager can't afford) dims the card and
+// drops its click target, rather than hiding it — seeing what's out of
+// reach is more informative than a shorter list with no explanation.
 @Composable
-private fun BenchCandidateCard(player: SquadPlayer, onClick: () -> Unit) {
+private fun BenchCandidateCard(player: SquadPlayer, onClick: () -> Unit, enabled: Boolean = true) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
             .clip(RoundedCornerShape(NocturneRadius.md))
             .background(ColorSurface)
-            .clickable(onClick = onClick)
+            .alpha(if (enabled) 1f else 0.4f)
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

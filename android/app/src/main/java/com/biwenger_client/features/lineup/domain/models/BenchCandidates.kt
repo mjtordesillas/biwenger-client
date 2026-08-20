@@ -2,13 +2,24 @@ package com.biwenger_client.features.lineup.domain.models
 
 import com.biwenger_client.features.squad.domain.models.SquadPlayer
 
-// The bench players eligible to fill one specific lineup slot — same
-// primary position as that slot's band, not already in the starting
-// eleven. Secondary-position eligibility (Biwenger lets a manager align
-// e.g. a MF/FW as a forward — see docs/biwenger-api-notes.md § "Starting
-// lineup") is deliberately out of scope for this slice; narrows who can
-// fill a slot, doesn't change what a slot needs to work at all.
-data class BenchCandidates(val slotIndex: Int, val players: List<SquadPlayer>)
+// The bench players eligible to fill one specific lineup slot, split
+// the way Biwenger's own lineup editor does — "Specialists" (the
+// slot's band as their primary position) and "Jollies" (the band only
+// as their secondary position, e.g. a MF/FW aligned as a forward — see
+// docs/biwenger-api-notes.md § "Starting lineup"), neither group
+// already in the starting eleven. A jolly costs OffPositionCreditCost
+// account-wide credits, silently (see docs/biwenger-api-notes.md §
+// "Starting lineup — write") — `canAffordJolly` gates whether a jolly
+// card is selectable, computed once here rather than re-derived at the
+// UI layer.
+const val OffPositionCreditCost = 2
+
+data class BenchCandidates(
+    val slotIndex: Int,
+    val specialists: List<SquadPlayer>,
+    val jollies: List<SquadPlayer>,
+    val canAffordJolly: Boolean,
+)
 
 // lineup.vacant-slot-tapped / lineup.slot-picker-requested's payload —
 // which array index needs candidates, for which band's position code.

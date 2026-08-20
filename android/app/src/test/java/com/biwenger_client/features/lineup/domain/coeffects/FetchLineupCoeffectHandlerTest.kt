@@ -1,8 +1,7 @@
 package com.biwenger_client.features.lineup.domain.coeffects
 
-import com.biwenger_client.features.lineup.domain.models.Lineup
 import com.biwenger_client.features.lineup.infrastructure.LineupService
-import com.biwenger_client.helpers.builders.aPlayer
+import com.biwenger_client.helpers.builders.aLineup
 import com.biwenger_client.infrastructure.network.Response
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
@@ -19,7 +18,7 @@ class FetchLineupCoeffectHandlerTest {
     @Test
     fun `extract returns the lineup on success`() {
         runBlocking {
-            val lineup = Lineup(formation = "3-5-2", players = listOf(aPlayer()))
+            val lineup = aLineup()
             whenever(lineupService.lineup()).thenReturn(Response.Success(lineup))
 
             val result = handler.extract(FetchLineupCoeffect)

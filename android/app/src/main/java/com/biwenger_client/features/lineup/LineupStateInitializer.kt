@@ -9,6 +9,7 @@ class LineupStateInitializer : StateInitializer {
     override fun initialState(): Map<String, Any?> = mapOf(
         "lineup.lineup" to null as Loadable<Lineup>?,
         "lineup.saveError" to null as Boolean?,
+        "lineup.saving" to null as Boolean?,
         "lineup.slotPicker" to null as Loadable<BenchCandidates>?,
     )
 }

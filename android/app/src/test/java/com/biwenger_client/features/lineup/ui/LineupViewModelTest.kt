@@ -18,6 +18,7 @@ import com.biwenger_client.features.lineup.domain.models.Lineup
 import com.biwenger_client.features.lineup.domain.models.SlotFillRequest
 import com.biwenger_client.features.lineup.domain.models.SlotPickerRequest
 import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
+import com.biwenger_client.helpers.builders.aLineup
 import com.biwenger_client.helpers.builders.aPlayer
 import com.biwenger_client.helpers.builders.aSquadPlayer
 import org.assertj.core.api.Assertions.assertThat
@@ -69,7 +70,7 @@ class LineupViewModelTest {
 
     @Test
     fun `handleOnLoad returns UpdateState with the loaded lineup`() {
-        val lineup = Lineup(formation = "3-5-2", players = listOf(aPlayer()))
+        val lineup = aLineup()
         val coeffects = Coeffects(
             values = mapOf(FetchLineupCoeffect to Loadable.Success(lineup))
         )
@@ -114,13 +115,15 @@ class LineupViewModelTest {
     fun `handleSlotVacated nulls only the tapped player's id, keeping every other slot's index`() {
         val goalkeeper = aPlayer(id = 41101)
         val defender = aPlayer(id = 2)
-        val lineup = Lineup(formation = "3-5-2", players = listOf(goalkeeper, null, defender))
+        val lineup = aLineup(players = listOf(goalkeeper, null, defender))
         val coeffects = Coeffects(values = mapOf(FetchLineupCoeffect to Loadable.Success(lineup)))
 
         val effects = viewModel.handleSlotVacated(event(name = "lineup.slot-vacated", payload = 41101), coeffects)
 
         assertThat(effects).containsExactly(
-            SaveLineupEffect(formation = "3-5-2", playerIds = listOf(null, null, 2))
+            UpdateState(path = "lineup.saving", value = true),
+            UpdateState(path = "lineup.saveError", value = false),
+            SaveLineupEffect(formation = "3-5-2", playerIds = listOf(null, null, 2)),
         )
     }
 
@@ -134,23 +137,25 @@ class LineupViewModelTest {
     }
 
     @Test
-    fun `handleSaveSucceeded updates the lineup and clears the save error`() {
-        val lineup: Lineup? = Lineup(formation = "4-4-2", players = listOf(aPlayer()))
+    fun `handleSaveSucceeded updates the lineup, clears the save error, and stops saving`() {
+        val lineup: Lineup? = aLineup(formation = "4-4-2")
 
         val effects = viewModel.handleSaveSucceeded(event(name = "lineup.save-succeeded", payload = lineup))
 
         assertThat(effects).containsExactly(
             UpdateState(path = "lineup.lineup", value = Loadable.Success(lineup)),
             UpdateState(path = "lineup.saveError", value = false),
+            UpdateState(path = "lineup.saving", value = false),
         )
     }
 
     @Test
-    fun `handleSaveFailed sets the save error, leaving the lineup untouched`() {
+    fun `handleSaveFailed sets the save error and stops saving, leaving the lineup untouched`() {
         val effects = viewModel.handleSaveFailed(event(name = "lineup.save-failed"))
 
         assertThat(effects).containsExactly(
             UpdateState(path = "lineup.saveError", value = true),
+            UpdateState(path = "lineup.saving", value = false),
         )
     }
 
@@ -171,6 +176,7 @@ class LineupViewModelTest {
 
         assertThat(effects).containsExactly(
             UpdateState(path = "lineup.slotPicker", value = Loadable.Loading),
+            UpdateState(path = "lineup.saveError", value = false),
             DispatchEvent(
                 event = event(
                     name = "lineup.slot-picker-requested",
@@ -181,16 +187,21 @@ class LineupViewModelTest {
     }
 
     @Test
-    fun `handleSlotPickerRequested keeps only same-position bench players not already in the lineup`() {
+    fun `handleSlotPickerRequested splits bench players into specialists (primary match) and jollies (secondary match), excluding starters`() {
         val startingGoalkeeper = aPlayer(id = 41101, position = 1)
-        val lineup = Lineup(formation = "3-5-2", players = listOf(startingGoalkeeper))
+        val lineup = aLineup(players = listOf(startingGoalkeeper), credits = 20)
         val benchGoalkeeper = aSquadPlayer(id = 2, name = "Bench GK", position = 1)
         val ownGoalkeeperAlreadyStarting = aSquadPlayer(id = 41101, name = "Starting GK", position = 1)
         val benchDefender = aSquadPlayer(id = 3, name = "Bench DF", position = 2)
+        // A MF/FW aligned as GK isn't realistic football, but exercises
+        // the secondary-position match same as any other band would.
+        val jollyGoalkeeper = aSquadPlayer(id = 4, name = "Jolly", position = 3, secondaryPosition = 1)
         val coeffects = Coeffects(
             values = mapOf(
                 FetchLineupCoeffect to Loadable.Success(lineup),
-                FetchSquadCoeffect to Loadable.Success(listOf(benchGoalkeeper, ownGoalkeeperAlreadyStarting, benchDefender)),
+                FetchSquadCoeffect to Loadable.Success(
+                    listOf(benchGoalkeeper, ownGoalkeeperAlreadyStarting, benchDefender, jollyGoalkeeper)
+                ),
             )
         )
 
@@ -202,9 +213,36 @@ class LineupViewModelTest {
         assertThat(effects).containsExactly(
             UpdateState(
                 path = "lineup.slotPicker",
-                value = Loadable.Success(BenchCandidates(slotIndex = 0, players = listOf(benchGoalkeeper)))
+                value = Loadable.Success(
+                    BenchCandidates(
+                        slotIndex = 0,
+                        specialists = listOf(benchGoalkeeper),
+                        jollies = listOf(jollyGoalkeeper),
+                        canAffordJolly = true,
+                    )
+                )
             )
         )
+    }
+
+    @Test
+    fun `handleSlotPickerRequested sets canAffordJolly false when short of the off-position credit cost`() {
+        val lineup = aLineup(players = listOf(aPlayer(id = 41101, position = 1)), credits = 1)
+        val jolly = aSquadPlayer(id = 4, name = "Jolly", position = 3, secondaryPosition = 1)
+        val coeffects = Coeffects(
+            values = mapOf(
+                FetchLineupCoeffect to Loadable.Success(lineup),
+                FetchSquadCoeffect to Loadable.Success(listOf(jolly)),
+            )
+        )
+
+        val effects = viewModel.handleSlotPickerRequested(
+            event(name = "lineup.slot-picker-requested", payload = SlotPickerRequest(index = 0, position = 1)),
+            coeffects
+        )
+
+        val picker = (effects.single() as UpdateState).value as Loadable.Success<*>
+        assertThat((picker.value as BenchCandidates).canAffordJolly).isFalse()
     }
 
     @Test
@@ -236,7 +274,7 @@ class LineupViewModelTest {
     @Test
     fun `handleSlotFilled sets only the targeted index, keeping every other slot as-is`() {
         val goalkeeper = aPlayer(id = 41101)
-        val lineup = Lineup(formation = "3-5-2", players = listOf(goalkeeper, null))
+        val lineup = aLineup(players = listOf(goalkeeper, null))
         val coeffects = Coeffects(values = mapOf(FetchLineupCoeffect to Loadable.Success(lineup)))
 
         val effects = viewModel.handleSlotFilled(
@@ -245,8 +283,9 @@ class LineupViewModelTest {
         )
 
         assertThat(effects).containsExactly(
+            UpdateState(path = "lineup.saving", value = true),
+            UpdateState(path = "lineup.saveError", value = false),
             SaveLineupEffect(formation = "3-5-2", playerIds = listOf(41101, 8747)),
-            UpdateState(path = "lineup.slotPicker", value = null),
         )
     }
 

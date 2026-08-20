@@ -26,7 +26,11 @@ export const createBiwengerClient = (dependencies = {}) => {
     })
     const { data } = await response.json()
     const [league] = data.leagues
-    return { leagueId: league.id, userId: league.user.id }
+    // credits is account-wide (not per-league) — see docs/biwenger-api-notes.md
+    // § "Starting lineup — write"'s off-position credit-cost note. Only
+    // getLineup/saveLineup destructure it; harmless extra field for
+    // getMySquad/getCurrentMarket, which don't.
+    return { leagueId: league.id, userId: league.user.id, credits: data.account.credits }
   }
 
   // Keeps `owner` (not just `id`) — squad-player-view.js needs
@@ -191,11 +195,15 @@ export const createBiwengerClient = (dependencies = {}) => {
     playersID.map((id) => (id == null ? null : catalogue[String(id)] ?? null))
 
   // Starting lineup — see docs/biwenger-api-notes.md § "Starting
-  // lineup". Returns {formation, players} rather than a merged object:
-  // `players` here are catalogue players in `playersID`'s order
+  // lineup". Returns {formation, players, credits} rather than a merged
+  // object: `players` here are catalogue players in `playersID`'s order
   // (goalkeeper, then defenders/midfielders/forwards, grouped
   // back-to-front per the formation counts) — lineup-view.js does the
-  // shaping into named position groups.
+  // shaping into named position groups. `credits` rides along because
+  // it's already on the same getAccount call and swap-lineup-players'
+  // secondary-position slice needs it to gate off-position fills — see
+  // docs/biwenger-api-notes.md § "Starting lineup — write"'s
+  // credit-cost note.
   //
   // A vacant slot is `null` in `playersID` (see docs/biwenger-api-notes.md
   // § "Starting lineup — write", confirmed against a real account) — kept
@@ -208,7 +216,7 @@ export const createBiwengerClient = (dependencies = {}) => {
   // reason, rather than spliced out.
   const getLineup = async ({ email, password }) => {
     const token = await login({ email, password })
-    const { leagueId, userId } = await getAccount({ token })
+    const { leagueId, userId, credits } = await getAccount({ token })
     const [lineup, catalogue] = await Promise.all([
       getLineupData({ token, leagueId, userId }),
       getCatalogue(),
@@ -216,6 +224,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     return {
       formation: lineup.type,
       players: toLineupPlayers(lineup.playersID, catalogue),
+      credits,
     }
   }
 
@@ -228,6 +237,12 @@ export const createBiwengerClient = (dependencies = {}) => {
   // write side either. Returns the saved lineup, shaped the same way
   // getLineup does, off Biwenger's own write response rather than a
   // separate follow-up GET.
+  //
+  // `credits` is re-fetched via a second getAccount AFTER the write,
+  // not reused from the pre-write call — an off-position assignment
+  // silently deducts credits (see docs/biwenger-api-notes.md § "Starting
+  // lineup — write"), and the write response itself gives no hint of
+  // it, so the pre-write balance would be stale.
   const saveLineup = async ({ email, password, formation, playerIds }) => {
     const token = await login({ email, password })
     const { leagueId, userId } = await getAccount({ token })
@@ -235,9 +250,11 @@ export const createBiwengerClient = (dependencies = {}) => {
       saveLineupData({ token, leagueId, userId, formation, playerIds }),
       getCatalogue(),
     ])
+    const { credits } = await getAccount({ token })
     return {
       formation: lineup.type,
       players: toLineupPlayers(lineup.playersID, catalogue),
+      credits,
     }
   }
 

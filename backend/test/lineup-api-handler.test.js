@@ -10,6 +10,7 @@ test('returns a 200 JSON body with the lineup, shaped via toLineupView, on succe
   const handler = createLineupApiHandler({
     biwengerClient: fakeBiwengerClient({
       formation: '3-5-2',
+      credits: 20,
       players: [
         { id: 41101, name: 'Alfonso Herrero', teamID: 65, position: 1, price: 3880000, priceIncrement: -30000, points: 0 },
       ],
@@ -23,6 +24,7 @@ test('returns a 200 JSON body with the lineup, shaped via toLineupView, on succe
   assert.equal(response.headers['Content-Type'], 'application/json; charset=utf-8')
   assert.deepEqual(JSON.parse(response.body), {
     formation: '3-5-2',
+    credits: 20,
     players: [{
       id: 41101,
       name: 'Alfonso Herrero',

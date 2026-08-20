@@ -17,7 +17,7 @@ class FetchLineupCoeffectHandler(
 ) : CoeffectHandler<FetchLineupCoeffect, Lineup> {
     override suspend fun extract(coeffect: FetchLineupCoeffect): Lineup =
         when (val result = lineupService.lineup()) {
-            is Response.Success -> result.body ?: Lineup(formation = "", players = emptyList())
+            is Response.Success -> result.body ?: Lineup(formation = "", players = emptyList(), credits = 0)
             is Response.Error -> throw LineupFetchException(response = result)
         }
 }

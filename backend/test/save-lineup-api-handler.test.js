@@ -10,6 +10,7 @@ test('returns a 200 JSON body with the saved lineup, shaped via toLineupView, on
   const handler = createSaveLineupApiHandler({
     biwengerClient: fakeBiwengerClient({
       formation: '3-5-2',
+      credits: 18,
       players: [
         { id: 41101, name: 'Alfonso Herrero', teamID: 65, position: 1, price: 3880000, priceIncrement: -30000, points: 0 },
         null,
@@ -24,6 +25,7 @@ test('returns a 200 JSON body with the saved lineup, shaped via toLineupView, on
   assert.equal(response.headers['Content-Type'], 'application/json; charset=utf-8')
   const body = JSON.parse(response.body)
   assert.equal(body.formation, '3-5-2')
+  assert.equal(body.credits, 18)
   assert.equal(body.players.length, 2)
   assert.equal(body.players[0].id, 41101)
   assert.equal(body.players[1], null)
