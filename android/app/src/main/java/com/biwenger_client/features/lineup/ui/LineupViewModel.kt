@@ -4,6 +4,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import com.biwenger_client.core.coeffects.Coeffects
+import com.biwenger_client.core.effects.DispatchEvent
 import com.biwenger_client.core.effects.Effect
 import com.biwenger_client.core.events.Event
 import com.biwenger_client.core.events.event
@@ -14,7 +15,11 @@ import com.biwenger_client.features.lineup.domain.coeffects.FetchLineupCoeffect
 import com.biwenger_client.features.lineup.domain.effects.LINEUP_SAVE_FAILED_EVENT
 import com.biwenger_client.features.lineup.domain.effects.LINEUP_SAVE_SUCCEEDED_EVENT
 import com.biwenger_client.features.lineup.domain.effects.SaveLineupEffect
+import com.biwenger_client.features.lineup.domain.models.BenchCandidates
 import com.biwenger_client.features.lineup.domain.models.Lineup
+import com.biwenger_client.features.lineup.domain.models.SlotFillRequest
+import com.biwenger_client.features.lineup.domain.models.SlotPickerRequest
+import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -24,12 +29,16 @@ class LineupViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val lineupCoeffect = FetchLineupCoeffect
+    private val squadCoeffect = FetchSquadCoeffect
 
     private val _lineup = mutableStateOf<Loadable<Lineup>>(Loadable.Loading)
     val lineup: State<Loadable<Lineup>> = _lineup
 
     private val _saveError = mutableStateOf(false)
     val saveError: State<Boolean> = _saveError
+
+    private val _slotPicker = mutableStateOf<Loadable<BenchCandidates>?>(null)
+    val slotPicker: State<Loadable<BenchCandidates>?> = _slotPicker
 
     init {
         store.subscribe<Loadable<Lineup>?>(path = "lineup.lineup") {
@@ -38,6 +47,7 @@ class LineupViewModel @Inject constructor(
         store.subscribe<Boolean?>(path = "lineup.saveError") {
             it?.let { v -> _saveError.value = v }
         }
+        store.subscribe<Loadable<BenchCandidates>?>(path = "lineup.slotPicker") { _slotPicker.value = it }
 
         store.registerEventHandler(
             name = ON_LOAD_EVENT,
@@ -51,6 +61,18 @@ class LineupViewModel @Inject constructor(
         )
         store.registerEventHandler(name = LINEUP_SAVE_SUCCEEDED_EVENT, handler = ::handleSaveSucceeded)
         store.registerEventHandler(name = LINEUP_SAVE_FAILED_EVENT, handler = ::handleSaveFailed)
+        store.registerEventHandler(name = SLOT_TAPPED_EVENT, handler = ::handleSlotTapped)
+        store.registerEventHandler(
+            name = SLOT_PICKER_REQUESTED_EVENT,
+            coeffects = listOf(lineupCoeffect, squadCoeffect),
+            handler = ::handleSlotPickerRequested
+        )
+        store.registerEventHandler(name = SLOT_PICKER_CLOSED_EVENT, handler = ::handleSlotPickerClosed)
+        store.registerEventHandler(
+            name = SLOT_FILLED_EVENT,
+            coeffects = listOf(lineupCoeffect),
+            handler = ::handleSlotFilled
+        )
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -61,6 +83,10 @@ class LineupViewModel @Inject constructor(
         store.removeEventHandler(name = SLOT_VACATED_EVENT, handler = ::handleSlotVacated)
         store.removeEventHandler(name = LINEUP_SAVE_SUCCEEDED_EVENT, handler = ::handleSaveSucceeded)
         store.removeEventHandler(name = LINEUP_SAVE_FAILED_EVENT, handler = ::handleSaveFailed)
+        store.removeEventHandler(name = SLOT_TAPPED_EVENT, handler = ::handleSlotTapped)
+        store.removeEventHandler(name = SLOT_PICKER_REQUESTED_EVENT, handler = ::handleSlotPickerRequested)
+        store.removeEventHandler(name = SLOT_PICKER_CLOSED_EVENT, handler = ::handleSlotPickerClosed)
+        store.removeEventHandler(name = SLOT_FILLED_EVENT, handler = ::handleSlotFilled)
     }
 
     // Benches a starter with no replacement — see
@@ -70,6 +96,23 @@ class LineupViewModel @Inject constructor(
     // job, not this action method's (see docs/coding-conventions/viewmodels.md).
     fun vacateSlot(playerId: Int) {
         store.dispatch(event = event(name = SLOT_VACATED_EVENT, payload = playerId))
+    }
+
+    // Opens the bench picker for a tapped vacant slot.
+    fun requestBenchOptions(slot: LineupSlot) {
+        store.dispatch(event = event(name = SLOT_TAPPED_EVENT, payload = slot))
+    }
+
+    fun closeSlotPicker() {
+        store.dispatch(event = event(name = SLOT_PICKER_CLOSED_EVENT))
+    }
+
+    // `index`/`playerId` come straight from what's already on screen
+    // (the open picker's slot, the tapped candidate) — relaying them is
+    // not the "logic" docs/coding-conventions/viewmodels.md reserves for
+    // event handlers, same as vacateSlot passing a bare id through.
+    fun fillSlot(index: Int, playerId: Int) {
+        store.dispatch(event = event(name = SLOT_FILLED_EVENT, payload = SlotFillRequest(index = index, playerId = playerId)))
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -97,8 +140,68 @@ class LineupViewModel @Inject constructor(
     fun handleSaveFailed(event: Event<Unit>): List<Effect> =
         listOf(UpdateState(path = "lineup.saveError", value = true))
 
+    // Shows the picker as Loading immediately, same two-step
+    // Loading-then-DispatchEvent pattern SquadViewModel's
+    // handlePlayerTapped/PRICE_HISTORY_REQUESTED_EVENT already uses —
+    // computing the actual candidate list needs coeffects (a fresh
+    // lineup + squad fetch), which a plain, coeffect-less handler can't
+    // load itself.
+    fun handleSlotTapped(event: Event<LineupSlot>): List<Effect> {
+        val slot = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "lineup.slotPicker", value = Loadable.Loading),
+            DispatchEvent(
+                event = event(
+                    name = SLOT_PICKER_REQUESTED_EVENT,
+                    payload = SlotPickerRequest(index = slot.index, position = slot.position)
+                )
+            )
+        )
+    }
+
+    // Eligible = on the bench (owned, not currently in the eleven) and
+    // the same primary position as the tapped slot's band. Secondary-
+    // position eligibility is out of scope for this slice — see
+    // BenchCandidates.
+    fun handleSlotPickerRequested(event: Event<SlotPickerRequest>, coeffects: Coeffects): List<Effect> {
+        val request = requireNotNull(event.payload)
+        val lineupResult = coeffects.load(coeffect = lineupCoeffect)
+        val squadResult = coeffects.load(coeffect = squadCoeffect)
+        val picker = when {
+            lineupResult is Loadable.Failed -> lineupResult
+            squadResult is Loadable.Failed -> squadResult
+            lineupResult is Loadable.Success && squadResult is Loadable.Success -> {
+                val startingIds = lineupResult.value.players.mapNotNull { it?.id }.toSet()
+                val eligible = squadResult.value.filter { it.id !in startingIds && it.position == request.position }
+                Loadable.Success(BenchCandidates(slotIndex = request.index, players = eligible))
+            }
+            else -> Loadable.Loading
+        }
+        return listOf(UpdateState(path = "lineup.slotPicker", value = picker))
+    }
+
+    fun handleSlotPickerClosed(event: Event<Unit>): List<Effect> =
+        listOf(UpdateState(path = "lineup.slotPicker", value = null))
+
+    // Same freshness reasoning as handleSlotVacated: rebuilds playerIds
+    // off a just-fetched lineup, not the ViewModel's displayed copy.
+    fun handleSlotFilled(event: Event<SlotFillRequest>, coeffects: Coeffects): List<Effect> {
+        val request = requireNotNull(event.payload)
+        val current = coeffects.load(coeffect = lineupCoeffect)
+        val lineup = (current as? Loadable.Success)?.value ?: return emptyList()
+        val playerIds = lineup.players.mapIndexed { index, player -> if (index == request.index) request.playerId else player?.id }
+        return listOf(
+            SaveLineupEffect(formation = lineup.formation, playerIds = playerIds),
+            UpdateState(path = "lineup.slotPicker", value = null),
+        )
+    }
+
     companion object {
         const val ON_LOAD_EVENT = "lineup.on-load"
         const val SLOT_VACATED_EVENT = "lineup.slot-vacated"
+        const val SLOT_TAPPED_EVENT = "lineup.vacant-slot-tapped"
+        const val SLOT_PICKER_REQUESTED_EVENT = "lineup.slot-picker-requested"
+        const val SLOT_PICKER_CLOSED_EVENT = "lineup.slot-picker-closed"
+        const val SLOT_FILLED_EVENT = "lineup.slot-filled"
     }
 }

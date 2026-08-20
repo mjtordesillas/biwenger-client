@@ -9,11 +9,17 @@ import com.biwenger_client.core.events.Event
 import com.biwenger_client.core.events.event
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
+import com.biwenger_client.core.effects.DispatchEvent
 import com.biwenger_client.core.state.UpdateState
 import com.biwenger_client.features.lineup.domain.coeffects.FetchLineupCoeffect
 import com.biwenger_client.features.lineup.domain.effects.SaveLineupEffect
+import com.biwenger_client.features.lineup.domain.models.BenchCandidates
 import com.biwenger_client.features.lineup.domain.models.Lineup
+import com.biwenger_client.features.lineup.domain.models.SlotFillRequest
+import com.biwenger_client.features.lineup.domain.models.SlotPickerRequest
+import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
 import com.biwenger_client.helpers.builders.aPlayer
+import com.biwenger_client.helpers.builders.aSquadPlayer
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.Before
 import org.junit.Test
@@ -146,5 +152,113 @@ class LineupViewModelTest {
         assertThat(effects).containsExactly(
             UpdateState(path = "lineup.saveError", value = true),
         )
+    }
+
+    @Test
+    fun `requestBenchOptions dispatches vacant-slot-tapped with the slot`() {
+        val slot = LineupSlot(index = 3, position = 2, player = aPlayer(id = 0, name = "?"))
+
+        viewModel.requestBenchOptions(slot)
+
+        verify(store).dispatch(event = event(name = "lineup.vacant-slot-tapped", payload = slot))
+    }
+
+    @Test
+    fun `handleSlotTapped shows Loading immediately, then requests the picker via DispatchEvent`() {
+        val slot = LineupSlot(index = 3, position = 2, player = aPlayer(id = 0, name = "?"))
+
+        val effects = viewModel.handleSlotTapped(event(name = "lineup.vacant-slot-tapped", payload = slot))
+
+        assertThat(effects).containsExactly(
+            UpdateState(path = "lineup.slotPicker", value = Loadable.Loading),
+            DispatchEvent(
+                event = event(
+                    name = "lineup.slot-picker-requested",
+                    payload = SlotPickerRequest(index = 3, position = 2)
+                )
+            ),
+        )
+    }
+
+    @Test
+    fun `handleSlotPickerRequested keeps only same-position bench players not already in the lineup`() {
+        val startingGoalkeeper = aPlayer(id = 41101, position = 1)
+        val lineup = Lineup(formation = "3-5-2", players = listOf(startingGoalkeeper))
+        val benchGoalkeeper = aSquadPlayer(id = 2, name = "Bench GK", position = 1)
+        val ownGoalkeeperAlreadyStarting = aSquadPlayer(id = 41101, name = "Starting GK", position = 1)
+        val benchDefender = aSquadPlayer(id = 3, name = "Bench DF", position = 2)
+        val coeffects = Coeffects(
+            values = mapOf(
+                FetchLineupCoeffect to Loadable.Success(lineup),
+                FetchSquadCoeffect to Loadable.Success(listOf(benchGoalkeeper, ownGoalkeeperAlreadyStarting, benchDefender)),
+            )
+        )
+
+        val effects = viewModel.handleSlotPickerRequested(
+            event(name = "lineup.slot-picker-requested", payload = SlotPickerRequest(index = 0, position = 1)),
+            coeffects
+        )
+
+        assertThat(effects).containsExactly(
+            UpdateState(
+                path = "lineup.slotPicker",
+                value = Loadable.Success(BenchCandidates(slotIndex = 0, players = listOf(benchGoalkeeper)))
+            )
+        )
+    }
+
+    @Test
+    fun `closeSlotPicker dispatches slot-picker-closed`() {
+        viewModel.closeSlotPicker()
+
+        verify(store).dispatch(event = event(name = "lineup.slot-picker-closed"))
+    }
+
+    @Test
+    fun `handleSlotPickerClosed clears the picker`() {
+        val effects = viewModel.handleSlotPickerClosed(event(name = "lineup.slot-picker-closed"))
+
+        assertThat(effects).containsExactly(UpdateState(path = "lineup.slotPicker", value = null))
+    }
+
+    @Test
+    fun `fillSlot dispatches slot-filled with the index and chosen player id`() {
+        viewModel.fillSlot(3, 41412)
+
+        verify(store).dispatch(
+            event = event(name = "lineup.slot-filled", payload = SlotFillRequest(index = 3, playerId = 41412))
+        )
+    }
+
+    // Regression guard, same as handleSlotVacated: filling only the
+    // targeted index must leave every other slot's id (real or
+    // already-vacant) untouched.
+    @Test
+    fun `handleSlotFilled sets only the targeted index, keeping every other slot as-is`() {
+        val goalkeeper = aPlayer(id = 41101)
+        val lineup = Lineup(formation = "3-5-2", players = listOf(goalkeeper, null))
+        val coeffects = Coeffects(values = mapOf(FetchLineupCoeffect to Loadable.Success(lineup)))
+
+        val effects = viewModel.handleSlotFilled(
+            event(name = "lineup.slot-filled", payload = SlotFillRequest(index = 1, playerId = 8747)),
+            coeffects
+        )
+
+        assertThat(effects).containsExactly(
+            SaveLineupEffect(formation = "3-5-2", playerIds = listOf(41101, 8747)),
+            UpdateState(path = "lineup.slotPicker", value = null),
+        )
+    }
+
+    @Test
+    fun `handleSlotFilled is a no-op when the current lineup isn't loaded`() {
+        val coeffects = Coeffects(values = mapOf(FetchLineupCoeffect to Loadable.Loading))
+
+        val effects = viewModel.handleSlotFilled(
+            event(name = "lineup.slot-filled", payload = SlotFillRequest(index = 1, playerId = 8747)),
+            coeffects
+        )
+
+        assertThat(effects).isEmpty()
     }
 }

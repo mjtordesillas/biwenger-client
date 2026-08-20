@@ -79,10 +79,32 @@ class LineupScreenTest {
             counts = FormationCounts(defenders = 1, midfielders = 1, forwards = 1)
         )
 
-        assertThat(bands.goalkeepers).containsExactly(goalkeeper)
-        assertThat(bands.defenders).containsExactly(defender)
-        assertThat(bands.midfielders).containsExactly(midfielder)
-        assertThat(bands.forwards).containsExactly(midfielderPlayedAsForward)
+        assertThat(bands.goalkeepers.map { it.player }).containsExactly(goalkeeper)
+        assertThat(bands.defenders.map { it.player }).containsExactly(defender)
+        assertThat(bands.midfielders.map { it.player }).containsExactly(midfielder)
+        assertThat(bands.forwards.map { it.player }).containsExactly(midfielderPlayedAsForward)
+    }
+
+    // A fill/vacate write needs the slot's true index into `players`
+    // (there's no player id to key off a vacant slot) and its band's
+    // catalogue position code (eligibility filtering) — both travel
+    // with each LineupSlot regardless of which band it lands in.
+    @Test
+    fun `sliceLineupBands carries each slot's true index and band position code`() {
+        val goalkeeper = aPlayer(id = 1, position = 1)
+        val defender = aPlayer(id = 2, position = 2)
+        val midfielder = aPlayer(id = 3, position = 3)
+        val forward = aPlayer(id = 4, position = 4)
+
+        val bands = sliceLineupBands(
+            players = listOf(goalkeeper, defender, midfielder, forward),
+            counts = FormationCounts(defenders = 1, midfielders = 1, forwards = 1)
+        )
+
+        assertThat(bands.goalkeepers.single()).isEqualTo(LineupSlot(index = 0, position = 1, player = goalkeeper))
+        assertThat(bands.defenders.single()).isEqualTo(LineupSlot(index = 1, position = 2, player = defender))
+        assertThat(bands.midfielders.single()).isEqualTo(LineupSlot(index = 2, position = 3, player = midfielder))
+        assertThat(bands.forwards.single()).isEqualTo(LineupSlot(index = 3, position = 4, player = forward))
     }
 
     // Regression: a `null` mid-list (a real vacancy) must be consumed as
@@ -101,10 +123,10 @@ class LineupScreenTest {
             counts = FormationCounts(defenders = 2, midfielders = 0, forwards = 1)
         )
 
-        assertThat(bands.goalkeepers).containsExactly(goalkeeper)
-        assertThat(bands.defenders[0].name).isEqualTo("?")
-        assertThat(bands.defenders[1]).isEqualTo(defender)
-        assertThat(bands.forwards).containsExactly(forward)
+        assertThat(bands.goalkeepers.map { it.player }).containsExactly(goalkeeper)
+        assertThat(bands.defenders[0].player.name).isEqualTo("?")
+        assertThat(bands.defenders[1].player).isEqualTo(defender)
+        assertThat(bands.forwards.map { it.player }).containsExactly(forward)
     }
 
     @Test
@@ -117,9 +139,9 @@ class LineupScreenTest {
             counts = FormationCounts(defenders = 2, midfielders = 1, forwards = 1)
         )
 
-        assertThat(bands.goalkeepers).containsExactly(goalkeeper)
-        assertThat(bands.defenders.map { it.id }).containsExactly(2, 0)
-        assertThat(bands.midfielders.single().name).isEqualTo("?")
-        assertThat(bands.forwards.single().name).isEqualTo("?")
+        assertThat(bands.goalkeepers.map { it.player }).containsExactly(goalkeeper)
+        assertThat(bands.defenders.map { it.player.id }).containsExactly(2, 0)
+        assertThat(bands.midfielders.single().player.name).isEqualTo("?")
+        assertThat(bands.forwards.single().player.name).isEqualTo("?")
     }
 }

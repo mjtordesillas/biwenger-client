@@ -5,14 +5,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -34,14 +38,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.domain.models.Player
+import com.biwenger_client.features.lineup.domain.models.BenchCandidates
 import com.biwenger_client.features.lineup.domain.models.Lineup
+import com.biwenger_client.features.squad.domain.models.SquadPlayer
 import com.biwenger_client.ui.FootballPitch
+import com.biwenger_client.ui.PlayerAvatarWithPoints
 import com.biwenger_client.ui.PositionColors
+import com.biwenger_client.ui.PositionTag
+import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral900
+import com.biwenger_client.ui.theme.NocturneRadius
 
 // The same translucent green a midfielder's PositionTag already uses,
 // not a new bespoke pitch color — the turf reuses the palette that's
@@ -57,11 +68,28 @@ fun LineupScreen(
 ) {
     val lineup by viewModel.lineup
     val saveError by viewModel.saveError
-    LineupScreen(lineup = lineup, saveError = saveError, onVacate = viewModel::vacateSlot)
+    val slotPicker by viewModel.slotPicker
+    LineupScreen(
+        lineup = lineup,
+        saveError = saveError,
+        slotPicker = slotPicker,
+        onVacate = viewModel::vacateSlot,
+        onRequestBenchOptions = viewModel::requestBenchOptions,
+        onFillSlot = viewModel::fillSlot,
+        onClosePicker = viewModel::closeSlotPicker,
+    )
 }
 
 @Composable
-private fun LineupScreen(lineup: Loadable<Lineup>, saveError: Boolean, onVacate: (Int) -> Unit) {
+private fun LineupScreen(
+    lineup: Loadable<Lineup>,
+    saveError: Boolean,
+    slotPicker: Loadable<BenchCandidates>?,
+    onVacate: (Int) -> Unit,
+    onRequestBenchOptions: (LineupSlot) -> Unit,
+    onFillSlot: (Int, Int) -> Unit,
+    onClosePicker: () -> Unit,
+) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (lineup) {
             is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -69,19 +97,35 @@ private fun LineupScreen(lineup: Loadable<Lineup>, saveError: Boolean, onVacate:
                 text = "Could not load your lineup right now.",
                 modifier = Modifier.align(Alignment.Center).padding(16.dp)
             )
-            is Loadable.Success -> LineupContent(lineup = lineup.value, saveError = saveError, onVacate = onVacate)
+            is Loadable.Success -> LineupContent(
+                lineup = lineup.value,
+                saveError = saveError,
+                slotPicker = slotPicker,
+                onVacate = onVacate,
+                onRequestBenchOptions = onRequestBenchOptions,
+                onFillSlot = onFillSlot,
+                onClosePicker = onClosePicker,
+            )
         }
     }
 }
 
 @Composable
-private fun LineupContent(lineup: Lineup, saveError: Boolean, onVacate: (Int) -> Unit) {
-    // Tap a starter, confirm in the dialog below — the "save/confirm
-    // flow" docs/backlog/to-do/swap-lineup-players.md calls for. Purely
-    // local UI state (which player, if any, the dialog is asking
-    // about), not store-backed: nothing here needs a coeffect or
-    // survives navigating away.
-    var playerToVacate by remember { mutableStateOf<Player?>(null) }
+private fun LineupContent(
+    lineup: Lineup,
+    saveError: Boolean,
+    slotPicker: Loadable<BenchCandidates>?,
+    onVacate: (Int) -> Unit,
+    onRequestBenchOptions: (LineupSlot) -> Unit,
+    onFillSlot: (Int, Int) -> Unit,
+    onClosePicker: () -> Unit,
+) {
+    // Which slot the dialog below is open for, if any — purely local UI
+    // state, not store-backed: nothing here needs a coeffect or survives
+    // navigating away. The candidate list it shows DOES need one
+    // (`slotPicker`, from the ViewModel) since it depends on a fresh
+    // squad/lineup fetch, not just what was tapped.
+    var activeSlot by remember { mutableStateOf<LineupSlot?>(null) }
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
@@ -116,33 +160,121 @@ private fun LineupContent(lineup: Lineup, saveError: Boolean, onVacate: (Int) ->
             PitchLineup(
                 players = lineup.players,
                 formation = lineup.formation,
-                onPlayerTap = { player -> playerToVacate = player },
+                onSlotTap = { slot ->
+                    activeSlot = slot
+                    onRequestBenchOptions(slot)
+                },
                 modifier = Modifier.fillMaxSize().padding(12.dp)
             )
         }
     }
 
-    playerToVacate?.let { player ->
-        VacateSlotDialog(
-            player = player,
-            onConfirm = {
-                onVacate(player.id)
-                playerToVacate = null
+    activeSlot?.let { slot ->
+        SlotOptionsDialog(
+            player = slot.player,
+            picker = slotPicker,
+            onSelect = { candidate ->
+                onFillSlot(slot.index, candidate.id)
+                activeSlot = null
             },
-            onDismiss = { playerToVacate = null }
+            onVacate = {
+                onVacate(slot.player.id)
+                activeSlot = null
+            },
+            onDismiss = {
+                activeSlot = null
+                onClosePicker()
+            }
         )
     }
 }
 
+// One dialog for both cases a tapped slot can be in: pick a bench
+// player to fill it (empty or occupied — replacing a starter is
+// remove-then-fill in one motion instead of two separate taps), or, for
+// an occupied slot, bench them with the "Vacate" button instead of
+// picking a replacement. `player.id == 0` (see VacantPlayer) means the
+// slot was already empty — nothing to vacate, so that button doesn't
+// apply.
+//
+// `usePlatformDefaultWidth = false` + a fillMaxWidth modifier: the
+// platform default caps a dialog around 80% of a phone's width, too
+// narrow for a scrolling list of player cards to read comfortably.
 @Composable
-private fun VacateSlotDialog(player: Player, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+private fun SlotOptionsDialog(
+    player: Player,
+    picker: Loadable<BenchCandidates>?,
+    onSelect: (SquadPlayer) -> Unit,
+    onVacate: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val occupied = player.id != 0
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Bench ${player.name}?") },
-        text = { Text("They'll be removed from the lineup with no replacement.") },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Bench") } },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(fraction = 0.95f),
+        title = { Text(if (occupied) "Replace ${player.name}" else "Fill this slot") },
+        text = {
+            when (picker) {
+                null, is Loadable.Loading -> Box(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                is Loadable.Failed -> Text("Could not load your bench right now.")
+                is Loadable.Success -> {
+                    val candidates = picker.value.players
+                    if (candidates.isEmpty()) {
+                        Text("No eligible players on your bench.")
+                    } else {
+                        Column(modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                            candidates.forEach { candidate ->
+                                BenchCandidateCard(player = candidate, onClick = { onSelect(candidate) })
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (occupied) {
+                TextButton(onClick = onVacate) { Text("Vacate") }
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+// Same avatar/points-badge + name + position-tag shape as
+// SquadScreen.kt's SquadPlayerRow (Players subtab), minus that row's
+// ownership header/footer — this card isn't about ownership, just
+// "who is this and how are they doing", so ColorSurface/PlayerAvatarWithPoints/
+// PositionTag are reused from ui/PlayerList.kt but the row composable
+// itself isn't (see docs/coding-conventions/project-structure.md — feature-local
+// rows are the norm, only the pieces shared across features get promoted).
+@Composable
+private fun BenchCandidateCard(player: SquadPlayer, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(NocturneRadius.md))
+            .background(ColorSurface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        PlayerAvatarWithPoints(
+            photoUrl = player.photoUrl,
+            teamCrestUrl = player.teamCrestUrl,
+            contentDescription = player.name,
+            points = player.points
+        )
+        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+            Text(text = player.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                PositionTag(position = player.position, secondaryPosition = player.secondaryPosition)
+            }
+        }
+    }
 }
 
 // Calibrated against a 24-column x 20-row grid overlaid on the pitch
@@ -178,20 +310,20 @@ private const val PairHalfSpanColumns = 5f // exactly 2 players: centers on colu
 private fun PitchLineup(
     players: List<Player?>,
     formation: String,
-    onPlayerTap: (Player) -> Unit,
+    onSlotTap: (LineupSlot) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val bands = sliceLineupBands(players, parseFormation(formation))
     BoxWithConstraints(modifier = modifier) {
         val pitchSize = DpSize(maxWidth, maxHeight)
-        PitchPositionRow(players = bands.forwards, band = ForwardBand, pitchSize = pitchSize, onPlayerTap = onPlayerTap)
-        PitchPositionRow(players = bands.midfielders, band = MidfielderBand, pitchSize = pitchSize, onPlayerTap = onPlayerTap)
-        PitchPositionRow(players = bands.defenders, band = DefenderBand, pitchSize = pitchSize, onPlayerTap = onPlayerTap)
+        PitchPositionRow(slots = bands.forwards, band = ForwardBand, pitchSize = pitchSize, onSlotTap = onSlotTap)
+        PitchPositionRow(slots = bands.midfielders, band = MidfielderBand, pitchSize = pitchSize, onSlotTap = onSlotTap)
+        PitchPositionRow(slots = bands.defenders, band = DefenderBand, pitchSize = pitchSize, onSlotTap = onSlotTap)
         PitchPositionRow(
-            players = bands.goalkeepers,
+            slots = bands.goalkeepers,
             band = PositionBand(GoalkeeperRow, GoalkeeperRow),
             pitchSize = pitchSize,
-            onPlayerTap = onPlayerTap
+            onSlotTap = onSlotTap
         )
     }
 }
@@ -210,11 +342,20 @@ fun parseFormation(formation: String): FormationCounts {
     )
 }
 
+// One rendered pitch slot: `index` into the lineup's raw playersID-order
+// array (what a fill/vacate write needs to target this exact slot —
+// there's no player id to key off when `player` is the vacant
+// placeholder), `position` is the band's catalogue position code
+// (1=GK 2=DF 3=MF 4=FW, see docs/biwenger-api-notes.md § "Position
+// codes") used to filter bench-picker eligibility, `player` is what
+// PitchPlayer renders.
+data class LineupSlot(val index: Int, val position: Int, val player: Player)
+
 data class LineupBands(
-    val goalkeepers: List<Player>,
-    val defenders: List<Player>,
-    val midfielders: List<Player>,
-    val forwards: List<Player>,
+    val goalkeepers: List<LineupSlot>,
+    val defenders: List<LineupSlot>,
+    val midfielders: List<LineupSlot>,
+    val forwards: List<LineupSlot>,
 )
 
 // Slices `players` IN ORDER — goalkeeper, then `counts`' defender/
@@ -229,19 +370,26 @@ data class LineupBands(
 // (a vacant slot) is consumed as one element of whichever band it
 // falls in, same as a real player, so it can't shift a later band's
 // slice — only `withVacantSlots` turns it (or a genuine shortfall) into
-// the placeholder PitchPlayer renders.
+// the placeholder PitchPlayer renders. Each slot keeps its index into
+// `players` (not just its position within the band) — a fill/vacate
+// write needs to target that exact array slot.
 fun sliceLineupBands(players: List<Player?>, counts: FormationCounts): LineupBands {
     var remaining = players
-    fun take(expectedCount: Int): List<Player> {
+    var offset = 0
+    fun take(expectedCount: Int, position: Int): List<LineupSlot> {
         val slice = remaining.take(expectedCount)
+        val startIndex = offset
         remaining = remaining.drop(slice.size)
-        return withVacantSlots(slice, expectedCount)
+        offset += slice.size
+        return withVacantSlots(slice, expectedCount).mapIndexed { i, player ->
+            LineupSlot(index = startIndex + i, position = position, player = player)
+        }
     }
     return LineupBands(
-        goalkeepers = take(1),
-        defenders = take(counts.defenders),
-        midfielders = take(counts.midfielders),
-        forwards = take(counts.forwards),
+        goalkeepers = take(1, position = 1),
+        defenders = take(counts.defenders, position = 2),
+        midfielders = take(counts.midfielders, position = 3),
+        forwards = take(counts.forwards, position = 4),
     )
 }
 
@@ -283,12 +431,12 @@ fun withVacantSlots(players: List<Player?>, expectedCount: Int): List<Player> {
 // just has fewer, more sparsely sampled points along that curve, so
 // its inner players land close to but not exactly at the lowest point.
 @Composable
-private fun PitchPositionRow(players: List<Player>, band: PositionBand, pitchSize: DpSize, onPlayerTap: (Player) -> Unit) {
-    val count = players.size
+private fun PitchPositionRow(slots: List<LineupSlot>, band: PositionBand, pitchSize: DpSize, onSlotTap: (LineupSlot) -> Unit) {
+    val count = slots.size
     val midpointRow = (band.highestRow + band.lowestRow) / 2f
     val halfSpan = if (count == 2) PairHalfSpanColumns else MaxHalfSpanColumns.toFloat()
 
-    players.forEachIndexed { index, player ->
+    slots.forEachIndexed { index, slot ->
         val t = if (count > 1) index / (count - 1).toFloat() else 0.5f
         val column = CenterColumn + (t - 0.5f) * (2 * halfSpan)
         val row = if (count <= 2) {
@@ -302,8 +450,8 @@ private fun PitchPositionRow(players: List<Player>, band: PositionBand, pitchSiz
         val bottomY = pitchSize.height * (row / GridRows)
 
         PitchPlayer(
-            player = player,
-            onTap = onPlayerTap,
+            slot = slot,
+            onTap = onSlotTap,
             modifier = Modifier
                 .width(PitchPlayerWidth)
                 .offset(x = centerX - PitchPlayerWidth / 2, y = bottomY - PitchPlayerHeight)
@@ -316,12 +464,13 @@ private val PitchPlayerHeight = 66.dp
 
 private val PitchPlayerPhotoSize = 48.dp
 
-// A vacant slot (id 0, see VacantPlayer above) isn't tappable — nothing
-// to bench there.
+// Every slot is tappable now — a vacant one (id 0, see VacantPlayer
+// above) opens the bench picker instead of the vacate dialog;
+// LineupContent's onSlotTap tells the two apart.
 @Composable
-private fun PitchPlayer(player: Player, onTap: (Player) -> Unit, modifier: Modifier = Modifier) {
-    val tapModifier = if (player.id == 0) modifier else modifier.clickable { onTap(player) }
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = tapModifier) {
+private fun PitchPlayer(slot: LineupSlot, onTap: (LineupSlot) -> Unit, modifier: Modifier = Modifier) {
+    val player = slot.player
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.clickable { onTap(slot) }) {
         // The plain mugshot, not PlayerAvatar's circle-masked photo +
         // team crest — those make sense in a list row, not stood on a
         // pitch where the shirt/crest is already visually redundant.
