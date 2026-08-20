@@ -9,11 +9,10 @@ flag; `getCurrentMarket()` actively excludes the requester's own sales
 `data.sales[]`, kept rather than filtered out this time.
 
 Lands as a subtab under the Market section, alongside
-`view-offers-on-my-players` — same subtab-row pattern Squad's
-Players/Lineup already uses (`SquadSubTab`/`SquadSubTabRow` in
-`SquadScreen.kt`: an enum, a full-width equal-split tab bar with an
-underline under the selection), ported to Market rather than invented
-fresh. Whichever of these two ships first decides whether
-`view-current-market`'s existing listings become the third subtab
-alongside it, or stay the section's un-tabbed default with only these
-two added — not decided yet, a call for whoever picks this up.
+`view-offers-on-my-players` and `view-current-market`'s existing
+listings — a sibling tab, not the default with only the two new ones
+tabbed on top of it. Same subtab-row pattern Squad's Players/Lineup
+already uses (`SquadSubTab`/`SquadSubTabRow` in `SquadScreen.kt`: an
+enum, a full-width equal-split tab bar with an underline under the
+selection), ported to Market rather than invented fresh — three
+entries instead of two.

@@ -8,8 +8,10 @@ identifiable — `from` was `null` in every sample seen so far, worth
 re-checking) behind it.
 
 Lands as a subtab under the Market section, alongside
-`view-my-market-listings` — same subtab-row pattern Squad's
-Players/Lineup already uses (`SquadSubTab`/`SquadSubTabRow` in
-`SquadScreen.kt`: an enum, a full-width equal-split tab bar with an
-underline under the selection), ported to Market rather than invented
-fresh.
+`view-my-market-listings` and `view-current-market`'s existing
+listings — a sibling tab, not the default with only the two new ones
+tabbed on top of it. Same subtab-row pattern Squad's Players/Lineup
+already uses (`SquadSubTab`/`SquadSubTabRow` in `SquadScreen.kt`: an
+enum, a full-width equal-split tab bar with an underline under the
+selection), ported to Market rather than invented fresh — three
+entries instead of two.
