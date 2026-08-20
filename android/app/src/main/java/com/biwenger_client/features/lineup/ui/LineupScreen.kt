@@ -124,7 +124,7 @@ private const val PairHalfSpanColumns = 5f // exactly 2 players: centers on colu
 // actually stand on this pitch". `players`' order is the only thing
 // that still reflects the real alignment.
 @Composable
-private fun PitchLineup(players: List<Player>, formation: String, modifier: Modifier = Modifier) {
+private fun PitchLineup(players: List<Player?>, formation: String, modifier: Modifier = Modifier) {
     val bands = sliceLineupBands(players, parseFormation(formation))
     BoxWithConstraints(modifier = modifier) {
         val pitchSize = DpSize(maxWidth, maxHeight)
@@ -164,8 +164,12 @@ data class LineupBands(
 // at that point their catalogue position is stale for "where do they
 // actually stand on this pitch" — `players`' order is the only thing
 // that still reflects the real alignment (see
-// docs/biwenger-api-notes.md § "Starting lineup").
-fun sliceLineupBands(players: List<Player>, counts: FormationCounts): LineupBands {
+// docs/biwenger-api-notes.md § "Starting lineup"). A `null` entry
+// (a vacant slot) is consumed as one element of whichever band it
+// falls in, same as a real player, so it can't shift a later band's
+// slice — only `withVacantSlots` turns it (or a genuine shortfall) into
+// the placeholder PitchPlayer renders.
+fun sliceLineupBands(players: List<Player?>, counts: FormationCounts): LineupBands {
     var remaining = players
     fun take(expectedCount: Int): List<Player> {
         val slice = remaining.take(expectedCount)
@@ -182,26 +186,28 @@ fun sliceLineupBands(players: List<Player>, counts: FormationCounts): LineupBand
 
 // A "?" over Biwenger's own default player photo (see docs/
 // biwenger-api-notes.md § "Image CDN") for any slot the formation
-// expects but the lineup doesn't actually fill — only `photoUrl`/`name`
-// ever get read off this by PitchPlayer, so the rest of the fields are
-// unused filler.
+// expects but the lineup doesn't actually fill — either a `null` entry
+// (a real vacancy, see docs/biwenger-api-notes.md § "Starting lineup —
+// write") or the list simply running short (defensive; not the shape
+// actually observed). Only `photoUrl`/`name` ever get read off this by
+// PitchPlayer, so the rest of the fields are unused filler.
 private const val VacantPlayerPhotoUrl = "https://cdn.biwenger.com/i/p/0.png"
 
-fun withVacantSlots(players: List<Player>, expectedCount: Int): List<Player> {
-    val vacancies = (expectedCount - players.size).coerceAtLeast(0)
-    if (vacancies == 0) return players
-    val vacantSlot = Player(
-        id = 0,
-        name = "?",
-        position = 0,
-        secondaryPosition = null,
-        price = 0,
-        priceIncrement = 0,
-        points = 0,
-        photoUrl = VacantPlayerPhotoUrl,
-        teamCrestUrl = "",
-    )
-    return players + List(vacancies) { vacantSlot }
+private val VacantPlayer = Player(
+    id = 0,
+    name = "?",
+    position = 0,
+    secondaryPosition = null,
+    price = 0,
+    priceIncrement = 0,
+    points = 0,
+    photoUrl = VacantPlayerPhotoUrl,
+    teamCrestUrl = "",
+)
+
+fun withVacantSlots(players: List<Player?>, expectedCount: Int): List<Player> {
+    val shortfall = (expectedCount - players.size).coerceAtLeast(0)
+    return (players + List(shortfall) { null }).map { it ?: VacantPlayer }
 }
 
 // One player: dead center, at the band's midpoint depth (no edge/

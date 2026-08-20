@@ -51,3 +51,18 @@ test('preserves player order (Biwenger returns goalkeeper, then defenders/midfie
 
   assert.deepEqual(view.players.map((player) => player.id), [1, 2])
 })
+
+test('keeps a vacant slot as null, at its index, rather than dropping it', () => {
+  const view = toLineupView({
+    formation: '4-4-2',
+    players: [
+      { id: 1, name: 'Keeper', teamID: 1, position: 1, price: 100 },
+      null,
+      { id: 3, name: 'Forward', teamID: 1, position: 4, price: 100 },
+    ],
+  })
+
+  assert.equal(view.players.length, 3)
+  assert.equal(view.players[1], null)
+  assert.deepEqual(view.players.map((player) => player?.id), [1, undefined, 3])
+})

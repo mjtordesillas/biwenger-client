@@ -175,6 +175,16 @@ export const createBiwengerClient = (dependencies = {}) => {
   // (goalkeeper, then defenders/midfielders/forwards, grouped
   // back-to-front per the formation counts) — lineup-view.js does the
   // shaping into named position groups.
+  //
+  // A vacant slot is `null` in `playersID` (see docs/biwenger-api-notes.md
+  // § "Starting lineup — write", confirmed against a real account) — kept
+  // as `null` here too, at the same index, rather than filtered out.
+  // Filtering it out (the original approach) silently shortened the
+  // array and shifted every later slot's band by one, the same
+  // misattribution bug the read side already warns about for
+  // off-position alignment. An id absent from the catalogue (unexpected,
+  // never seen) is treated the same way — `null` in place — for the same
+  // reason, rather than spliced out.
   const getLineup = async ({ email, password }) => {
     const token = await login({ email, password })
     const { leagueId, userId } = await getAccount({ token })
@@ -184,7 +194,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     ])
     return {
       formation: lineup.type,
-      players: lineup.playersID.map((id) => catalogue[String(id)]).filter(Boolean),
+      players: lineup.playersID.map((id) => (id == null ? null : catalogue[String(id)] ?? null)),
     }
   }
 

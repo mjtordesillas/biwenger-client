@@ -193,19 +193,63 @@ those separately).
 - No `fields=players` join needed for name/photo/team — the ids in
   `playersID` are catalogue ids, joinable via `getCatalogue()` exactly
   like `getSquadEntries`'s ids.
-- A vacant slot (formation has a spot the manager hasn't filled) is
+- A vacant slot (formation has a spot the manager hasn't filled) was
   presumed to simply shorten `playersID` below 11, rather than a null/
-  placeholder id — **not independently verified** (would require
-  leaving a real slot vacant on a live account to observe), going on
-  the user's own report of Biwenger's behavior. `view-my-lineup`'s
-  Android side treats any shortfall against the formation's expected
-  per-band count as vacant slots, rendered with the id-`0` default
-  photo (see "Image CDN" above) rather than left undrawn. Since bands
-  are now consumed in order (see above), a genuinely vacant *earlier*
-  slot would shift every later band's slice by one and misattribute
-  the gap to whichever band runs out last — only matters if a vacancy
-  and an off-position alignment are both in play on the same lineup at
-  once; not seen yet.
+  placeholder id — going on the user's own report of Biwenger's
+  behavior, not independently verified at the time. **Now contradicted**
+  by the write-path spike below: writing `null` (or `0`, which the
+  server normalizes to `null`) at a slot's index produces an 11-long
+  array with `null` in that position on both the write response and a
+  follow-up `GET` — the array stayed full length, it did not shrink.
+  **Independently confirmed** (2026-08-20) against a lineup with a real
+  vacancy left via Biwenger's own app on each band (GK/DF/MF/FW), not
+  one produced by this spike's own writes: `GET` returned the same
+  shape, one `null` per band, full 11-length array —
+  `[null,8747,null,38072,34469,17148,null,30495,8670,26092,null]`.
+  `null`-in-place, not a shortened array, is the real shape end-to-end.
+  `view-my-lineup`'s Android side currently treats any *shortfall*
+  against the formation's expected per-band count as vacant
+  (`withVacantSlots` in `LineupScreen.kt`) — that's reading the wrong
+  signal and is a live bug: a shipped lineup with a `null` mid-array (as
+  above) doesn't shorten the list, so today's code won't detect the
+  vacancy at all and will instead misattribute a later real player into
+  the vacated slot's position, or read past the end of a genuinely
+  shorter list if one ever occurs. Needs a bug-fix pass on
+  `withVacantSlots`/`sliceLineupBands` before `swap-lineup-players`
+  builds on top of it.
+
+## Starting lineup — write
+
+`PUT https://biwenger.as.com/api/v2/user?fields=lineup(type,playersID)`
+Same headers as the read side (`Authorization`, `X-League`, `X-User`)
+plus `Content-Type: application/json`. Body: `{"lineup": {"type":
+"<formation>", "playersID": [...]}}`. Verified empirically (2026-08-20)
+against a real account/league, for `swap-lineup-players` — a spike, not
+tied to any shipped code yet. `fields=*` (the original unverified
+guess) was never tried; `fields=lineup(type,playersID)` alone works and
+states plainly what's being written.
+
+- `playersID` must be the **full, fixed-length array** matching the
+  formation (11 for `3-5-2`: 1 GK + the formation's D/M/F counts), in
+  the same positional order the read side documents (goalkeeper, then
+  defender/midfielder/forward bands, back-to-front) — see "Starting
+  lineup" above. A **shortened** array is rejected with a `400`
+  (`"Invalid player position 'Goalkeeper' for <name>#<id> ..."`)
+  because the server slices strictly by position/index, same as the
+  read side does — dropping an id shifts every later slot's band by
+  one, same footgun already documented above for the read side.
+- A slot is vacated by writing `null` (or `0` — accepted but
+  normalized to `null` in the response) at its index, keeping the
+  array's full length. Confirmed round-trip: `PUT` with `null`/`0` at
+  one index per band (GK, DF, MF, FW), immediate response and a
+  follow-up `GET` both returned that index as `null`, all untouched
+  ids unchanged. See the note above — this contradicts the read side's
+  earlier "shortened array" assumption.
+- Not tested: swapping in a *different* player id (only vacancy was
+  tried), an off-position write (aligning a player via
+  `secondaryPosition`), or changing `type` (the formation string)
+  itself — out of scope for this spike, needed before
+  `change-lineup-formation`.
 
 ## Per-gameweek points via `reports`
 

@@ -44,6 +44,22 @@ class LineupScreenTest {
         assertThat(withVacantSlots(players, expectedCount = 1)).isEqualTo(players)
     }
 
+    // Regression: a real vacancy is `null` in place, not a shorter list
+    // (see docs/biwenger-api-notes.md § "Starting lineup — write",
+    // confirmed against a real account). Filtering it out upstream used
+    // to collapse the list and shift every later slot's band — this
+    // checks the placeholder lands at the vacant index itself instead.
+    @Test
+    fun `withVacantSlots turns a null entry into the vacant placeholder, in place`() {
+        val player = aPlayer(id = 1)
+
+        val result = withVacantSlots(listOf(null, player), expectedCount = 2)
+
+        assertThat(result[0].name).isEqualTo("?")
+        assertThat(result[0].photoUrl).isEqualTo("https://cdn.biwenger.com/i/p/0.png")
+        assertThat(result[1]).isEqualTo(player)
+    }
+
     // Regression: a player aligned in their secondary position (e.g. a
     // MF/FW played as a forward, for extra Biwenger credits) must land
     // in the band they're actually playing, not their catalogue
@@ -67,6 +83,28 @@ class LineupScreenTest {
         assertThat(bands.defenders).containsExactly(defender)
         assertThat(bands.midfielders).containsExactly(midfielder)
         assertThat(bands.forwards).containsExactly(midfielderPlayedAsForward)
+    }
+
+    // Regression: a `null` mid-list (a real vacancy) must be consumed as
+    // one element of whichever band it falls in, same as a real player,
+    // so it can't shift a later band's slice — this is the actual bug
+    // the write-endpoint spike surfaced (see docs/biwenger-api-notes.md
+    // § "Starting lineup").
+    @Test
+    fun `sliceLineupBands treats a null entry as a vacant slot without shifting later bands`() {
+        val goalkeeper = aPlayer(id = 1, position = 1)
+        val defender = aPlayer(id = 2, position = 2)
+        val forward = aPlayer(id = 3, position = 4)
+
+        val bands = sliceLineupBands(
+            players = listOf(goalkeeper, null, defender, forward),
+            counts = FormationCounts(defenders = 2, midfielders = 0, forwards = 1)
+        )
+
+        assertThat(bands.goalkeepers).containsExactly(goalkeeper)
+        assertThat(bands.defenders[0].name).isEqualTo("?")
+        assertThat(bands.defenders[1]).isEqualTo(defender)
+        assertThat(bands.forwards).containsExactly(forward)
     }
 
     @Test
