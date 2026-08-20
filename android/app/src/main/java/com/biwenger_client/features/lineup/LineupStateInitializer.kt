@@ -7,5 +7,6 @@ import com.biwenger_client.features.lineup.domain.models.Lineup
 class LineupStateInitializer : StateInitializer {
     override fun initialState(): Map<String, Any?> = mapOf(
         "lineup.lineup" to null as Loadable<Lineup>?,
+        "lineup.saveError" to null as Boolean?,
     )
 }

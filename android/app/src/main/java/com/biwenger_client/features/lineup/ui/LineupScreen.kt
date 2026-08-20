@@ -1,6 +1,7 @@
 package com.biwenger_client.features.lineup.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -12,11 +13,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,11 +56,12 @@ fun LineupScreen(
     viewModel: LineupViewModel = hiltViewModel()
 ) {
     val lineup by viewModel.lineup
-    LineupScreen(lineup = lineup)
+    val saveError by viewModel.saveError
+    LineupScreen(lineup = lineup, saveError = saveError, onVacate = viewModel::vacateSlot)
 }
 
 @Composable
-private fun LineupScreen(lineup: Loadable<Lineup>) {
+private fun LineupScreen(lineup: Loadable<Lineup>, saveError: Boolean, onVacate: (Int) -> Unit) {
     Box(modifier = Modifier.fillMaxSize()) {
         when (lineup) {
             is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -62,13 +69,20 @@ private fun LineupScreen(lineup: Loadable<Lineup>) {
                 text = "Could not load your lineup right now.",
                 modifier = Modifier.align(Alignment.Center).padding(16.dp)
             )
-            is Loadable.Success -> LineupContent(lineup = lineup.value)
+            is Loadable.Success -> LineupContent(lineup = lineup.value, saveError = saveError, onVacate = onVacate)
         }
     }
 }
 
 @Composable
-private fun LineupContent(lineup: Lineup) {
+private fun LineupContent(lineup: Lineup, saveError: Boolean, onVacate: (Int) -> Unit) {
+    // Tap a starter, confirm in the dialog below — the "save/confirm
+    // flow" docs/backlog/to-do/swap-lineup-players.md calls for. Purely
+    // local UI state (which player, if any, the dialog is asking
+    // about), not store-backed: nothing here needs a coeffect or
+    // survives navigating away.
+    var playerToVacate by remember { mutableStateOf<Player?>(null) }
+
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
             text = lineup.formation,
@@ -77,6 +91,16 @@ private fun LineupContent(lineup: Lineup) {
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center
         )
+
+        if (saveError) {
+            Text(
+                text = "Could not save your lineup right now.",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                textAlign = TextAlign.Center
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -89,9 +113,36 @@ private fun LineupContent(lineup: Lineup) {
                 lineColor = PitchLineColor,
                 fillColor = PitchGreen
             )
-            PitchLineup(players = lineup.players, formation = lineup.formation, modifier = Modifier.fillMaxSize().padding(12.dp))
+            PitchLineup(
+                players = lineup.players,
+                formation = lineup.formation,
+                onPlayerTap = { player -> playerToVacate = player },
+                modifier = Modifier.fillMaxSize().padding(12.dp)
+            )
         }
     }
+
+    playerToVacate?.let { player ->
+        VacateSlotDialog(
+            player = player,
+            onConfirm = {
+                onVacate(player.id)
+                playerToVacate = null
+            },
+            onDismiss = { playerToVacate = null }
+        )
+    }
+}
+
+@Composable
+private fun VacateSlotDialog(player: Player, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Bench ${player.name}?") },
+        text = { Text("They'll be removed from the lineup with no replacement.") },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Bench") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 // Calibrated against a 24-column x 20-row grid overlaid on the pitch
@@ -124,14 +175,24 @@ private const val PairHalfSpanColumns = 5f // exactly 2 players: centers on colu
 // actually stand on this pitch". `players`' order is the only thing
 // that still reflects the real alignment.
 @Composable
-private fun PitchLineup(players: List<Player?>, formation: String, modifier: Modifier = Modifier) {
+private fun PitchLineup(
+    players: List<Player?>,
+    formation: String,
+    onPlayerTap: (Player) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val bands = sliceLineupBands(players, parseFormation(formation))
     BoxWithConstraints(modifier = modifier) {
         val pitchSize = DpSize(maxWidth, maxHeight)
-        PitchPositionRow(players = bands.forwards, band = ForwardBand, pitchSize = pitchSize)
-        PitchPositionRow(players = bands.midfielders, band = MidfielderBand, pitchSize = pitchSize)
-        PitchPositionRow(players = bands.defenders, band = DefenderBand, pitchSize = pitchSize)
-        PitchPositionRow(players = bands.goalkeepers, band = PositionBand(GoalkeeperRow, GoalkeeperRow), pitchSize = pitchSize)
+        PitchPositionRow(players = bands.forwards, band = ForwardBand, pitchSize = pitchSize, onPlayerTap = onPlayerTap)
+        PitchPositionRow(players = bands.midfielders, band = MidfielderBand, pitchSize = pitchSize, onPlayerTap = onPlayerTap)
+        PitchPositionRow(players = bands.defenders, band = DefenderBand, pitchSize = pitchSize, onPlayerTap = onPlayerTap)
+        PitchPositionRow(
+            players = bands.goalkeepers,
+            band = PositionBand(GoalkeeperRow, GoalkeeperRow),
+            pitchSize = pitchSize,
+            onPlayerTap = onPlayerTap
+        )
     }
 }
 
@@ -222,7 +283,7 @@ fun withVacantSlots(players: List<Player?>, expectedCount: Int): List<Player> {
 // just has fewer, more sparsely sampled points along that curve, so
 // its inner players land close to but not exactly at the lowest point.
 @Composable
-private fun PitchPositionRow(players: List<Player>, band: PositionBand, pitchSize: DpSize) {
+private fun PitchPositionRow(players: List<Player>, band: PositionBand, pitchSize: DpSize, onPlayerTap: (Player) -> Unit) {
     val count = players.size
     val midpointRow = (band.highestRow + band.lowestRow) / 2f
     val halfSpan = if (count == 2) PairHalfSpanColumns else MaxHalfSpanColumns.toFloat()
@@ -242,6 +303,7 @@ private fun PitchPositionRow(players: List<Player>, band: PositionBand, pitchSiz
 
         PitchPlayer(
             player = player,
+            onTap = onPlayerTap,
             modifier = Modifier
                 .width(PitchPlayerWidth)
                 .offset(x = centerX - PitchPlayerWidth / 2, y = bottomY - PitchPlayerHeight)
@@ -254,9 +316,12 @@ private val PitchPlayerHeight = 66.dp
 
 private val PitchPlayerPhotoSize = 48.dp
 
+// A vacant slot (id 0, see VacantPlayer above) isn't tappable — nothing
+// to bench there.
 @Composable
-private fun PitchPlayer(player: Player, modifier: Modifier = Modifier) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
+private fun PitchPlayer(player: Player, onTap: (Player) -> Unit, modifier: Modifier = Modifier) {
+    val tapModifier = if (player.id == 0) modifier else modifier.clickable { onTap(player) }
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = tapModifier) {
         // The plain mugshot, not PlayerAvatar's circle-masked photo +
         // team crest — those make sense in a list row, not stood on a
         // pitch where the shirt/crest is already visually redundant.

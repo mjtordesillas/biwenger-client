@@ -169,6 +169,27 @@ export const createBiwengerClient = (dependencies = {}) => {
     return data.lineup
   }
 
+  const saveLineupData = async ({ token, leagueId, userId, formation, playerIds }) => {
+    const response = await httpFetch(`${baseUrl}/user?fields=lineup(type,playersID)`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-League': String(leagueId),
+        'X-User': String(userId),
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ lineup: { type: formation, playersID: playerIds } }),
+    })
+    const { data } = await response.json()
+    return data.lineup
+  }
+
+  // See getLineup's comment for why `null` (vacant, or an id the
+  // catalogue doesn't recognize) is kept in place rather than filtered.
+  const toLineupPlayers = (playersID, catalogue) =>
+    playersID.map((id) => (id == null ? null : catalogue[String(id)] ?? null))
+
   // Starting lineup — see docs/biwenger-api-notes.md § "Starting
   // lineup". Returns {formation, players} rather than a merged object:
   // `players` here are catalogue players in `playersID`'s order
@@ -194,7 +215,29 @@ export const createBiwengerClient = (dependencies = {}) => {
     ])
     return {
       formation: lineup.type,
-      players: lineup.playersID.map((id) => (id == null ? null : catalogue[String(id)] ?? null)),
+      players: toLineupPlayers(lineup.playersID, catalogue),
+    }
+  }
+
+  // Write side of "Starting lineup" — see docs/biwenger-api-notes.md §
+  // "Starting lineup — write". `playerIds` must be the full,
+  // fixed-length array the formation expects (goalkeeper, then D/M/F
+  // counts, back-to-front, same order `getLineup` returns), `null` at
+  // any index left vacant — a shortened array is rejected by Biwenger
+  // itself (400, wrong position), it does not mean "vacant" on the
+  // write side either. Returns the saved lineup, shaped the same way
+  // getLineup does, off Biwenger's own write response rather than a
+  // separate follow-up GET.
+  const saveLineup = async ({ email, password, formation, playerIds }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    const [lineup, catalogue] = await Promise.all([
+      saveLineupData({ token, leagueId, userId, formation, playerIds }),
+      getCatalogue(),
+    ])
+    return {
+      formation: lineup.type,
+      players: toLineupPlayers(lineup.playersID, catalogue),
     }
   }
 
@@ -227,5 +270,5 @@ export const createBiwengerClient = (dependencies = {}) => {
     return data.reports
   }
 
-  return { getMySquad, getCurrentMarket, getLineup, getPlayerPrices, getPlayerGameweekPoints }
+  return { getMySquad, getCurrentMarket, getLineup, saveLineup, getPlayerPrices, getPlayerGameweekPoints }
 }

@@ -2,12 +2,17 @@ package com.biwenger_client.infrastructure.network
 
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.RequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody
 import retrofit2.Response as RetrofitResponse
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PUT
 import retrofit2.http.Url
 import java.lang.reflect.Type
 
@@ -20,6 +25,12 @@ class RetrofitHttpClient(
 
     override suspend fun <T> get(url: String, typeToken: TypeToken<T>): Response<T> {
         val response = retrofitClient.get(baseUrl + url)
+        return convertResponse(response, typeToken.type)
+    }
+
+    override suspend fun <T> put(url: String, body: Any, typeToken: TypeToken<T>): Response<T> {
+        val requestBody = gson.toJson(body).toRequestBody("application/json".toMediaType())
+        val response = retrofitClient.put(baseUrl + url, requestBody)
         return convertResponse(response, typeToken.type)
     }
 
@@ -39,6 +50,9 @@ class RetrofitHttpClient(
     private interface RetrofitClient {
         @GET
         suspend fun get(@Url url: String): RetrofitResponse<ResponseBody>
+
+        @PUT
+        suspend fun put(@Url url: String, @Body body: RequestBody): RetrofitResponse<ResponseBody>
     }
 
     companion object {

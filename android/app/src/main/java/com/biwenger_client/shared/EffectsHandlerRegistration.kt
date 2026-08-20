@@ -9,11 +9,14 @@ import com.biwenger_client.core.navigation.Navigator
 import com.biwenger_client.core.state.Database
 import com.biwenger_client.core.state.UpdateState
 import com.biwenger_client.core.state.UpdateStateHandler
+import com.biwenger_client.features.lineup.LineupEffectsHandlerRegistration
+import com.biwenger_client.features.lineup.infrastructure.LineupService
 
 class EffectsHandlerRegistration(
     private val registry: Registry,
     private val database: Database,
     private val navigator: Navigator,
+    private val lineupService: LineupService,
 ) {
     fun register() {
         registry.registerEffectHandler(
@@ -28,5 +31,9 @@ class EffectsHandlerRegistration(
             effectClass = NavigationEffect::class,
             handler = NavigationEffectHandler(navigator = navigator)
         )
+        LineupEffectsHandlerRegistration(
+            registry = registry,
+            lineupService = lineupService,
+        ).register()
     }
 }

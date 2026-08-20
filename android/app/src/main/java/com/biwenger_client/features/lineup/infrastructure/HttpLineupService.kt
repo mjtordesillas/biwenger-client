@@ -14,4 +14,7 @@ class HttpLineupService(baseUrl: String, apiKey: String) : LineupService {
 
     override suspend fun lineup(): Response<Lineup> =
         httpClient.get("lineup", object : TypeToken<Lineup>() {})
+
+    override suspend fun saveLineup(formation: String, playerIds: List<Int?>): Response<Lineup> =
+        httpClient.put("lineup", SaveLineupRequest(formation = formation, playerIds = playerIds), object : TypeToken<Lineup>() {})
 }

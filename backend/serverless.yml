@@ -37,6 +37,13 @@ functions:
           method: GET
           path: /lineup
           private: true
+  saveLineup:
+    handler: src/index.saveLineup
+    events:
+      - http:
+          method: PUT
+          path: /lineup
+          private: true
   priceHistory:
     handler: src/index.priceHistory
     events:

@@ -74,4 +74,46 @@ class HttpLineupServiceTest {
             assertThat((result as Response.Error).code).isEqualTo(403)
         }
     }
+
+    @Test
+    fun `saveLineup PUTs {formation, playerIds} and parses the saved lineup back`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"formation":"3-5-2","players":[null]}"""))
+
+            val result = service.saveLineup(formation = "3-5-2", playerIds = listOf(41101, null))
+
+            val request = server.takeRequest()
+            assertThat(request.method).isEqualTo("PUT")
+            assertThat(request.body.readUtf8()).isEqualTo("""{"formation":"3-5-2","playerIds":[41101,null]}""")
+
+            assertThat(result).isInstanceOf(Response.Success::class.java)
+            val lineup = (result as Response.Success).body
+            assertThat(lineup?.formation).isEqualTo("3-5-2")
+            assertThat(lineup?.players).containsExactly(null)
+        }
+    }
+
+    @Test
+    fun `saveLineup sends the api key header`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"formation":"4-4-2","players":[]}"""))
+
+            service.saveLineup(formation = "4-4-2", playerIds = emptyList())
+
+            val request = server.takeRequest()
+            assertThat(request.getHeader("x-api-key")).isEqualTo("test-key")
+        }
+    }
+
+    @Test
+    fun `saveLineup returns an Error on a non-2xx response`() {
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(400))
+
+            val result = service.saveLineup(formation = "3-5-2", playerIds = emptyList())
+
+            assertThat(result).isInstanceOf(Response.Error::class.java)
+            assertThat((result as Response.Error).code).isEqualTo(400)
+        }
+    }
 }
