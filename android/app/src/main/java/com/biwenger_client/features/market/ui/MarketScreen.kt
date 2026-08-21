@@ -11,17 +11,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.LocalOffer
-import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -280,7 +280,7 @@ private fun BoxScope.PlayerBidListForState(
 private fun MarketSubTabRow(selected: MarketSubTab, onSelect: (MarketSubTab) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth().background(ColorBgDeep)) {
         MarketSubTabButton(
-            label = "Current Market",
+            label = "Market",
             icon = { color -> Icon(imageVector = Icons.Default.Storefront, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
             selected = selected == MarketSubTab.CurrentMarket,
             onClick = { onSelect(MarketSubTab.CurrentMarket) },
@@ -288,7 +288,7 @@ private fun MarketSubTabRow(selected: MarketSubTab, onSelect: (MarketSubTab) -> 
         )
         MarketSubTabButton(
             label = "My Listings",
-            icon = { color -> Icon(imageVector = Icons.Default.Sell, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
+            icon = { color -> Icon(imageVector = Icons.Outlined.Payments, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
             selected = selected == MarketSubTab.MyListings,
             onClick = { onSelect(MarketSubTab.MyListings) },
             modifier = Modifier.weight(1f)
@@ -330,16 +330,20 @@ private fun MarketSubTabButton(
                     strokeWidth = 2.dp.toPx()
                 )
             }
-            .padding(vertical = 12.dp)
+            .padding(vertical = 10.dp)
     ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+        // Stacked, not side by side — four tabs' worth of icon+label
+        // side by side got too tight for "Current Market"/"My Listings"
+        // at equal 1/4 width; stacking gives each label its own full
+        // width line to wrap/ellipsis into instead of fighting the icon
+        // for horizontal space.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth()
         ) {
             icon(color)
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = color)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color)
         }
     }
 }

@@ -11,9 +11,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -230,16 +230,18 @@ private fun SquadSubTabButton(
                     strokeWidth = 2.dp.toPx()
                 )
             }
-            .padding(vertical = 12.dp)
+            .padding(vertical = 10.dp)
     ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+        // Stacked, not side by side — same treatment as Market's
+        // MarketSubTabButton, kept consistent across both tab bars even
+        // though only two tabs here doesn't crowd on its own.
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.fillMaxWidth()
         ) {
             icon(color)
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = color)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = color)
         }
     }
 }
