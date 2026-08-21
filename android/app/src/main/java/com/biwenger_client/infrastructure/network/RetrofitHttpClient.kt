@@ -13,6 +13,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Url
 import java.lang.reflect.Type
@@ -40,6 +41,11 @@ class RetrofitHttpClient(
         return convertResponse(response, typeToken.type)
     }
 
+    override suspend fun <T> post(url: String, typeToken: TypeToken<T>): Response<T> {
+        val response = retrofitClient.post(baseUrl + url)
+        return convertResponse(response, typeToken.type)
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun <T> convertResponse(response: RetrofitResponse<ResponseBody>, type: Type): Response<T> {
         if (!response.isSuccessful) {
@@ -62,6 +68,9 @@ class RetrofitHttpClient(
 
         @DELETE
         suspend fun delete(@Url url: String): RetrofitResponse<ResponseBody>
+
+        @POST
+        suspend fun post(@Url url: String): RetrofitResponse<ResponseBody>
     }
 
     companion object {

@@ -16,6 +16,8 @@ import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListing
 import com.biwenger_client.features.market.domain.coeffects.FetchBidsCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchOffersCoeffect
 import com.biwenger_client.features.market.domain.effects.AcceptOfferEffect
+import com.biwenger_client.features.market.domain.effects.LIST_PLAYER_FINISHED_EVENT
+import com.biwenger_client.features.market.domain.effects.ListPlayerEffect
 import com.biwenger_client.features.market.domain.effects.OFFER_ACCEPTANCE_FINISHED_EVENT
 import com.biwenger_client.features.market.domain.effects.OFFER_REJECTION_FINISHED_EVENT
 import com.biwenger_client.features.market.domain.effects.RejectOfferEffect
@@ -27,9 +29,11 @@ import com.biwenger_client.features.market.domain.models.PlayerOffer
 import com.biwenger_client.features.squad.domain.coeffects.FetchMatchDayDetailsCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPerformanceHistoryCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoeffect
+import com.biwenger_client.features.squad.domain.coeffects.FetchSquadCoeffect
 import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.PriceHistory
+import com.biwenger_client.features.squad.domain.models.SquadPlayer
 import com.biwenger_client.ui.CURRENT_SEASON
 import com.biwenger_client.ui.MatchDayDetailsRequest
 import com.biwenger_client.ui.PerformanceHistoryRequest
@@ -53,6 +57,7 @@ class MarketViewModel @Inject constructor(
     private val myMarketListingsCoeffect = FetchMyMarketListingsCoeffect
     private val offersCoeffect = FetchOffersCoeffect
     private val bidsCoeffect = FetchBidsCoeffect
+    private val squadCoeffect = FetchSquadCoeffect
 
     private val _players = mutableStateOf<Loadable<List<MarketListing>>>(Loadable.Loading)
     val players: State<Loadable<List<MarketListing>>> = _players
@@ -80,6 +85,12 @@ class MarketViewModel @Inject constructor(
 
     private val _unlistingPlayerIds = mutableStateOf<Set<Int>>(emptySet())
     val unlistingPlayerIds: State<Set<Int>> = _unlistingPlayerIds
+
+    private val _listPlayerSquad = mutableStateOf<Loadable<List<SquadPlayer>>?>(null)
+    val listPlayerSquad: State<Loadable<List<SquadPlayer>>?> = _listPlayerSquad
+
+    private val _listingPlayerIds = mutableStateOf<Set<Int>>(emptySet())
+    val listingPlayerIds: State<Set<Int>> = _listingPlayerIds
 
     private val _selectedPlayerId = mutableStateOf<Int?>(null)
     val selectedPlayerId: State<Int?> = _selectedPlayerId
@@ -117,6 +128,8 @@ class MarketViewModel @Inject constructor(
         store.subscribe<PlayerOffer?>(path = "market.offerToAccept") { _offerToAccept.value = it }
         store.subscribe<Boolean?>(path = "market.acceptingOffer") { it?.let { v -> _acceptingOffer.value = v } }
         store.subscribe<Set<Int>?>(path = "market.unlistingPlayerIds") { it?.let { v -> _unlistingPlayerIds.value = v } }
+        store.subscribe<Loadable<List<SquadPlayer>>?>(path = "market.listPlayerSquad") { _listPlayerSquad.value = it }
+        store.subscribe<Set<Int>?>(path = "market.listingPlayerIds") { it?.let { v -> _listingPlayerIds.value = v } }
         store.subscribe<Int?>(path = "market.selectedPlayerId") { _selectedPlayerId.value = it }
         store.subscribe<Loadable<PriceHistory>?>(path = "market.priceHistory") { _priceHistory.value = it }
         store.subscribe<Loadable<PerformanceHistory>?>(path = "market.performanceHistory") { _performanceHistory.value = it }
@@ -177,6 +190,18 @@ class MarketViewModel @Inject constructor(
             coeffects = listOf(myMarketListingsCoeffect),
             handler = ::handleUnlistPlayerFinished
         )
+        store.registerEventHandler(
+            name = LIST_PLAYER_POPUP_OPENED_EVENT,
+            coeffects = listOf(squadCoeffect),
+            handler = ::handleListPlayerPopupOpened
+        )
+        store.registerEventHandler(name = LIST_PLAYER_POPUP_CLOSED_EVENT, handler = ::handleListPlayerPopupClosed)
+        store.registerEventHandler(name = LIST_PLAYER_REQUESTED_EVENT, handler = ::handleListPlayerRequested)
+        store.registerEventHandler(
+            name = LIST_PLAYER_FINISHED_EVENT,
+            coeffects = listOf(myMarketListingsCoeffect, squadCoeffect),
+            handler = ::handleListPlayerFinished
+        )
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -202,6 +227,10 @@ class MarketViewModel @Inject constructor(
         store.removeEventHandler(name = OFFER_ACCEPTANCE_FINISHED_EVENT, handler = ::handleOfferAcceptanceFinished)
         store.removeEventHandler(name = UNLIST_PLAYER_REQUESTED_EVENT, handler = ::handleUnlistPlayerRequested)
         store.removeEventHandler(name = UNLIST_PLAYER_FINISHED_EVENT, handler = ::handleUnlistPlayerFinished)
+        store.removeEventHandler(name = LIST_PLAYER_POPUP_OPENED_EVENT, handler = ::handleListPlayerPopupOpened)
+        store.removeEventHandler(name = LIST_PLAYER_POPUP_CLOSED_EVENT, handler = ::handleListPlayerPopupClosed)
+        store.removeEventHandler(name = LIST_PLAYER_REQUESTED_EVENT, handler = ::handleListPlayerRequested)
+        store.removeEventHandler(name = LIST_PLAYER_FINISHED_EVENT, handler = ::handleListPlayerFinished)
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -354,6 +383,37 @@ class MarketViewModel @Inject constructor(
         )
     }
 
+    // Fetched lazily here rather than on-load — nothing else on Market
+    // needs the full squad, so no point fetching it every time the tab
+    // opens.
+    fun handleListPlayerPopupOpened(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
+        listOf(UpdateState(path = "market.listPlayerSquad", value = coeffects.load(coeffect = squadCoeffect)))
+
+    fun handleListPlayerPopupClosed(event: Event<Unit>): List<Effect> =
+        listOf(UpdateState(path = "market.listPlayerSquad", value = null))
+
+    // Same set-of-in-flight-ids reasoning as handleUnlistPlayerRequested
+    // — no dialog gates this one either.
+    fun handleListPlayerRequested(event: Event<Int>): List<Effect> {
+        val playerId = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "market.listingPlayerIds", value = _listingPlayerIds.value + playerId),
+            ListPlayerEffect(playerId = playerId),
+        )
+    }
+
+    // The popup stays open (per the backlog) rather than closing — both
+    // myListings (the cap count) and the squad (so inMarket flips) are
+    // reloaded so eligibility re-renders correctly right away.
+    fun handleListPlayerFinished(event: Event<Int>, coeffects: Coeffects): List<Effect> {
+        val playerId = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "market.listingPlayerIds", value = _listingPlayerIds.value - playerId),
+            UpdateState(path = "market.myListings", value = coeffects.load(coeffect = myMarketListingsCoeffect)),
+            UpdateState(path = "market.listPlayerSquad", value = coeffects.load(coeffect = squadCoeffect)),
+        )
+    }
+
     fun playerTapped(playerId: Int) =
         store.dispatch(event = event(name = PLAYER_TAPPED_EVENT, payload = playerId))
 
@@ -400,6 +460,15 @@ class MarketViewModel @Inject constructor(
     fun unlistPlayer(listing: MarketListing) =
         store.dispatch(event = event(name = UNLIST_PLAYER_REQUESTED_EVENT, payload = listing.id))
 
+    fun openListPlayerPopup() =
+        store.dispatch(event = event(name = LIST_PLAYER_POPUP_OPENED_EVENT))
+
+    fun closeListPlayerPopup() =
+        store.dispatch(event = event(name = LIST_PLAYER_POPUP_CLOSED_EVENT))
+
+    fun listPlayer(playerId: Int) =
+        store.dispatch(event = event(name = LIST_PLAYER_REQUESTED_EVENT, payload = playerId))
+
     companion object {
         const val ON_LOAD_EVENT = "market.on-load"
         const val PLAYER_TAPPED_EVENT = "market.player-tapped"
@@ -417,5 +486,8 @@ class MarketViewModel @Inject constructor(
         const val OFFER_ACCEPTANCE_CANCELLED_EVENT = "market.offer-acceptance-cancelled"
         const val OFFER_ACCEPTANCE_REQUESTED_EVENT = "market.offer-acceptance-requested"
         const val UNLIST_PLAYER_REQUESTED_EVENT = "market.unlist-player-requested"
+        const val LIST_PLAYER_POPUP_OPENED_EVENT = "market.list-player-popup-opened"
+        const val LIST_PLAYER_POPUP_CLOSED_EVENT = "market.list-player-popup-closed"
+        const val LIST_PLAYER_REQUESTED_EVENT = "market.list-player-requested"
     }
 }

@@ -3,6 +3,8 @@ package com.biwenger_client.features.market
 import com.biwenger_client.core.mvi.Registry
 import com.biwenger_client.features.market.domain.effects.AcceptOfferEffect
 import com.biwenger_client.features.market.domain.effects.AcceptOfferEffectHandler
+import com.biwenger_client.features.market.domain.effects.ListPlayerEffect
+import com.biwenger_client.features.market.domain.effects.ListPlayerEffectHandler
 import com.biwenger_client.features.market.domain.effects.RejectOfferEffect
 import com.biwenger_client.features.market.domain.effects.RejectOfferEffectHandler
 import com.biwenger_client.features.market.domain.effects.UnlistPlayerEffect
@@ -25,6 +27,10 @@ class MarketEffectsHandlerRegistration(
         registry.registerEffectHandler(
             effectClass = UnlistPlayerEffect::class,
             handler = UnlistPlayerEffectHandler(marketService = marketService, registry = registry)
+        )
+        registry.registerEffectHandler(
+            effectClass = ListPlayerEffect::class,
+            handler = ListPlayerEffectHandler(marketService = marketService, registry = registry)
         )
     }
 }

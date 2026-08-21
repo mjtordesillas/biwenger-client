@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -62,6 +64,7 @@ import com.biwenger_client.features.market.domain.models.PlayerOffer
 import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.PriceHistory
+import com.biwenger_client.features.squad.domain.models.SquadPlayer
 import com.biwenger_client.ui.MatchDayDetailsScreen
 import com.biwenger_client.ui.PlayerAvatarOverlayOffsetY
 import com.biwenger_client.ui.PlayerAvatarWithPoints
@@ -73,6 +76,7 @@ import com.biwenger_client.ui.formatPrice
 import com.biwenger_client.ui.formatPriceChange
 import com.biwenger_client.ui.formatRelativeTime
 import com.biwenger_client.ui.priceTrend
+import com.biwenger_client.ui.theme.ColorBg
 import com.biwenger_client.ui.theme.ColorBgDeep
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.ColorText
@@ -109,6 +113,9 @@ val PlayerBidOrder =
 // tag (PositionColors[3]), per the backlog.
 private val AcceptGreen = PositionColors.getValue(3)
 
+// The market's own cap on simultaneous listings.
+private const val MAX_LISTINGS = 5
+
 // Slice 1 shipped list-only (name/position/price); this fills in the
 // three fields deferred then — expiry, seller, and market value — since
 // a bare asking price without knowing what the player's actually worth
@@ -129,6 +136,8 @@ fun MarketScreen(
     val offerToAccept by viewModel.offerToAccept
     val acceptingOffer by viewModel.acceptingOffer
     val unlistingPlayerIds by viewModel.unlistingPlayerIds
+    val listPlayerSquad by viewModel.listPlayerSquad
+    val listingPlayerIds by viewModel.listingPlayerIds
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
@@ -146,6 +155,8 @@ fun MarketScreen(
         offerToAccept = offerToAccept,
         acceptingOffer = acceptingOffer,
         unlistingPlayerIds = unlistingPlayerIds,
+        listPlayerSquad = listPlayerSquad,
+        listingPlayerIds = listingPlayerIds,
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
@@ -164,6 +175,9 @@ fun MarketScreen(
         onOfferAcceptanceCancelled = viewModel::cancelOfferAcceptance,
         onOfferAccepted = viewModel::acceptOffer,
         onUnlistTapped = viewModel::unlistPlayer,
+        onListPlayerPopupOpened = viewModel::openListPlayerPopup,
+        onListPlayerPopupDismissed = viewModel::closeListPlayerPopup,
+        onListTapped = viewModel::listPlayer,
     )
 }
 
@@ -178,6 +192,8 @@ private fun MarketScreen(
     offerToAccept: PlayerOffer?,
     acceptingOffer: Boolean,
     unlistingPlayerIds: Set<Int>,
+    listPlayerSquad: Loadable<List<SquadPlayer>>?,
+    listingPlayerIds: Set<Int>,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
@@ -196,6 +212,9 @@ private fun MarketScreen(
     onOfferAcceptanceCancelled: () -> Unit,
     onOfferAccepted: (PlayerOffer) -> Unit,
     onUnlistTapped: (MarketListing) -> Unit,
+    onListPlayerPopupOpened: () -> Unit,
+    onListPlayerPopupDismissed: () -> Unit,
+    onListTapped: (Int) -> Unit,
 ) {
     val allListings = (players as? Loadable.Success)?.value.orEmpty()
     val allMyListings = (myListings as? Loadable.Success)?.value.orEmpty()
@@ -241,13 +260,35 @@ private fun MarketScreen(
                             emptyMessage = "Could not load the market right now.",
                             onPlayerTapped = onPlayerTapped
                         )
-                        MarketSubTab.MyListings -> MarketListingListForState(
-                            listings = myListings,
-                            emptyMessage = "Could not load your listings right now.",
-                            onPlayerTapped = onPlayerTapped,
-                            onUnlistTapped = onUnlistTapped,
-                            unlistingPlayerIds = unlistingPlayerIds,
-                        )
+                        MarketSubTab.MyListings -> Column(modifier = Modifier.fillMaxSize()) {
+                            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                Spacer(modifier = Modifier.weight(1f))
+                                // Same tinted-background/full-opacity-text
+                                // pill treatment as the confirmation
+                                // dialogs' Cancel button, purple for the
+                                // same general-purpose reasoning.
+                                Button(
+                                    onClick = onListPlayerPopupOpened,
+                                    enabled = allMyListings.size < MAX_LISTINGS,
+                                    shape = RoundedCornerShape(percent = 50),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+                                        contentColor = MaterialTheme.colorScheme.primary,
+                                    ),
+                                ) {
+                                    Text("List player")
+                                }
+                            }
+                            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                                MarketListingListForState(
+                                    listings = myListings,
+                                    emptyMessage = "Could not load your listings right now.",
+                                    onPlayerTapped = onPlayerTapped,
+                                    onUnlistTapped = onUnlistTapped,
+                                    unlistingPlayerIds = unlistingPlayerIds,
+                                )
+                            }
+                        }
                         MarketSubTab.Offers -> PlayerOfferListForState(
                             offers = offers,
                             emptyMessage = "Could not load your offers right now.",
@@ -283,6 +324,15 @@ private fun MarketScreen(
                     inFlight = acceptingOffer,
                     onCancel = onOfferAcceptanceCancelled,
                     onConfirm = { onOfferAccepted(offer) },
+                )
+            }
+            listPlayerSquad?.let { squad ->
+                ListPlayerPopup(
+                    squad = squad,
+                    currentListingsCount = allMyListings.size,
+                    listingPlayerIds = listingPlayerIds,
+                    onDismiss = onListPlayerPopupDismissed,
+                    onListTapped = onListTapped,
                 )
             }
         }
@@ -1008,5 +1058,160 @@ private fun PlayerBidFooter(bid: PlayerBid) {
         Text(text = "Market value: ${formatPrice(bid.marketValue)} ", fontSize = 13.sp, color = Neutral500)
         val (icon, color) = priceTrend(bid.priceIncrement)
         Text(text = "$icon ${formatPriceChange(bid.priceIncrement)}", fontSize = 13.sp, color = color)
+    }
+}
+
+// Why a player can't be listed right now, or null if they can. Doesn't
+// consider a pending offer a blocker — Squad's own "Listable ..." label
+// only ever cares about the transfer lock, never about offers, and
+// tapping List on a player mid-offer works fine in practice.
+private fun listingIneligibilityReason(player: SquadPlayer, currentListingsCount: Int): String? = when {
+    player.inMarket -> "Already listed"
+    player.lockedUntil != null -> "Listable ${formatRelativeTime(player.lockedUntil)}"
+    currentListingsCount >= MAX_LISTINGS -> "Listing cap reached"
+    else -> null
+}
+
+// list-a-player's popup: the whole squad as cards, sized to ~90%/94% of
+// the screen (same forced-sizing technique PlayerOfferConfirmationDialog
+// uses for its 90% width), on the app's own background rather than the
+// default dialog surface color. Eligible players lead, ineligible ones
+// trail (each group still in position order) — no dialog-specific state
+// beyond which ids are currently in flight.
+@Composable
+private fun ListPlayerPopup(
+    squad: Loadable<List<SquadPlayer>>,
+    currentListingsCount: Int,
+    listingPlayerIds: Set<Int>,
+    onDismiss: () -> Unit,
+    onListTapped: (Int) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(fraction = 0.9f).fillMaxHeight(fraction = 0.94f),
+        containerColor = ColorBg,
+        title = { Text("List a player") },
+        text = {
+            when (squad) {
+                is Loadable.Loading -> Box(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+                is Loadable.Failed -> Text("Could not load your squad right now.")
+                is Loadable.Success -> {
+                    val candidates = squad.value
+                        .map { player -> player to listingIneligibilityReason(player, currentListingsCount) }
+                        .sortedWith(compareBy({ (_, reason) -> reason != null }, { (player, _) -> player.positionSortRank }))
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(candidates) { (player, reason) ->
+                            SquadListingCandidateCard(
+                                player = player,
+                                ineligibilityReason = reason,
+                                listing = player.id in listingPlayerIds,
+                                onClick = { onListTapped(player.id) },
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(percent = 50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+                    contentColor = MaterialTheme.colorScheme.primary,
+                ),
+            ) {
+                Text("Close")
+            }
+        },
+    )
+}
+
+// Same avatar/name/position-tag + market-value/trend shape as
+// MarketListingRow's content, plus a footer with the acquisition price
+// (same drafted/signed fallback SquadScreen.kt's SquadPlayerRow already
+// uses) — a feature-local card, not shared with LineupScreen's
+// BenchCandidateCard, since the fields differ enough (market value/trend
+// + acquisition price here, vs. just points/position there) that sharing
+// isn't a clean fit yet. `ineligibilityReason != null` dims the card,
+// drops its click target, and shows the reason top-left, rather than
+// hiding the card outright — same reasoning as BenchCandidateCard's
+// `enabled`. `listing = true` (this card's write in flight) dims it
+// further and shows a centered spinner instead of reacting to taps — no
+// confirmation dialog, same as unlist-a-player.
+@Composable
+private fun SquadListingCandidateCard(
+    player: SquadPlayer,
+    ineligibilityReason: String?,
+    listing: Boolean,
+    onClick: () -> Unit,
+) {
+    val eligible = ineligibilityReason == null
+    val tappable = eligible && !listing
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(NocturneRadius.md))
+            .background(ColorSurface)
+            .alpha(if (eligible) 1f else 0.4f)
+            .then(if (tappable) Modifier.clickable(onClick = onClick) else Modifier)
+    ) {
+        val drafted = player.signedPrice == null
+        val forLabel = if (drafted) "Drafted at" else "Signed for"
+        val forAmount = if (drafted) player.draftedPrice else player.signedPrice
+
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+            ineligibilityReason?.let { reason ->
+                Text(
+                    text = reason,
+                    fontSize = 13.sp,
+                    color = Neutral500,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = if (ineligibilityReason != null) Modifier.padding(top = 8.dp) else Modifier,
+            ) {
+                PlayerAvatarWithPoints(
+                    photoUrl = player.photoUrl,
+                    teamCrestUrl = player.teamCrestUrl,
+                    contentDescription = player.name,
+                    points = player.points,
+                )
+                Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+                    Text(text = player.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
+                        PositionTag(position = player.position, secondaryPosition = player.secondaryPosition)
+                    }
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(text = formatPrice(player.price), style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp))
+                    val (icon, color) = priceTrend(player.priceIncrement)
+                    Text(text = "$icon ${formatPriceChange(player.priceIncrement)}", fontSize = 12.sp, color = color)
+                }
+            }
+            forAmount?.let { amount ->
+                Text(
+                    text = "$forLabel: ${formatPrice(amount)}",
+                    fontSize = 13.sp,
+                    color = Neutral500,
+                    modifier = Modifier.padding(top = 8.dp + PlayerAvatarOverlayOffsetY),
+                )
+            }
+        }
+        if (listing) {
+            Box(modifier = Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            }
+        }
     }
 }

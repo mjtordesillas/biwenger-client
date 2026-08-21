@@ -29,6 +29,9 @@ private data class AcceptOfferRequest(val status: String = "accepted")
 private data class AcceptOfferResponseBody(val status: Int)
 // DELETE has no request body — see backend's unlist-player-api-handler.js.
 private data class UnlistPlayerResponseBody(val status: Int)
+// POST has no request body either — the fixed listing price is applied
+// server-side, see backend's list-player-api-handler.js.
+private data class ListPlayerResponseBody(val status: Int)
 
 class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
     private val httpClient: HttpClient = RetrofitHttpClient(baseUrl = baseUrl, apiKey = apiKey)
@@ -71,6 +74,12 @@ class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
 
     override suspend fun unlistPlayer(playerId: Int): Response<Unit> =
         when (httpClient.delete("market/my-listings/$playerId", object : TypeToken<UnlistPlayerResponseBody>() {})) {
+            is Response.Success -> Response.Success(Unit)
+            is Response.Error -> Response.Error(502, "upstream_error")
+        }
+
+    override suspend fun listPlayer(playerId: Int): Response<Unit> =
+        when (httpClient.post("market/my-listings/$playerId", object : TypeToken<ListPlayerResponseBody>() {})) {
             is Response.Success -> Response.Success(Unit)
             is Response.Error -> Response.Error(502, "upstream_error")
         }

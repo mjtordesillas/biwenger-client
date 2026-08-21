@@ -13,4 +13,5 @@ interface MarketService {
     suspend fun rejectOffer(offerId: Long): Response<Unit>
     suspend fun acceptOffer(offerId: Long): Response<Unit>
     suspend fun unlistPlayer(playerId: Int): Response<Unit>
+    suspend fun listPlayer(playerId: Int): Response<Unit>
 }
