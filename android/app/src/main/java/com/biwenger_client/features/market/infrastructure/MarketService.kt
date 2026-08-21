@@ -5,4 +5,5 @@ import com.biwenger_client.infrastructure.network.Response
 
 interface MarketService {
     suspend fun market(): Response<List<MarketListing>>
+    suspend fun myListings(): Response<List<MarketListing>>
 }

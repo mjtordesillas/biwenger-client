@@ -136,6 +136,18 @@ export const createBiwengerClient = (dependencies = {}) => {
       .filter(Boolean)
   }
 
+  // Shared by getCurrentMarket and getMyMarketListings: joins a
+  // (pre-filtered) slice of `sales` against the catalogue into
+  // {sale, player} pairs — see getCurrentMarket's comment for why a pair
+  // rather than a merged object.
+  const salesToListings = (sales, catalogue) =>
+    sales
+      .map((sale) => {
+        const player = catalogue[String(sale.player.id)]
+        return player && { sale, player }
+      })
+      .filter(Boolean)
+
   // League transfer market — see docs/biwenger-api-notes.md. Returns
   // {sale, player} pairs rather than a merged object: `sale.price` (the
   // asking price, what a bid actually costs) and `player.price` (the
@@ -151,13 +163,28 @@ export const createBiwengerClient = (dependencies = {}) => {
       getMarketData({ token, leagueId, userId }),
       getCatalogue(),
     ])
-    return sales
-      .filter((sale) => sale.user?.id !== userId)
-      .map((sale) => {
-        const player = catalogue[String(sale.player.id)]
-        return player && { sale, player }
-      })
-      .filter(Boolean)
+    return salesToListings(
+      sales.filter((sale) => sale.user?.id !== userId),
+      catalogue
+    )
+  }
+
+  // The requester's own listings — same join as getCurrentMarket, just
+  // the kept-vs-filtered-out half of the same `sale.user.id` check. See
+  // docs/biwenger-api-notes.md § "Squad player status", where
+  // enrich-squad-player-cards' "Listed" badge does the same match but
+  // only keeps a boolean.
+  const getMyMarketListings = async ({ email, password }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    const [{ sales }, catalogue] = await Promise.all([
+      getMarketData({ token, leagueId, userId }),
+      getCatalogue(),
+    ])
+    return salesToListings(
+      sales.filter((sale) => sale.user?.id === userId),
+      catalogue
+    )
   }
 
   const getLineupData = async ({ token, leagueId, userId }) => {
@@ -287,5 +314,13 @@ export const createBiwengerClient = (dependencies = {}) => {
     return data.reports
   }
 
-  return { getMySquad, getCurrentMarket, getLineup, saveLineup, getPlayerPrices, getPlayerGameweekPoints }
+  return {
+    getMySquad,
+    getCurrentMarket,
+    getMyMarketListings,
+    getLineup,
+    saveLineup,
+    getPlayerPrices,
+    getPlayerGameweekPoints,
+  }
 }

@@ -3,6 +3,8 @@ package com.biwenger_client.features.market
 import com.biwenger_client.core.mvi.Registry
 import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffectHandler
+import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListingsCoeffect
+import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListingsCoeffectHandler
 import com.biwenger_client.features.market.infrastructure.MarketService
 
 class MarketCoeffectsHandlerRegistration(
@@ -13,6 +15,10 @@ class MarketCoeffectsHandlerRegistration(
         registry.registerCoeffectHandler(
             coeffectClass = FetchMarketCoeffect::class,
             handler = FetchMarketCoeffectHandler(marketService = marketService)
+        )
+        registry.registerCoeffectHandler(
+            coeffectClass = FetchMyMarketListingsCoeffect::class,
+            handler = FetchMyMarketListingsCoeffectHandler(marketService = marketService)
         )
     }
 }

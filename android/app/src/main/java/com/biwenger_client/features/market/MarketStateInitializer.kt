@@ -10,6 +10,7 @@ import com.biwenger_client.features.squad.domain.models.PriceHistory
 class MarketStateInitializer : StateInitializer {
     override fun initialState(): Map<String, Any?> = mapOf(
         "market.players" to null as Loadable<List<MarketListing>>?,
+        "market.myListings" to null as Loadable<List<MarketListing>>?,
         "market.selectedPlayerId" to null as Int?,
         "market.priceHistory" to null as Loadable<PriceHistory>?,
         "market.performanceHistory" to null as Loadable<PerformanceHistory>?,

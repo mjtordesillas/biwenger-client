@@ -1,5 +1,6 @@
 import { createSquadApiHandler } from './squad-api-handler.js'
 import { createMarketApiHandler } from './market-api-handler.js'
+import { createMyMarketListingsApiHandler } from './my-market-listings-api-handler.js'
 import { createLineupApiHandler } from './lineup-api-handler.js'
 import { createSaveLineupApiHandler } from './save-lineup-api-handler.js'
 import { createPriceHistoryApiHandler } from './price-history-api-handler.js'
@@ -10,6 +11,7 @@ import { createMatchDayDetailsApiHandler } from './match-day-details-api-handler
 // docs/coding-conventions/handler-factory-pattern.md.
 export const squad = createSquadApiHandler()
 export const market = createMarketApiHandler()
+export const myMarketListings = createMyMarketListingsApiHandler()
 export const lineup = createLineupApiHandler()
 export const saveLineup = createSaveLineupApiHandler()
 export const priceHistory = createPriceHistoryApiHandler()

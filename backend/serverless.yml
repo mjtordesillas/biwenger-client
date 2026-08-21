@@ -30,6 +30,13 @@ functions:
           method: GET
           path: /market
           private: true
+  myMarketListings:
+    handler: src/index.myMarketListings
+    events:
+      - http:
+          method: GET
+          path: /market/my-listings
+          private: true
   lineup:
     handler: src/index.lineup
     events:

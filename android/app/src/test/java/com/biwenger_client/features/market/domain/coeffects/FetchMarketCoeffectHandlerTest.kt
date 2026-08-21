@@ -38,3 +38,32 @@ class FetchMarketCoeffectHandlerTest {
         }
     }
 }
+
+class FetchMyMarketListingsCoeffectHandlerTest {
+
+    private val marketService = mock<MarketService>()
+    private val handler = FetchMyMarketListingsCoeffectHandler(marketService = marketService)
+
+    @Test
+    fun `extract returns the requester's own listings on success`() {
+        runBlocking {
+            val listings = listOf(aMarketListing())
+            whenever(marketService.myListings()).thenReturn(Response.Success(listings))
+
+            val result = handler.extract(FetchMyMarketListingsCoeffect)
+
+            assertThat(result).isEqualTo(listings)
+        }
+    }
+
+    @Test
+    fun `extract throws on error`() {
+        runBlocking {
+            whenever(marketService.myListings()).thenReturn(Response.Error(502, "upstream_error"))
+
+            assertThatThrownBy {
+                runBlocking { handler.extract(FetchMyMarketListingsCoeffect) }
+            }.isInstanceOf(MarketFetchException::class.java)
+        }
+    }
+}

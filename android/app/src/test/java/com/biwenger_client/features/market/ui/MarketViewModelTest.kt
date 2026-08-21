@@ -12,6 +12,7 @@ import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
 import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffect
+import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListingsCoeffect
 import com.biwenger_client.features.market.domain.models.MarketListing
 import com.biwenger_client.features.squad.domain.coeffects.FetchMatchDayDetailsCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPerformanceHistoryCoeffect
@@ -51,6 +52,14 @@ class MarketViewModelTest {
     fun `subscribes to market_players`() {
         verify(store).subscribe(
             eq("market.players"),
+            any<(Loadable<List<MarketListing>>?) -> Unit>()
+        )
+    }
+
+    @Test
+    fun `subscribes to market_myListings`() {
+        verify(store).subscribe(
+            eq("market.myListings"),
             any<(Loadable<List<MarketListing>>?) -> Unit>()
         )
     }
@@ -176,16 +185,21 @@ class MarketViewModelTest {
     }
 
     @Test
-    fun `handleOnLoad returns UpdateState with loaded players`() {
+    fun `handleOnLoad returns UpdateState with loaded players and my listings`() {
         val listings = listOf(aMarketListing())
+        val myListings = listOf(aMarketListing(id = 2))
         val coeffects = Coeffects(
-            values = mapOf(FetchMarketCoeffect to Loadable.Success(listings))
+            values = mapOf(
+                FetchMarketCoeffect to Loadable.Success(listings),
+                FetchMyMarketListingsCoeffect to Loadable.Success(myListings),
+            )
         )
 
         val effects = viewModel.handleOnLoad(event(name = "market.on-load"), coeffects)
 
         assertThat(effects).contains(
-            UpdateState(path = "market.players", value = Loadable.Success(listings))
+            UpdateState(path = "market.players", value = Loadable.Success(listings)),
+            UpdateState(path = "market.myListings", value = Loadable.Success(myListings)),
         )
     }
 

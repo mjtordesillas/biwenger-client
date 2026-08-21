@@ -4,23 +4,37 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Sell
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -43,9 +57,14 @@ import com.biwenger_client.ui.formatPrice
 import com.biwenger_client.ui.formatPriceChange
 import com.biwenger_client.ui.formatRelativeTime
 import com.biwenger_client.ui.priceTrend
+import com.biwenger_client.ui.theme.ColorBgDeep
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral500
 import com.biwenger_client.ui.theme.NocturneRadius
+
+// Local to this screen, same as SquadSubTab — nothing outside Market
+// depends on which subtab is showing.
+private enum class MarketSubTab { CurrentMarket, MyListings }
 
 // Expiry ascending first (soonest-to-expire listings are the most
 // actionable, so they lead), then position and market value both
@@ -67,6 +86,7 @@ fun MarketScreen(
     viewModel: MarketViewModel = hiltViewModel()
 ) {
     val players by viewModel.players
+    val myListings by viewModel.myListings
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
@@ -76,6 +96,7 @@ fun MarketScreen(
 
     MarketScreen(
         players = players,
+        myListings = myListings,
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
@@ -93,6 +114,7 @@ fun MarketScreen(
 @Composable
 private fun MarketScreen(
     players: Loadable<List<MarketListing>>,
+    myListings: Loadable<List<MarketListing>>,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
@@ -106,7 +128,11 @@ private fun MarketScreen(
     onMatchDayDetailsDismissed: () -> Unit,
 ) {
     val allListings = (players as? Loadable.Success)?.value.orEmpty()
-    val selectedListing = allListings.find { it.id == selectedPlayerId }
+    val allMyListings = (myListings as? Loadable.Success)?.value.orEmpty()
+    // A tapped row can come from either subtab's list — ids don't
+    // overlap between them (a listing is either mine or a rival's, never
+    // both), so a combined lookup is safe.
+    val selectedListing = (allListings + allMyListings).find { it.id == selectedPlayerId }
 
     // Exclusive, not overlaid — same reasoning as SquadScreen: only one
     // screen is ever composed at a time.
@@ -123,18 +149,23 @@ private fun MarketScreen(
             onBack = onSheetDismissed
         )
     } else {
-        Column(modifier = Modifier.fillMaxSize()) {
-            MarketHeader()
+        // Local to this composable, not routed through the Registry —
+        // same reasoning as SquadScreen's selectedSubTab.
+        var selectedSubTab by remember { mutableStateOf(MarketSubTab.CurrentMarket) }
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                when (players) {
-                    is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                    is Loadable.Failed -> Text(
-                        text = "Could not load the market right now.",
-                        modifier = Modifier.align(Alignment.Center).padding(16.dp)
+        Column(modifier = Modifier.fillMaxSize()) {
+            MarketSubTabRow(selected = selectedSubTab, onSelect = { selectedSubTab = it })
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp)) {
+                when (selectedSubTab) {
+                    MarketSubTab.CurrentMarket -> MarketListingListForState(
+                        listings = players,
+                        emptyMessage = "Could not load the market right now.",
+                        onPlayerTapped = onPlayerTapped
                     )
-                    is Loadable.Success -> MarketListingList(
-                        listings = players.value.sortedWith(MarketListingOrder),
+                    MarketSubTab.MyListings -> MarketListingListForState(
+                        listings = myListings,
+                        emptyMessage = "Could not load your listings right now.",
                         onPlayerTapped = onPlayerTapped
                     )
                 }
@@ -144,9 +175,78 @@ private fun MarketScreen(
 }
 
 @Composable
-private fun MarketHeader() {
-    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
-        Text(text = "Market", style = MaterialTheme.typography.titleLarge)
+private fun BoxScope.MarketListingListForState(
+    listings: Loadable<List<MarketListing>>,
+    emptyMessage: String,
+    onPlayerTapped: (Int) -> Unit,
+) {
+    when (listings) {
+        is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        is Loadable.Failed -> Text(
+            text = emptyMessage,
+            modifier = Modifier.align(Alignment.Center).padding(16.dp)
+        )
+        is Loadable.Success -> MarketListingList(
+            listings = listings.value.sortedWith(MarketListingOrder),
+            onPlayerTapped = onPlayerTapped
+        )
+    }
+}
+
+// Same full-width, equal-split, underlined tab bar as Squad's
+// SquadSubTabRow — ported into Market rather than extracted into a
+// shared component, per docs/backlog/to-do/view-my-market-listings.md.
+@Composable
+private fun MarketSubTabRow(selected: MarketSubTab, onSelect: (MarketSubTab) -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().background(ColorBgDeep)) {
+        MarketSubTabButton(
+            label = "Current Market",
+            icon = { color -> Icon(imageVector = Icons.Default.Storefront, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
+            selected = selected == MarketSubTab.CurrentMarket,
+            onClick = { onSelect(MarketSubTab.CurrentMarket) },
+            modifier = Modifier.weight(1f)
+        )
+        MarketSubTabButton(
+            label = "My Listings",
+            icon = { color -> Icon(imageVector = Icons.Default.Sell, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
+            selected = selected == MarketSubTab.MyListings,
+            onClick = { onSelect(MarketSubTab.MyListings) },
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun MarketSubTabButton(
+    label: String,
+    icon: @Composable (Color) -> Unit,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val color = if (selected) MaterialTheme.colorScheme.primary else Neutral500
+    Box(
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .drawBehind {
+                drawLine(
+                    color = if (selected) color else Color.Transparent,
+                    start = Offset(0f, size.height),
+                    end = Offset(size.width, size.height),
+                    strokeWidth = 2.dp.toPx()
+                )
+            }
+            .padding(vertical = 12.dp)
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            icon(color)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(text = label, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = color)
+        }
     }
 }
 

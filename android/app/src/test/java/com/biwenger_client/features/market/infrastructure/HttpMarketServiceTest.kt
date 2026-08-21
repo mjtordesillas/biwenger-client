@@ -100,4 +100,55 @@ class HttpMarketServiceTest {
             assertThat((result as Response.Error).code).isEqualTo(403)
         }
     }
+
+    @Test
+    fun `myListings parses the wrapped players array, same shape as market`() {
+        runBlocking {
+            server.enqueue(
+                MockResponse().setBody(
+                    """{"players":[{
+                        "id":1,"name":"Brugué","position":4,"secondaryPosition":null,
+                        "price":250000,"marketValue":280000,"priceIncrement":10000,"points":5,
+                        "photoUrl":"https://cdn.biwenger.com/i/p/1.png",
+                        "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png",
+                        "until":1787116441,"seller":"My Team"
+                    }]}"""
+                )
+            )
+
+            val result = service.myListings()
+
+            assertThat(result).isInstanceOf(Response.Success::class.java)
+            val listings = (result as Response.Success).body
+            assertThat(listings).hasSize(1)
+            val listing = listings?.first()
+            assertThat(listing?.name).isEqualTo("Brugué")
+            assertThat(listing?.price).isEqualTo(250000)
+            assertThat(listing?.seller).isEqualTo("My Team")
+        }
+    }
+
+    @Test
+    fun `myListings requests market_my-listings`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"players":[]}"""))
+
+            service.myListings()
+
+            val request = server.takeRequest()
+            assertThat(request.path).isEqualTo("/market/my-listings")
+        }
+    }
+
+    @Test
+    fun `myListings returns an Error on a non-2xx response`() {
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(403))
+
+            val result = service.myListings()
+
+            assertThat(result).isInstanceOf(Response.Error::class.java)
+            assertThat((result as Response.Error).code).isEqualTo(403)
+        }
+    }
 }

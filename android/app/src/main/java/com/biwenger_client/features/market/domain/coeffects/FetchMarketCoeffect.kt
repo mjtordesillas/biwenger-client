@@ -21,3 +21,20 @@ class FetchMarketCoeffectHandler(
             is Response.Error -> throw MarketFetchException(response = result)
         }
 }
+
+// The requester's own listings — same shape as FetchMarketCoeffect, just
+// against MarketService.myListings() instead of market(). Kept as its
+// own coeffect type (not FetchMarketCoeffect again) since the two are
+// loaded independently into separate state paths for the Current
+// Market/My Listings subtabs — see MarketScreen.
+object FetchMyMarketListingsCoeffect : Coeffect<List<MarketListing>>
+
+class FetchMyMarketListingsCoeffectHandler(
+    private val marketService: MarketService
+) : CoeffectHandler<FetchMyMarketListingsCoeffect, List<MarketListing>> {
+    override suspend fun extract(coeffect: FetchMyMarketListingsCoeffect): List<MarketListing> =
+        when (val result = marketService.myListings()) {
+            is Response.Success -> result.body ?: emptyList()
+            is Response.Error -> throw MarketFetchException(response = result)
+        }
+}

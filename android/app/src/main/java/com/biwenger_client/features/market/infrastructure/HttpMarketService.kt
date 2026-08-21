@@ -20,4 +20,10 @@ class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
             is Response.Success -> Response.Success(result.body?.players ?: emptyList())
             is Response.Error -> result
         }
+
+    override suspend fun myListings(): Response<List<MarketListing>> =
+        when (val result = httpClient.get("market/my-listings", object : TypeToken<MarketResponseBody>() {})) {
+            is Response.Success -> Response.Success(result.body?.players ?: emptyList())
+            is Response.Error -> result
+        }
 }
