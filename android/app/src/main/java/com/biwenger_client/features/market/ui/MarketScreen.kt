@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.LocalOffer
@@ -42,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -64,6 +66,7 @@ import com.biwenger_client.ui.MatchDayDetailsScreen
 import com.biwenger_client.ui.PlayerAvatarOverlayOffsetY
 import com.biwenger_client.ui.PlayerAvatarWithPoints
 import com.biwenger_client.ui.PlayerDetailScreen
+import com.biwenger_client.ui.PositionColors
 import com.biwenger_client.ui.PositionTag
 import com.biwenger_client.ui.TrendDown
 import com.biwenger_client.ui.formatPrice
@@ -102,6 +105,10 @@ val PlayerBidOrder =
         .thenByDescending { it.position }
         .thenByDescending { it.amount }
 
+// The accept-offer action's color — the same green as the MF position
+// tag (PositionColors[3]), per the backlog.
+private val AcceptGreen = PositionColors.getValue(3)
+
 // Slice 1 shipped list-only (name/position/price); this fills in the
 // three fields deferred then — expiry, seller, and market value — since
 // a bare asking price without knowing what the player's actually worth
@@ -119,6 +126,8 @@ fun MarketScreen(
     val bids by viewModel.bids
     val offerToReject by viewModel.offerToReject
     val rejectingOffer by viewModel.rejectingOffer
+    val offerToAccept by viewModel.offerToAccept
+    val acceptingOffer by viewModel.acceptingOffer
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
@@ -133,6 +142,8 @@ fun MarketScreen(
         bids = bids,
         offerToReject = offerToReject,
         rejectingOffer = rejectingOffer,
+        offerToAccept = offerToAccept,
+        acceptingOffer = acceptingOffer,
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
@@ -147,6 +158,9 @@ fun MarketScreen(
         onOfferRejectionOpened = viewModel::openOfferRejection,
         onOfferRejectionCancelled = viewModel::cancelOfferRejection,
         onOfferRejected = viewModel::rejectOffer,
+        onOfferAcceptanceOpened = viewModel::openOfferAcceptance,
+        onOfferAcceptanceCancelled = viewModel::cancelOfferAcceptance,
+        onOfferAccepted = viewModel::acceptOffer,
     )
 }
 
@@ -158,6 +172,8 @@ private fun MarketScreen(
     bids: Loadable<List<PlayerBid>>,
     offerToReject: PlayerOffer?,
     rejectingOffer: Boolean,
+    offerToAccept: PlayerOffer?,
+    acceptingOffer: Boolean,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
@@ -172,6 +188,9 @@ private fun MarketScreen(
     onOfferRejectionOpened: (PlayerOffer) -> Unit,
     onOfferRejectionCancelled: () -> Unit,
     onOfferRejected: (PlayerOffer) -> Unit,
+    onOfferAcceptanceOpened: (PlayerOffer) -> Unit,
+    onOfferAcceptanceCancelled: () -> Unit,
+    onOfferAccepted: (PlayerOffer) -> Unit,
 ) {
     val allListings = (players as? Loadable.Success)?.value.orEmpty()
     val allMyListings = (myListings as? Loadable.Success)?.value.orEmpty()
@@ -227,6 +246,7 @@ private fun MarketScreen(
                             emptyMessage = "Could not load your offers right now.",
                             onPlayerTapped = onPlayerTapped,
                             onRejectTapped = onOfferRejectionOpened,
+                            onAcceptTapped = onOfferAcceptanceOpened,
                         )
                         MarketSubTab.Bids -> PlayerBidListForState(
                             bids = bids,
@@ -237,11 +257,25 @@ private fun MarketScreen(
                 }
             }
             offerToReject?.let { offer ->
-                RejectOfferDialog(
+                PlayerOfferConfirmationDialog(
                     offer = offer,
-                    rejecting = rejectingOffer,
+                    title = "Reject offer?",
+                    actionLabel = "Reject",
+                    actionColor = TrendDown,
+                    inFlight = rejectingOffer,
                     onCancel = onOfferRejectionCancelled,
-                    onReject = { onOfferRejected(offer) },
+                    onConfirm = { onOfferRejected(offer) },
+                )
+            }
+            offerToAccept?.let { offer ->
+                PlayerOfferConfirmationDialog(
+                    offer = offer,
+                    title = "Accept offer?",
+                    actionLabel = "Accept",
+                    actionColor = AcceptGreen,
+                    inFlight = acceptingOffer,
+                    onCancel = onOfferAcceptanceCancelled,
+                    onConfirm = { onOfferAccepted(offer) },
                 )
             }
         }
@@ -273,6 +307,7 @@ private fun BoxScope.PlayerOfferListForState(
     emptyMessage: String,
     onPlayerTapped: (Int) -> Unit,
     onRejectTapped: (PlayerOffer) -> Unit,
+    onAcceptTapped: (PlayerOffer) -> Unit,
 ) {
     when (offers) {
         is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -284,6 +319,7 @@ private fun BoxScope.PlayerOfferListForState(
             offers = offers.value.sortedWith(PlayerOfferOrder),
             onPlayerTapped = onPlayerTapped,
             onRejectTapped = onRejectTapped,
+            onAcceptTapped = onAcceptTapped,
         )
     }
 }
@@ -516,6 +552,7 @@ private fun PlayerOfferList(
     offers: List<PlayerOffer>,
     onPlayerTapped: (Int) -> Unit,
     onRejectTapped: (PlayerOffer) -> Unit,
+    onAcceptTapped: (PlayerOffer) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -527,6 +564,7 @@ private fun PlayerOfferList(
                 offer = offer,
                 onClick = { onPlayerTapped(offer.id) },
                 onReject = { onRejectTapped(offer) },
+                onAccept = { onAcceptTapped(offer) },
             )
         }
     }
@@ -536,7 +574,7 @@ private fun PlayerOfferList(
 // that differ for an offer: no expiry (an offer doesn't have one, unlike
 // a listing), amount instead of an asking price.
 @Composable
-private fun PlayerOfferRow(offer: PlayerOffer, onClick: () -> Unit, onReject: () -> Unit) {
+private fun PlayerOfferRow(offer: PlayerOffer, onClick: () -> Unit, onReject: () -> Unit, onAccept: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -548,46 +586,74 @@ private fun PlayerOfferRow(offer: PlayerOffer, onClick: () -> Unit, onReject: ()
             PlayerOfferContent(offer = offer)
             PlayerOfferFooter(offer = offer)
         }
-        // Same color schema as the squad screen's "offer below market
-        // value" status icon (SquadPlayerStatusIcon/TrendDown) — a tinted
-        // low-alpha background behind a colored glyph, not a solid fill.
-        // Built as a plain clickable Box (not IconButton) so the whole
-        // circle is the tap target, not just the glyph, and padded by at
-        // least the card's own corner radius so it isn't clipped by it.
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(NocturneRadius.md)
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(TrendDown.copy(alpha = 0.24f))
-                .clickable(onClick = onReject),
-            contentAlignment = Alignment.Center,
+        // Accept alongside (not replacing) reject, overlaid bottom-right
+        // of the card — the row itself is padded clear of the card's own
+        // corner radius so neither button is clipped by it.
+        Row(
+            modifier = Modifier.align(Alignment.BottomEnd).padding(NocturneRadius.md),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Icon(
-                Icons.Default.Close,
-                contentDescription = "Reject ${offer.name}",
+            PlayerOfferActionButton(
+                icon = Icons.Default.Check,
+                tint = AcceptGreen,
+                contentDescription = "Accept offer for ${offer.name}",
+                onClick = onAccept,
+            )
+            PlayerOfferActionButton(
+                icon = Icons.Default.Close,
                 tint = TrendDown,
-                modifier = Modifier.size(14.dp),
+                contentDescription = "Reject offer for ${offer.name}",
+                onClick = onReject,
             )
         }
     }
 }
 
+// Same color schema as the squad screen's status icons
+// (SquadPlayerStatusIcon) — a tinted low-alpha background behind a
+// full-opacity colored glyph, not a solid fill. Built as a plain
+// clickable Box (not IconButton) so the whole circle is the tap target,
+// not just the glyph.
 @Composable
-private fun RejectOfferDialog(
+private fun PlayerOfferActionButton(
+    icon: ImageVector,
+    tint: Color,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(tint.copy(alpha = 0.24f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(14.dp))
+    }
+}
+
+// Shared by both offer actions (reject/accept) — only the title, action
+// label, and action color differ, per the accept-an-offer backlog entry
+// ("same design"). A second use case is what earns this the shared
+// composable, rather than a copy-pasted AcceptOfferDialog.
+@Composable
+private fun PlayerOfferConfirmationDialog(
     offer: PlayerOffer,
-    rejecting: Boolean,
+    title: String,
+    actionLabel: String,
+    actionColor: Color,
+    inFlight: Boolean,
     onCancel: () -> Unit,
-    onReject: () -> Unit,
+    onConfirm: () -> Unit,
 ) {
     AlertDialog(
-        onDismissRequest = { if (!rejecting) onCancel() },
+        onDismissRequest = { if (!inFlight) onCancel() },
         // Default AlertDialog width is content-driven; force it to 90% of
         // the available width instead.
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.fillMaxWidth(fraction = 0.9f),
-        title = { Text("Reject offer?") },
+        title = { Text(title) },
         text = {
             val (icon, color) = priceTrend(offer.amount - offer.price)
             // Player and quantities share one card surface now, instead
@@ -612,14 +678,14 @@ private fun RejectOfferDialog(
                     modifier = Modifier.padding(top = 8.dp),
                 )
                 Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
-                    RejectOfferDialogRow(label = "Market value", value = formatPrice(offer.price))
-                    RejectOfferDialogRow(
+                    PlayerOfferDialogRow(label = "Market value", value = formatPrice(offer.price))
+                    PlayerOfferDialogRow(
                         label = "Offer",
                         value = formatPrice(offer.amount),
                         valueColor = ColorText,
                         modifier = Modifier.padding(top = 10.dp),
                     )
-                    RejectOfferDialogRow(
+                    PlayerOfferDialogRow(
                         label = "Difference",
                         value = "$icon ${formatPriceChange(offer.amount - offer.price)}",
                         valueColor = color,
@@ -631,18 +697,18 @@ private fun RejectOfferDialog(
         // Both buttons live in one row rather than the default
         // dismiss/confirm slots — at this dialog's forced 90% width,
         // those slots spread apart instead of matching this layout. Cancel
-        // (the "do nothing" option) sits at the opposite end from Reject
-        // (the destructive one), so they can't be mistaken for each other.
+        // (the "do nothing" option) sits at the opposite end from the
+        // action button, so they can't be mistaken for each other.
         confirmButton = {
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 // Same tinted-background/full-opacity-text treatment as
-                // PositionTag and the player card's reject button: a
+                // PositionTag and the player card's action buttons: a
                 // translucent fill behind full-strength colored text,
                 // rather than a solid button — purple (Nocturne's
                 // ColorAccent/primary) for this general-purpose action.
                 Button(
                     onClick = onCancel,
-                    enabled = !rejecting,
+                    enabled = !inFlight,
                     shape = RoundedCornerShape(percent = 50),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
@@ -651,26 +717,25 @@ private fun RejectOfferDialog(
                 ) {
                     Text("Cancel")
                 }
-                // Same red and translucent treatment as the reject button
-                // on the player card (TrendDown), for the same
-                // destructive action.
+                // Same translucent treatment as the matching action
+                // button on the player card, in the same color.
                 Button(
-                    onClick = onReject,
-                    enabled = !rejecting,
+                    onClick = onConfirm,
+                    enabled = !inFlight,
                     shape = RoundedCornerShape(percent = 50),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = TrendDown.copy(alpha = 0.24f),
-                        contentColor = TrendDown,
+                        containerColor = actionColor.copy(alpha = 0.24f),
+                        contentColor = actionColor,
                     ),
                 ) {
-                    if (rejecting) {
+                    if (inFlight) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(16.dp),
                             strokeWidth = 2.dp,
-                            color = TrendDown,
+                            color = actionColor,
                         )
                     } else {
-                        Text("Reject")
+                        Text(actionLabel)
                     }
                 }
             }
@@ -682,7 +747,7 @@ private fun RejectOfferDialog(
 // right-aligned in its own column, so amounts line up down the dialog
 // regardless of label length.
 @Composable
-private fun RejectOfferDialogRow(
+private fun PlayerOfferDialogRow(
     label: String,
     value: String,
     modifier: Modifier = Modifier,

@@ -15,6 +15,8 @@ import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListingsCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchBidsCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchOffersCoeffect
+import com.biwenger_client.features.market.domain.effects.AcceptOfferEffect
+import com.biwenger_client.features.market.domain.effects.OFFER_ACCEPTANCE_FINISHED_EVENT
 import com.biwenger_client.features.market.domain.effects.OFFER_REJECTION_FINISHED_EVENT
 import com.biwenger_client.features.market.domain.effects.RejectOfferEffect
 import com.biwenger_client.features.market.domain.models.MarketListing
@@ -68,6 +70,12 @@ class MarketViewModel @Inject constructor(
     private val _rejectingOffer = mutableStateOf(false)
     val rejectingOffer: State<Boolean> = _rejectingOffer
 
+    private val _offerToAccept = mutableStateOf<PlayerOffer?>(null)
+    val offerToAccept: State<PlayerOffer?> = _offerToAccept
+
+    private val _acceptingOffer = mutableStateOf(false)
+    val acceptingOffer: State<Boolean> = _acceptingOffer
+
     private val _selectedPlayerId = mutableStateOf<Int?>(null)
     val selectedPlayerId: State<Int?> = _selectedPlayerId
 
@@ -101,6 +109,8 @@ class MarketViewModel @Inject constructor(
         }
         store.subscribe<PlayerOffer?>(path = "market.offerToReject") { _offerToReject.value = it }
         store.subscribe<Boolean?>(path = "market.rejectingOffer") { it?.let { v -> _rejectingOffer.value = v } }
+        store.subscribe<PlayerOffer?>(path = "market.offerToAccept") { _offerToAccept.value = it }
+        store.subscribe<Boolean?>(path = "market.acceptingOffer") { it?.let { v -> _acceptingOffer.value = v } }
         store.subscribe<Int?>(path = "market.selectedPlayerId") { _selectedPlayerId.value = it }
         store.subscribe<Loadable<PriceHistory>?>(path = "market.priceHistory") { _priceHistory.value = it }
         store.subscribe<Loadable<PerformanceHistory>?>(path = "market.performanceHistory") { _performanceHistory.value = it }
@@ -147,6 +157,14 @@ class MarketViewModel @Inject constructor(
             coeffects = listOf(offersCoeffect),
             handler = ::handleOfferRejectionFinished
         )
+        store.registerEventHandler(name = OFFER_ACCEPTANCE_OPENED_EVENT, handler = ::handleOfferAcceptanceOpened)
+        store.registerEventHandler(name = OFFER_ACCEPTANCE_CANCELLED_EVENT, handler = ::handleOfferAcceptanceCancelled)
+        store.registerEventHandler(name = OFFER_ACCEPTANCE_REQUESTED_EVENT, handler = ::handleOfferAcceptanceRequested)
+        store.registerEventHandler(
+            name = OFFER_ACCEPTANCE_FINISHED_EVENT,
+            coeffects = listOf(offersCoeffect),
+            handler = ::handleOfferAcceptanceFinished
+        )
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -166,6 +184,10 @@ class MarketViewModel @Inject constructor(
         store.removeEventHandler(name = OFFER_REJECTION_CANCELLED_EVENT, handler = ::handleOfferRejectionCancelled)
         store.removeEventHandler(name = OFFER_REJECTION_REQUESTED_EVENT, handler = ::handleOfferRejectionRequested)
         store.removeEventHandler(name = OFFER_REJECTION_FINISHED_EVENT, handler = ::handleOfferRejectionFinished)
+        store.removeEventHandler(name = OFFER_ACCEPTANCE_OPENED_EVENT, handler = ::handleOfferAcceptanceOpened)
+        store.removeEventHandler(name = OFFER_ACCEPTANCE_CANCELLED_EVENT, handler = ::handleOfferAcceptanceCancelled)
+        store.removeEventHandler(name = OFFER_ACCEPTANCE_REQUESTED_EVENT, handler = ::handleOfferAcceptanceRequested)
+        store.removeEventHandler(name = OFFER_ACCEPTANCE_FINISHED_EVENT, handler = ::handleOfferAcceptanceFinished)
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -276,6 +298,27 @@ class MarketViewModel @Inject constructor(
             UpdateState(path = "market.offers", value = coeffects.load(coeffect = offersCoeffect)),
         )
 
+    fun handleOfferAcceptanceOpened(event: Event<PlayerOffer>): List<Effect> =
+        listOf(UpdateState(path = "market.offerToAccept", value = requireNotNull(event.payload)))
+
+    fun handleOfferAcceptanceCancelled(event: Event<Unit>): List<Effect> =
+        listOf(UpdateState(path = "market.offerToAccept", value = null))
+
+    fun handleOfferAcceptanceRequested(event: Event<PlayerOffer>): List<Effect> {
+        val offer = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "market.acceptingOffer", value = true),
+            AcceptOfferEffect(offerId = offer.offerId),
+        )
+    }
+
+    fun handleOfferAcceptanceFinished(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
+        listOf(
+            UpdateState(path = "market.offerToAccept", value = null),
+            UpdateState(path = "market.acceptingOffer", value = false),
+            UpdateState(path = "market.offers", value = coeffects.load(coeffect = offersCoeffect)),
+        )
+
     fun playerTapped(playerId: Int) =
         store.dispatch(event = event(name = PLAYER_TAPPED_EVENT, payload = playerId))
 
@@ -310,6 +353,15 @@ class MarketViewModel @Inject constructor(
     fun rejectOffer(offer: PlayerOffer) =
         store.dispatch(event = event(name = OFFER_REJECTION_REQUESTED_EVENT, payload = offer))
 
+    fun openOfferAcceptance(offer: PlayerOffer) =
+        store.dispatch(event = event(name = OFFER_ACCEPTANCE_OPENED_EVENT, payload = offer))
+
+    fun cancelOfferAcceptance() =
+        store.dispatch(event = event(name = OFFER_ACCEPTANCE_CANCELLED_EVENT))
+
+    fun acceptOffer(offer: PlayerOffer) =
+        store.dispatch(event = event(name = OFFER_ACCEPTANCE_REQUESTED_EVENT, payload = offer))
+
     companion object {
         const val ON_LOAD_EVENT = "market.on-load"
         const val PLAYER_TAPPED_EVENT = "market.player-tapped"
@@ -323,5 +375,8 @@ class MarketViewModel @Inject constructor(
         const val OFFER_REJECTION_OPENED_EVENT = "market.offer-rejection-opened"
         const val OFFER_REJECTION_CANCELLED_EVENT = "market.offer-rejection-cancelled"
         const val OFFER_REJECTION_REQUESTED_EVENT = "market.offer-rejection-requested"
+        const val OFFER_ACCEPTANCE_OPENED_EVENT = "market.offer-acceptance-opened"
+        const val OFFER_ACCEPTANCE_CANCELLED_EVENT = "market.offer-acceptance-cancelled"
+        const val OFFER_ACCEPTANCE_REQUESTED_EVENT = "market.offer-acceptance-requested"
     }
 }

@@ -17,6 +17,8 @@ class MarketStateInitializer : StateInitializer {
         "market.bids" to null as Loadable<List<PlayerBid>>?,
         "market.offerToReject" to null as PlayerOffer?,
         "market.rejectingOffer" to false,
+        "market.offerToAccept" to null as PlayerOffer?,
+        "market.acceptingOffer" to false,
         "market.selectedPlayerId" to null as Int?,
         "market.priceHistory" to null as Loadable<PriceHistory>?,
         "market.performanceHistory" to null as Loadable<PerformanceHistory>?,

@@ -51,6 +51,13 @@ functions:
           method: PUT
           path: /market/offers/{offerId}
           private: true
+  acceptPlayerOffer:
+    handler: src/index.acceptPlayerOffer
+    events:
+      - http:
+          method: PUT
+          path: /market/offers/{offerId}/accept
+          private: true
   playerBids:
     handler: src/index.playerBids
     events:

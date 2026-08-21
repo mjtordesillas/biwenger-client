@@ -82,6 +82,27 @@ export const createBiwengerClient = (dependencies = {}) => {
     if (!response.ok) throw new Error(`Biwenger reject offer failed: ${response.status}`)
   }
 
+  // Accepts a received purchase offer — same endpoint/shape as
+  // rejectOfferData, only the status value differs. NOT verified against
+  // the live API yet (see docs/biwenger-api-notes.md § "Incoming offers —
+  // write"): accepting is irreversible, so it's built against the
+  // verified endpoint's documented shape and left unverified live until
+  // there's a real offer worth actually accepting.
+  const acceptOfferData = async ({ token, leagueId, userId, offerId }) => {
+    const response = await httpFetch(`${baseUrl}/offers/${offerId}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-League': String(leagueId),
+        'X-User': String(userId),
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ status: 'accepted' }),
+    })
+    if (!response.ok) throw new Error(`Biwenger accept offer failed: ${response.status}`)
+  }
+
   const getCatalogue = async () => {
     const response = await httpFetch(`${baseUrl}/competitions/la-liga/data?lang=es&score=5`, {
       headers: { Accept: 'application/json' },
@@ -237,6 +258,12 @@ export const createBiwengerClient = (dependencies = {}) => {
     const token = await login({ email, password })
     const { leagueId, userId } = await getAccount({ token })
     await rejectOfferData({ token, leagueId, userId, offerId })
+  }
+
+  const acceptOffer = async ({ email, password, offerId }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    await acceptOfferData({ token, leagueId, userId, offerId })
   }
 
   // My own outgoing bids on other managers' players — same `GET
@@ -405,6 +432,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     getMyMarketListings,
     getOffersOnMyPlayers,
     rejectOffer,
+    acceptOffer,
     getMyBidsOnOtherPlayers,
     getLineup,
     saveLineup,

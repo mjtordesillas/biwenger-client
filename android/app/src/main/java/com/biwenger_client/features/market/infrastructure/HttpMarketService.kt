@@ -23,6 +23,10 @@ private data class PlayerOffersResponseBody(val players: List<PlayerOffer>)
 private data class PlayerBidsResponseBody(val players: List<PlayerBid>)
 private data class RejectOfferRequest(val status: String = "rejected")
 private data class RejectOfferResponseBody(val status: Int)
+// Same request/response shape as reject, on a separate endpoint path —
+// see backend's accept-player-offer-api-handler.js.
+private data class AcceptOfferRequest(val status: String = "accepted")
+private data class AcceptOfferResponseBody(val status: Int)
 
 class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
     private val httpClient: HttpClient = RetrofitHttpClient(baseUrl = baseUrl, apiKey = apiKey)
@@ -53,6 +57,12 @@ class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
 
     override suspend fun rejectOffer(offerId: Long): Response<Unit> =
         when (httpClient.put("market/offers/$offerId", RejectOfferRequest(), object : TypeToken<RejectOfferResponseBody>() {})) {
+            is Response.Success -> Response.Success(Unit)
+            is Response.Error -> Response.Error(502, "upstream_error")
+        }
+
+    override suspend fun acceptOffer(offerId: Long): Response<Unit> =
+        when (httpClient.put("market/offers/$offerId/accept", AcceptOfferRequest(), object : TypeToken<AcceptOfferResponseBody>() {})) {
             is Response.Success -> Response.Success(Unit)
             is Response.Error -> Response.Error(502, "upstream_error")
         }

@@ -221,6 +221,21 @@ class HttpMarketServiceTest {
     }
 
     @Test
+    fun `acceptOffer PUTs accepted status to the offer's accept endpoint`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"status":200}"""))
+
+            val result = service.acceptOffer(3822815314)
+
+            assertThat(result).isInstanceOf(Response.Success::class.java)
+            val request = server.takeRequest()
+            assertThat(request.method).isEqualTo("PUT")
+            assertThat(request.path).isEqualTo("/market/offers/3822815314/accept")
+            assertThat(request.body.readUtf8()).isEqualTo("""{"status":"accepted"}""")
+        }
+    }
+
+    @Test
     fun `bids parses the wrapped players array, including the bid-specific fields`() {
         runBlocking {
             server.enqueue(

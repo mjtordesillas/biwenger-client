@@ -119,6 +119,13 @@ Verified empirically on 2026-08-21 against a real incoming offer
 `data.status: "rejected"`, and a follow-up `GET /market` no longer
 contained that offer. The offer id is the `id` from `data.offers[]`.
 
+Accepting is presumed to be the same endpoint with
+`{"status":"accepted"}` instead — **not yet verified live**. Accepting
+is irreversible (unlike a reject, there's no re-offering it away), so
+this is deliberately left unverified until there's a real offer worth
+actually accepting. Update this note with the real verification date
+once that happens.
+
 ## Squad player status (owner lock, market listing, offers, fitness)
 
 Verified empirically (2026-08-18) against a real account/league, for
