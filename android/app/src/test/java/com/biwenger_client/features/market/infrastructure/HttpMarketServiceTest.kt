@@ -203,4 +203,57 @@ class HttpMarketServiceTest {
             assertThat((result as Response.Error).code).isEqualTo(403)
         }
     }
+
+    @Test
+    fun `bids parses the wrapped players array, including the bid-specific fields`() {
+        runBlocking {
+            server.enqueue(
+                MockResponse().setBody(
+                    """{"players":[{
+                        "id":1,"name":"Brugué","position":4,"secondaryPosition":null,
+                        "price":150000,"marketValue":200000,"priceIncrement":-5000,"points":2,
+                        "photoUrl":"https://cdn.biwenger.com/i/p/1.png",
+                        "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png",
+                        "until":1787461200,"seller":null,"amount":150000
+                    }]}"""
+                )
+            )
+
+            val result = service.bids()
+
+            assertThat(result).isInstanceOf(Response.Success::class.java)
+            val bids = (result as Response.Success).body
+            assertThat(bids).hasSize(1)
+            val bid = bids?.first()
+            assertThat(bid?.name).isEqualTo("Brugué")
+            assertThat(bid?.price).isEqualTo(150000)
+            assertThat(bid?.marketValue).isEqualTo(200000)
+            assertThat(bid?.amount).isEqualTo(150000)
+            assertThat(bid?.seller).isNull()
+        }
+    }
+
+    @Test
+    fun `bids requests market_my-bids`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"players":[]}"""))
+
+            service.bids()
+
+            val request = server.takeRequest()
+            assertThat(request.path).isEqualTo("/market/my-bids")
+        }
+    }
+
+    @Test
+    fun `bids returns an Error on a non-2xx response`() {
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(403))
+
+            val result = service.bids()
+
+            assertThat(result).isInstanceOf(Response.Error::class.java)
+            assertThat((result as Response.Error).code).isEqualTo(403)
+        }
+    }
 }

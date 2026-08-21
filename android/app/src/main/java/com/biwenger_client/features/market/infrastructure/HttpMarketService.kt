@@ -2,6 +2,7 @@ package com.biwenger_client.features.market.infrastructure
 
 import com.google.gson.reflect.TypeToken
 import com.biwenger_client.features.market.domain.models.MarketListing
+import com.biwenger_client.features.market.domain.models.PlayerBid
 import com.biwenger_client.features.market.domain.models.PlayerOffer
 import com.biwenger_client.infrastructure.network.HttpClient
 import com.biwenger_client.infrastructure.network.Response
@@ -16,6 +17,10 @@ private data class MarketResponseBody(val players: List<MarketListing>)
 // Same wrapper key ("players") as MarketResponseBody, different element
 // type — see biwenger-client's src/player-offers-api-handler.js.
 private data class PlayerOffersResponseBody(val players: List<PlayerOffer>)
+
+// Same wrapper key, different element type again — see biwenger-client's
+// src/player-bids-api-handler.js.
+private data class PlayerBidsResponseBody(val players: List<PlayerBid>)
 
 class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
     private val httpClient: HttpClient = RetrofitHttpClient(baseUrl = baseUrl, apiKey = apiKey)
@@ -34,6 +39,12 @@ class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
 
     override suspend fun offers(): Response<List<PlayerOffer>> =
         when (val result = httpClient.get("market/offers", object : TypeToken<PlayerOffersResponseBody>() {})) {
+            is Response.Success -> Response.Success(result.body?.players ?: emptyList())
+            is Response.Error -> result
+        }
+
+    override suspend fun bids(): Response<List<PlayerBid>> =
+        when (val result = httpClient.get("market/my-bids", object : TypeToken<PlayerBidsResponseBody>() {})) {
             is Response.Success -> Response.Success(result.body?.players ?: emptyList())
             is Response.Error -> result
         }

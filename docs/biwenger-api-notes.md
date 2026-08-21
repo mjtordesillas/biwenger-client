@@ -131,15 +131,27 @@ Verified empirically (2026-08-18) against a real account/league, for
   bid on") means *I've* listed that player. Every clause-buy sale
   observed had `sale.price` equal to `sale.player.owner.clause` — makes
   sense, a clause-buy's asking price is always the clause value.
-- **Standing offer on an owned player** — same `GET /market` response,
-  `data.offers[]` (noted as out-of-scope for `view-current-market`,
-  relevant here): each entry has `requestedPlayers: [playerId, ...]`,
-  `to: {id, name, icon}` (whoever's receiving the offer), `from` (`null`
-  in every sample seen — the offering party wasn't identifiable from
-  this field), `amount`, `created`/`until` (unix seconds, same shape as a
-  sale's `date`/`until`), `status` (`"waiting"` in every sample), `type:
-  "purchase"`. An offer on one of my players has `to.id` equal to my own
-  user id and my player's id in `requestedPlayers`.
+- **Standing offer on an owned player, and my own outgoing bids** — same
+  `GET /market` response, `data.offers[]` (noted as out-of-scope for
+  `view-current-market`, relevant here): each entry has
+  `requestedPlayers: [playerId, ...]`, `amount`, `created`/`until` (unix
+  seconds, same shape as a sale's `date`/`until`), `status` (`"waiting"`
+  in every sample), `type: "purchase"`, and exactly one of `to`/`from`
+  populated (`{id, name, icon}`), the other `null` — whichever side of
+  the offer *isn't* the requester. An offer on one of my players has
+  `to.id` equal to my own user id and `from: null` (the offering party
+  isn't identifiable from this field, in every sample seen). Verified
+  2026-08-22 (placed a real bid to check): my own outgoing bid on
+  someone else's player has `from.id` equal to my own user id and
+  `to: null` — i.e. `from`/`to` each only ever identify *me*, on
+  whichever side I'm on, never the other party. The bid observed had a
+  matching `data.sales[]` entry (same `price`/`until`) for its
+  `requestedPlayers[0]`, so the seller/owner for an outgoing bid can be
+  resolved the same way a listing's seller is (`sale.user?.name`, `null`
+  for a free-agent listing) — not yet confirmed whether an outgoing bid
+  can target a player with no `sales[]` entry at all (an unsolicited
+  offer on an unlisted player, mirroring the fact `getMySquad`'s
+  `offerAmount` doesn't require `inMarket` on the incoming side).
 - **Fitness status** — the catalogue endpoint's per-player `status` field
   (already fetched by `getCatalogue()`, never surfaced) is one of `"ok"`
   (511/566 players in the sample), `"injured"` (33), `"doubt"` (13),

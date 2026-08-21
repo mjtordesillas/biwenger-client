@@ -44,6 +44,13 @@ functions:
           method: GET
           path: /market/offers
           private: true
+  playerBids:
+    handler: src/index.playerBids
+    events:
+      - http:
+          method: GET
+          path: /market/my-bids
+          private: true
   lineup:
     handler: src/index.lineup
     events:

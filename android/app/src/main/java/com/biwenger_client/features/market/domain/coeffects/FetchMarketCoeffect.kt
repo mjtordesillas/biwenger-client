@@ -3,6 +3,7 @@ package com.biwenger_client.features.market.domain.coeffects
 import com.biwenger_client.core.coeffects.Coeffect
 import com.biwenger_client.core.coeffects.CoeffectHandler
 import com.biwenger_client.features.market.domain.models.MarketListing
+import com.biwenger_client.features.market.domain.models.PlayerBid
 import com.biwenger_client.features.market.domain.models.PlayerOffer
 import com.biwenger_client.features.market.infrastructure.MarketService
 import com.biwenger_client.infrastructure.network.Response
@@ -50,6 +51,21 @@ class FetchOffersCoeffectHandler(
 ) : CoeffectHandler<FetchOffersCoeffect, List<PlayerOffer>> {
     override suspend fun extract(coeffect: FetchOffersCoeffect): List<PlayerOffer> =
         when (val result = marketService.offers()) {
+            is Response.Success -> result.body ?: emptyList()
+            is Response.Error -> throw MarketFetchException(response = result)
+        }
+}
+
+// My own outgoing bids on other managers' players — same shape as the
+// other market coeffects, against MarketService.bids() and its own
+// state path for the fourth (Bids) subtab.
+object FetchBidsCoeffect : Coeffect<List<PlayerBid>>
+
+class FetchBidsCoeffectHandler(
+    private val marketService: MarketService
+) : CoeffectHandler<FetchBidsCoeffect, List<PlayerBid>> {
+    override suspend fun extract(coeffect: FetchBidsCoeffect): List<PlayerBid> =
+        when (val result = marketService.bids()) {
             is Response.Success -> result.body ?: emptyList()
             is Response.Error -> throw MarketFetchException(response = result)
         }

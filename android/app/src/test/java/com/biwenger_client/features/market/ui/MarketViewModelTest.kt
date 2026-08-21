@@ -11,10 +11,12 @@ import com.biwenger_client.core.events.event
 import com.biwenger_client.core.mvi.Store
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
+import com.biwenger_client.features.market.domain.coeffects.FetchBidsCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListingsCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchOffersCoeffect
 import com.biwenger_client.features.market.domain.models.MarketListing
+import com.biwenger_client.features.market.domain.models.PlayerBid
 import com.biwenger_client.features.market.domain.models.PlayerOffer
 import com.biwenger_client.features.squad.domain.coeffects.FetchMatchDayDetailsCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPerformanceHistoryCoeffect
@@ -22,6 +24,7 @@ import com.biwenger_client.features.squad.domain.coeffects.FetchPriceHistoryCoef
 import com.biwenger_client.helpers.builders.aMarketListing
 import com.biwenger_client.helpers.builders.aMatchDayDetails
 import com.biwenger_client.helpers.builders.aPerformanceHistory
+import com.biwenger_client.helpers.builders.aPlayerBid
 import com.biwenger_client.helpers.builders.aPlayerOffer
 import com.biwenger_client.helpers.builders.aPriceHistory
 import com.biwenger_client.ui.MatchDayDetailsRequest
@@ -72,6 +75,14 @@ class MarketViewModelTest {
         verify(store).subscribe(
             eq("market.offers"),
             any<(Loadable<List<PlayerOffer>>?) -> Unit>()
+        )
+    }
+
+    @Test
+    fun `subscribes to market_bids`() {
+        verify(store).subscribe(
+            eq("market.bids"),
+            any<(Loadable<List<PlayerBid>>?) -> Unit>()
         )
     }
 
@@ -196,15 +207,17 @@ class MarketViewModelTest {
     }
 
     @Test
-    fun `handleOnLoad returns UpdateState with loaded players, my listings, and offers`() {
+    fun `handleOnLoad returns UpdateState with loaded players, my listings, offers, and bids`() {
         val listings = listOf(aMarketListing())
         val myListings = listOf(aMarketListing(id = 2))
         val offers = listOf(aPlayerOffer(id = 3))
+        val bids = listOf(aPlayerBid(id = 4))
         val coeffects = Coeffects(
             values = mapOf(
                 FetchMarketCoeffect to Loadable.Success(listings),
                 FetchMyMarketListingsCoeffect to Loadable.Success(myListings),
                 FetchOffersCoeffect to Loadable.Success(offers),
+                FetchBidsCoeffect to Loadable.Success(bids),
             )
         )
 
@@ -214,6 +227,7 @@ class MarketViewModelTest {
             UpdateState(path = "market.players", value = Loadable.Success(listings)),
             UpdateState(path = "market.myListings", value = Loadable.Success(myListings)),
             UpdateState(path = "market.offers", value = Loadable.Success(offers)),
+            UpdateState(path = "market.bids", value = Loadable.Success(bids)),
         )
     }
 

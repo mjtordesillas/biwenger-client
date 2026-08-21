@@ -5,6 +5,8 @@ import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffectHandler
 import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListingsCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListingsCoeffectHandler
+import com.biwenger_client.features.market.domain.coeffects.FetchBidsCoeffect
+import com.biwenger_client.features.market.domain.coeffects.FetchBidsCoeffectHandler
 import com.biwenger_client.features.market.domain.coeffects.FetchOffersCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchOffersCoeffectHandler
 import com.biwenger_client.features.market.infrastructure.MarketService
@@ -25,6 +27,10 @@ class MarketCoeffectsHandlerRegistration(
         registry.registerCoeffectHandler(
             coeffectClass = FetchOffersCoeffect::class,
             handler = FetchOffersCoeffectHandler(marketService = marketService)
+        )
+        registry.registerCoeffectHandler(
+            coeffectClass = FetchBidsCoeffect::class,
+            handler = FetchBidsCoeffectHandler(marketService = marketService)
         )
     }
 }

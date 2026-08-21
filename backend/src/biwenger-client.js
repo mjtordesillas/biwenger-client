@@ -216,6 +216,39 @@ export const createBiwengerClient = (dependencies = {}) => {
       )
   }
 
+  // My own outgoing bids on other managers' players — same `GET
+  // /market` response as getOffersOnMyPlayers, but `data.offers[]`
+  // filtered to `offer.from?.id === userId` instead of
+  // `offer.to?.id === userId` — the opposite side of the same check.
+  // See docs/biwenger-api-notes.md § "Squad player status" (verified
+  // 2026-08-22 against a real outgoing bid): `from`/`to` each only ever
+  // identify the requester, on whichever side they're on, never the
+  // other party — so unlike getOffersOnMyPlayers, the seller/owner
+  // *is* identifiable here, by joining against `data.sales[]` (same
+  // shape getCurrentMarket/getMyMarketListings join) rather than the
+  // catalogue alone. A bid whose player has no matching `sales[]` entry
+  // is skipped — not yet observed, and there'd be no asking price to
+  // show it against.
+  const getMyBidsOnOtherPlayers = async ({ email, password }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    const [{ sales, offers }, catalogue] = await Promise.all([
+      getMarketData({ token, leagueId, userId }),
+      getCatalogue(),
+    ])
+    return offers
+      .filter((offer) => offer.from?.id === userId)
+      .flatMap((offer) =>
+        offer.requestedPlayers
+          .map((playerId) => {
+            const sale = sales.find((sale) => sale.player.id === playerId)
+            const player = catalogue[String(playerId)]
+            return sale && player && { offer, sale, player }
+          })
+          .filter(Boolean)
+      )
+  }
+
   const getLineupData = async ({ token, leagueId, userId }) => {
     const response = await httpFetch(`${baseUrl}/user?fields=lineup(type,playersID)`, {
       headers: {
@@ -348,6 +381,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     getCurrentMarket,
     getMyMarketListings,
     getOffersOnMyPlayers,
+    getMyBidsOnOtherPlayers,
     getLineup,
     saveLineup,
     getPlayerPrices,

@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Sell
 import androidx.compose.material.icons.filled.Storefront
@@ -47,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.domain.models.Player
 import com.biwenger_client.features.market.domain.models.MarketListing
+import com.biwenger_client.features.market.domain.models.PlayerBid
 import com.biwenger_client.features.market.domain.models.PlayerOffer
 import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
@@ -67,7 +69,7 @@ import com.biwenger_client.ui.theme.NocturneRadius
 
 // Local to this screen, same as SquadSubTab — nothing outside Market
 // depends on which subtab is showing.
-private enum class MarketSubTab { CurrentMarket, MyListings, Offers }
+private enum class MarketSubTab { CurrentMarket, MyListings, Offers, Bids }
 
 // Expiry ascending first (soonest-to-expire listings are the most
 // actionable, so they lead), then position and market value both
@@ -85,6 +87,12 @@ val PlayerOfferOrder =
         .thenByDescending { it.position }
         .thenByDescending { it.amount }
 
+// Same reasoning again, for my own outgoing bids.
+val PlayerBidOrder =
+    compareBy<PlayerBid> { it.until }
+        .thenByDescending { it.position }
+        .thenByDescending { it.amount }
+
 // Slice 1 shipped list-only (name/position/price); this fills in the
 // three fields deferred then — expiry, seller, and market value — since
 // a bare asking price without knowing what the player's actually worth
@@ -99,6 +107,7 @@ fun MarketScreen(
     val players by viewModel.players
     val myListings by viewModel.myListings
     val offers by viewModel.offers
+    val bids by viewModel.bids
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
@@ -110,6 +119,7 @@ fun MarketScreen(
         players = players,
         myListings = myListings,
         offers = offers,
+        bids = bids,
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
@@ -129,6 +139,7 @@ private fun MarketScreen(
     players: Loadable<List<MarketListing>>,
     myListings: Loadable<List<MarketListing>>,
     offers: Loadable<List<PlayerOffer>>,
+    bids: Loadable<List<PlayerBid>>,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
@@ -144,15 +155,16 @@ private fun MarketScreen(
     val allListings = (players as? Loadable.Success)?.value.orEmpty()
     val allMyListings = (myListings as? Loadable.Success)?.value.orEmpty()
     val allOffers = (offers as? Loadable.Success)?.value.orEmpty()
-    // A tapped row can come from any of the three subtabs' lists —
-    // MarketListing and PlayerOffer are different types, so each is
-    // looked up on its own list and reduced to the shared Player shape
-    // the detail sheet actually needs, rather than combined into one
-    // list first.
+    val allBids = (bids as? Loadable.Success)?.value.orEmpty()
+    // A tapped row can come from any of the four subtabs' lists — each
+    // is a different type, so each is looked up on its own list and
+    // reduced to the shared Player shape the detail sheet actually
+    // needs, rather than combined into one list first.
     val selectedPlayer: Player? =
         allListings.find { it.id == selectedPlayerId }?.toPlayer()
             ?: allMyListings.find { it.id == selectedPlayerId }?.toPlayer()
             ?: allOffers.find { it.id == selectedPlayerId }?.toPlayer()
+            ?: allBids.find { it.id == selectedPlayerId }?.toPlayer()
 
     // Exclusive, not overlaid — same reasoning as SquadScreen: only one
     // screen is ever composed at a time.
@@ -191,6 +203,11 @@ private fun MarketScreen(
                     MarketSubTab.Offers -> PlayerOfferListForState(
                         offers = offers,
                         emptyMessage = "Could not load your offers right now.",
+                        onPlayerTapped = onPlayerTapped
+                    )
+                    MarketSubTab.Bids -> PlayerBidListForState(
+                        bids = bids,
+                        emptyMessage = "Could not load your bids right now.",
                         onPlayerTapped = onPlayerTapped
                     )
                 }
@@ -237,6 +254,25 @@ private fun BoxScope.PlayerOfferListForState(
     }
 }
 
+@Composable
+private fun BoxScope.PlayerBidListForState(
+    bids: Loadable<List<PlayerBid>>,
+    emptyMessage: String,
+    onPlayerTapped: (Int) -> Unit,
+) {
+    when (bids) {
+        is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+        is Loadable.Failed -> Text(
+            text = emptyMessage,
+            modifier = Modifier.align(Alignment.Center).padding(16.dp)
+        )
+        is Loadable.Success -> PlayerBidList(
+            bids = bids.value.sortedWith(PlayerBidOrder),
+            onPlayerTapped = onPlayerTapped
+        )
+    }
+}
+
 // Same full-width, equal-split, underlined tab bar as Squad's
 // SquadSubTabRow — ported into Market rather than extracted into a
 // shared component, per docs/backlog/to-do/view-my-market-listings.md.
@@ -262,6 +298,13 @@ private fun MarketSubTabRow(selected: MarketSubTab, onSelect: (MarketSubTab) -> 
             icon = { color -> Icon(imageVector = Icons.Default.LocalOffer, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
             selected = selected == MarketSubTab.Offers,
             onClick = { onSelect(MarketSubTab.Offers) },
+            modifier = Modifier.weight(1f)
+        )
+        MarketSubTabButton(
+            label = "Bids",
+            icon = { color -> Icon(imageVector = Icons.Default.Gavel, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
+            selected = selected == MarketSubTab.Bids,
+            onClick = { onSelect(MarketSubTab.Bids) },
             modifier = Modifier.weight(1f)
         )
     }
@@ -538,3 +581,120 @@ private fun PlayerOfferFooter(offer: PlayerOffer) {
 }
 
 private fun bidderLabel(bidder: String?): String = bidder ?: "the Market"
+
+@Composable
+private fun PlayerBidList(bids: List<PlayerBid>, onPlayerTapped: (Int) -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(bids) { bid -> PlayerBidRow(bid = bid, onClick = { onPlayerTapped(bid.id) }) }
+    }
+}
+
+// Same header/footer shape as MarketListingRow (owner/expiry header,
+// market-value footer) — a bid's player has both, same as a listing's.
+// The content differs: three numbers instead of one, since a bid has an
+// asking price *and* my own offer against it, not just one price.
+@Composable
+private fun PlayerBidRow(bid: PlayerBid, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(NocturneRadius.md))
+            .background(ColorSurface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+    ) {
+        PlayerBidHeader(bid = bid)
+        PlayerBidContent(bid = bid)
+        PlayerBidFooter(bid = bid)
+    }
+}
+
+@Composable
+private fun PlayerBidHeader(bid: PlayerBid) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = sellerLabel(bid.seller),
+            fontSize = 13.sp,
+            color = Neutral500,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = buildAnnotatedString {
+                append("Expires ")
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(formatRelativeTime(bid.until))
+                }
+            },
+            fontSize = 13.sp,
+            color = Neutral500,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun PlayerBidContent(bid: PlayerBid) {
+    Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        PlayerAvatarWithPoints(
+            photoUrl = bid.photoUrl,
+            teamCrestUrl = bid.teamCrestUrl,
+            contentDescription = bid.name,
+            points = bid.points
+        )
+
+        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+            Text(text = bid.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1)
+            Row(modifier = Modifier.padding(top = 4.dp)) {
+                PositionTag(position = bid.position, secondaryPosition = bid.secondaryPosition)
+            }
+        }
+
+        Column(horizontalAlignment = Alignment.End) {
+            // Asking price, de-emphasized — my own offer underneath is
+            // the headline number here, not what's being asked.
+            Text(
+                text = formatPrice(bid.price),
+                fontSize = 12.sp,
+                color = Neutral500,
+            )
+            Text(
+                text = formatPrice(bid.amount),
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp)
+            )
+            // My offer against the catalogue market value (not the
+            // asking price above it) — whether the bid is above/below
+            // fair value, independent of what's being asked.
+            val (icon, color) = priceTrend(bid.amount - bid.marketValue)
+            Text(
+                text = "$icon ${formatPriceChange(bid.amount - bid.marketValue)}",
+                fontSize = 12.sp,
+                color = color,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerBidFooter(bid: PlayerBid) {
+    Row(
+        modifier = Modifier.padding(top = 8.dp + PlayerAvatarOverlayOffsetY),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = "Market value: ${formatPrice(bid.marketValue)} ", fontSize = 13.sp, color = Neutral500)
+        val (icon, color) = priceTrend(bid.priceIncrement)
+        Text(text = "$icon ${formatPriceChange(bid.priceIncrement)}", fontSize = 13.sp, color = color)
+    }
+}

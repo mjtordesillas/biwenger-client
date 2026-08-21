@@ -13,8 +13,10 @@ import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.core.state.UpdateState
 import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListingsCoeffect
+import com.biwenger_client.features.market.domain.coeffects.FetchBidsCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchOffersCoeffect
 import com.biwenger_client.features.market.domain.models.MarketListing
+import com.biwenger_client.features.market.domain.models.PlayerBid
 import com.biwenger_client.features.market.domain.models.PlayerOffer
 import com.biwenger_client.features.squad.domain.coeffects.FetchMatchDayDetailsCoeffect
 import com.biwenger_client.features.squad.domain.coeffects.FetchPerformanceHistoryCoeffect
@@ -44,6 +46,7 @@ class MarketViewModel @Inject constructor(
     private val marketCoeffect = FetchMarketCoeffect
     private val myMarketListingsCoeffect = FetchMyMarketListingsCoeffect
     private val offersCoeffect = FetchOffersCoeffect
+    private val bidsCoeffect = FetchBidsCoeffect
 
     private val _players = mutableStateOf<Loadable<List<MarketListing>>>(Loadable.Loading)
     val players: State<Loadable<List<MarketListing>>> = _players
@@ -53,6 +56,9 @@ class MarketViewModel @Inject constructor(
 
     private val _offers = mutableStateOf<Loadable<List<PlayerOffer>>>(Loadable.Loading)
     val offers: State<Loadable<List<PlayerOffer>>> = _offers
+
+    private val _bids = mutableStateOf<Loadable<List<PlayerBid>>>(Loadable.Loading)
+    val bids: State<Loadable<List<PlayerBid>>> = _bids
 
     private val _selectedPlayerId = mutableStateOf<Int?>(null)
     val selectedPlayerId: State<Int?> = _selectedPlayerId
@@ -82,6 +88,9 @@ class MarketViewModel @Inject constructor(
         store.subscribe<Loadable<List<PlayerOffer>>?>(path = "market.offers") {
             it?.let { v -> _offers.value = v }
         }
+        store.subscribe<Loadable<List<PlayerBid>>?>(path = "market.bids") {
+            it?.let { v -> _bids.value = v }
+        }
         store.subscribe<Int?>(path = "market.selectedPlayerId") { _selectedPlayerId.value = it }
         store.subscribe<Loadable<PriceHistory>?>(path = "market.priceHistory") { _priceHistory.value = it }
         store.subscribe<Loadable<PerformanceHistory>?>(path = "market.performanceHistory") { _performanceHistory.value = it }
@@ -91,7 +100,7 @@ class MarketViewModel @Inject constructor(
 
         store.registerEventHandler(
             name = ON_LOAD_EVENT,
-            coeffects = listOf(marketCoeffect, myMarketListingsCoeffect, offersCoeffect),
+            coeffects = listOf(marketCoeffect, myMarketListingsCoeffect, offersCoeffect, bidsCoeffect),
             handler = ::handleOnLoad
         )
         store.registerEventHandler(name = PLAYER_TAPPED_EVENT, handler = ::handlePlayerTapped)
@@ -142,6 +151,7 @@ class MarketViewModel @Inject constructor(
             UpdateState(path = "market.players", value = coeffects.load(coeffect = marketCoeffect)),
             UpdateState(path = "market.myListings", value = coeffects.load(coeffect = myMarketListingsCoeffect)),
             UpdateState(path = "market.offers", value = coeffects.load(coeffect = offersCoeffect)),
+            UpdateState(path = "market.bids", value = coeffects.load(coeffect = bidsCoeffect)),
         )
 
     fun handlePlayerTapped(event: Event<Int>): List<Effect> {
