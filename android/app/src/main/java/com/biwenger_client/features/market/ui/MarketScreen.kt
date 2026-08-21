@@ -288,14 +288,14 @@ private fun MarketSubTabRow(selected: MarketSubTab, onSelect: (MarketSubTab) -> 
         )
         MarketSubTabButton(
             label = "My Listings",
-            icon = { color -> Icon(imageVector = Icons.Outlined.Payments, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
+            icon = { color -> Icon(imageVector = Icons.Default.LocalOffer, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
             selected = selected == MarketSubTab.MyListings,
             onClick = { onSelect(MarketSubTab.MyListings) },
             modifier = Modifier.weight(1f)
         )
         MarketSubTabButton(
             label = "Offers",
-            icon = { color -> Icon(imageVector = Icons.Default.LocalOffer, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
+            icon = { color -> Icon(imageVector = Icons.Outlined.Payments, contentDescription = null, tint = color, modifier = Modifier.size(16.dp)) },
             selected = selected == MarketSubTab.Offers,
             onClick = { onSelect(MarketSubTab.Offers) },
             modifier = Modifier.weight(1f)
