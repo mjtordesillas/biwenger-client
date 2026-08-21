@@ -19,19 +19,18 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,10 +45,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.biwenger_client.core.state.Loadable
 import com.biwenger_client.domain.models.Player
@@ -64,12 +65,14 @@ import com.biwenger_client.ui.PlayerAvatarOverlayOffsetY
 import com.biwenger_client.ui.PlayerAvatarWithPoints
 import com.biwenger_client.ui.PlayerDetailScreen
 import com.biwenger_client.ui.PositionTag
+import com.biwenger_client.ui.TrendDown
 import com.biwenger_client.ui.formatPrice
 import com.biwenger_client.ui.formatPriceChange
 import com.biwenger_client.ui.formatRelativeTime
 import com.biwenger_client.ui.priceTrend
 import com.biwenger_client.ui.theme.ColorBgDeep
 import com.biwenger_client.ui.theme.ColorSurface
+import com.biwenger_client.ui.theme.ColorText
 import com.biwenger_client.ui.theme.Neutral500
 import com.biwenger_client.ui.theme.NocturneRadius
 
@@ -204,43 +207,43 @@ private fun MarketScreen(
         var selectedSubTab by remember { mutableStateOf(MarketSubTab.CurrentMarket) }
 
         Box(modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            MarketSubTabRow(selected = selectedSubTab, onSelect = { selectedSubTab = it })
+            Column(modifier = Modifier.fillMaxSize()) {
+                MarketSubTabRow(selected = selectedSubTab, onSelect = { selectedSubTab = it })
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp)) {
-                when (selectedSubTab) {
-                    MarketSubTab.CurrentMarket -> MarketListingListForState(
-                        listings = players,
-                        emptyMessage = "Could not load the market right now.",
-                        onPlayerTapped = onPlayerTapped
-                    )
-                    MarketSubTab.MyListings -> MarketListingListForState(
-                        listings = myListings,
-                        emptyMessage = "Could not load your listings right now.",
-                        onPlayerTapped = onPlayerTapped
-                    )
-                    MarketSubTab.Offers -> PlayerOfferListForState(
-                        offers = offers,
-                        emptyMessage = "Could not load your offers right now.",
-                        onPlayerTapped = onPlayerTapped,
-                        onRejectTapped = onOfferRejectionOpened,
-                    )
-                    MarketSubTab.Bids -> PlayerBidListForState(
-                        bids = bids,
-                        emptyMessage = "Could not load your bids right now.",
-                        onPlayerTapped = onPlayerTapped
-                    )
+                Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp)) {
+                    when (selectedSubTab) {
+                        MarketSubTab.CurrentMarket -> MarketListingListForState(
+                            listings = players,
+                            emptyMessage = "Could not load the market right now.",
+                            onPlayerTapped = onPlayerTapped
+                        )
+                        MarketSubTab.MyListings -> MarketListingListForState(
+                            listings = myListings,
+                            emptyMessage = "Could not load your listings right now.",
+                            onPlayerTapped = onPlayerTapped
+                        )
+                        MarketSubTab.Offers -> PlayerOfferListForState(
+                            offers = offers,
+                            emptyMessage = "Could not load your offers right now.",
+                            onPlayerTapped = onPlayerTapped,
+                            onRejectTapped = onOfferRejectionOpened,
+                        )
+                        MarketSubTab.Bids -> PlayerBidListForState(
+                            bids = bids,
+                            emptyMessage = "Could not load your bids right now.",
+                            onPlayerTapped = onPlayerTapped
+                        )
+                    }
                 }
             }
-        }
-        offerToReject?.let { offer ->
-            RejectOfferDialog(
-                offer = offer,
-                rejecting = rejectingOffer,
-                onCancel = onOfferRejectionCancelled,
-                onReject = { onOfferRejected(offer) },
-            )
-        }
+            offerToReject?.let { offer ->
+                RejectOfferDialog(
+                    offer = offer,
+                    rejecting = rejectingOffer,
+                    onCancel = onOfferRejectionCancelled,
+                    onReject = { onOfferRejected(offer) },
+                )
+            }
         }
     }
 }
@@ -545,15 +548,28 @@ private fun PlayerOfferRow(offer: PlayerOffer, onClick: () -> Unit, onReject: ()
             PlayerOfferContent(offer = offer)
             PlayerOfferFooter(offer = offer)
         }
-        IconButton(
-            onClick = onReject,
+        // Same color schema as the squad screen's "offer below market
+        // value" status icon (SquadPlayerStatusIcon/TrendDown) — a tinted
+        // low-alpha background behind a colored glyph, not a solid fill.
+        // Built as a plain clickable Box (not IconButton) so the whole
+        // circle is the tap target, not just the glyph, and padded by at
+        // least the card's own corner radius so it isn't clipped by it.
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(6.dp)
-                .size(32.dp)
-                .background(MaterialTheme.colorScheme.error, CircleShape)
+                .padding(NocturneRadius.md)
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(TrendDown.copy(alpha = 0.24f))
+                .clickable(onClick = onReject),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Default.Close, contentDescription = "Reject ${offer.name}", tint = MaterialTheme.colorScheme.onError)
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "Reject ${offer.name}",
+                tint = TrendDown,
+                modifier = Modifier.size(14.dp),
+            )
         }
     }
 }
@@ -567,45 +583,120 @@ private fun RejectOfferDialog(
 ) {
     AlertDialog(
         onDismissRequest = { if (!rejecting) onCancel() },
+        // Default AlertDialog width is content-driven; force it to 90% of
+        // the available width instead.
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(fraction = 0.9f),
         title = { Text("Reject offer?") },
         text = {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PlayerAvatarWithPoints(
-                        photoUrl = offer.photoUrl,
-                        teamCrestUrl = offer.teamCrestUrl,
-                        contentDescription = offer.name,
-                        points = offer.points,
-                    )
-                    Text(offer.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 12.dp))
-                }
-                Text("Market value: ${formatPrice(offer.price)}", modifier = Modifier.padding(top = 16.dp))
-                Text("Offer: ${formatPrice(offer.amount)}", modifier = Modifier.padding(top = 8.dp))
-                val (icon, color) = priceTrend(offer.amount - offer.price)
+            val (icon, color) = priceTrend(offer.amount - offer.price)
+            // Player and quantities share one card surface now, instead
+            // of the player floating above it.
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(NocturneRadius.md))
+                    .background(ColorSurface)
+                    .padding(32.dp),
+            ) {
+                PlayerAvatarWithPoints(
+                    photoUrl = offer.photoUrl,
+                    teamCrestUrl = offer.teamCrestUrl,
+                    contentDescription = offer.name,
+                    points = offer.points,
+                )
                 Text(
-                    "$icon ${formatPriceChange(offer.amount - offer.price)}",
-                    color = color,
+                    offer.name,
+                    style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(top = 8.dp),
                 )
+                Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
+                    RejectOfferDialogRow(label = "Market value", value = formatPrice(offer.price))
+                    RejectOfferDialogRow(
+                        label = "Offer",
+                        value = formatPrice(offer.amount),
+                        valueColor = ColorText,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                    RejectOfferDialogRow(
+                        label = "Difference",
+                        value = "$icon ${formatPriceChange(offer.amount - offer.price)}",
+                        valueColor = color,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                }
             }
         },
-        dismissButton = {
-            TextButton(onClick = onCancel, enabled = !rejecting) { Text("Cancel", color = Neutral500) }
-        },
+        // Both buttons live in one row rather than the default
+        // dismiss/confirm slots — at this dialog's forced 90% width,
+        // those slots spread apart instead of matching this layout. Cancel
+        // (the "do nothing" option) sits at the opposite end from Reject
+        // (the destructive one), so they can't be mistaken for each other.
         confirmButton = {
-            TextButton(
-                onClick = onReject,
-                enabled = !rejecting,
-                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            ) {
-                if (rejecting) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                } else {
-                    Text("Reject")
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                // Same tinted-background/full-opacity-text treatment as
+                // PositionTag and the player card's reject button: a
+                // translucent fill behind full-strength colored text,
+                // rather than a solid button — purple (Nocturne's
+                // ColorAccent/primary) for this general-purpose action.
+                Button(
+                    onClick = onCancel,
+                    enabled = !rejecting,
+                    shape = RoundedCornerShape(percent = 50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                ) {
+                    Text("Cancel")
+                }
+                // Same red and translucent treatment as the reject button
+                // on the player card (TrendDown), for the same
+                // destructive action.
+                Button(
+                    onClick = onReject,
+                    enabled = !rejecting,
+                    shape = RoundedCornerShape(percent = 50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = TrendDown.copy(alpha = 0.24f),
+                        contentColor = TrendDown,
+                    ),
+                ) {
+                    if (rejecting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = TrendDown,
+                        )
+                    } else {
+                        Text("Reject")
+                    }
                 }
             }
         },
     )
+}
+
+// Label/value pair laid out like a table row: label left-aligned, value
+// right-aligned in its own column, so amounts line up down the dialog
+// regardless of label length.
+@Composable
+private fun RejectOfferDialogRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = Color.Unspecified,
+) {
+    Row(modifier = modifier.fillMaxWidth()) {
+        Text(text = label, color = Neutral500, textAlign = TextAlign.Start, modifier = Modifier.weight(1f))
+        Text(
+            text = value,
+            color = valueColor,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f).padding(start = 12.dp),
+        )
+    }
 }
 
 @Composable
