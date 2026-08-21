@@ -2,6 +2,7 @@ package com.biwenger_client.features.market.domain.coeffects
 
 import com.biwenger_client.features.market.infrastructure.MarketService
 import com.biwenger_client.helpers.builders.aMarketListing
+import com.biwenger_client.helpers.builders.aPlayerOffer
 import com.biwenger_client.infrastructure.network.Response
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
@@ -63,6 +64,35 @@ class FetchMyMarketListingsCoeffectHandlerTest {
 
             assertThatThrownBy {
                 runBlocking { handler.extract(FetchMyMarketListingsCoeffect) }
+            }.isInstanceOf(MarketFetchException::class.java)
+        }
+    }
+}
+
+class FetchOffersCoeffectHandlerTest {
+
+    private val marketService = mock<MarketService>()
+    private val handler = FetchOffersCoeffectHandler(marketService = marketService)
+
+    @Test
+    fun `extract returns the offers on success`() {
+        runBlocking {
+            val offers = listOf(aPlayerOffer())
+            whenever(marketService.offers()).thenReturn(Response.Success(offers))
+
+            val result = handler.extract(FetchOffersCoeffect)
+
+            assertThat(result).isEqualTo(offers)
+        }
+    }
+
+    @Test
+    fun `extract throws on error`() {
+        runBlocking {
+            whenever(marketService.offers()).thenReturn(Response.Error(502, "upstream_error"))
+
+            assertThatThrownBy {
+                runBlocking { handler.extract(FetchOffersCoeffect) }
             }.isInstanceOf(MarketFetchException::class.java)
         }
     }

@@ -187,6 +187,35 @@ export const createBiwengerClient = (dependencies = {}) => {
     )
   }
 
+  // Incoming purchase offers on the requester's own squad players — same
+  // `GET /market` response as getCurrentMarket/getMyMarketListings, but
+  // `data.offers[]` instead of `data.sales[]`. An offer has no embedded
+  // player, just `requestedPlayers: [playerId, ...]` — flatMap each into
+  // its own {offer, player} pair (one row per offered-on player) rather
+  // than a merged object, same reasoning as the sale-based pairs. See
+  // docs/biwenger-api-notes.md § "Squad player status" — `to.id` is the
+  // offer's recipient (must be the requester), `from` has been null in
+  // every sample seen so far (kept on the pair regardless, in case that
+  // changes).
+  const getOffersOnMyPlayers = async ({ email, password }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    const [{ offers }, catalogue] = await Promise.all([
+      getMarketData({ token, leagueId, userId }),
+      getCatalogue(),
+    ])
+    return offers
+      .filter((offer) => offer.to?.id === userId)
+      .flatMap((offer) =>
+        offer.requestedPlayers
+          .map((playerId) => {
+            const player = catalogue[String(playerId)]
+            return player && { offer, player }
+          })
+          .filter(Boolean)
+      )
+  }
+
   const getLineupData = async ({ token, leagueId, userId }) => {
     const response = await httpFetch(`${baseUrl}/user?fields=lineup(type,playersID)`, {
       headers: {
@@ -318,6 +347,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     getMySquad,
     getCurrentMarket,
     getMyMarketListings,
+    getOffersOnMyPlayers,
     getLineup,
     saveLineup,
     getPlayerPrices,

@@ -151,4 +151,56 @@ class HttpMarketServiceTest {
             assertThat((result as Response.Error).code).isEqualTo(403)
         }
     }
+
+    @Test
+    fun `offers parses the wrapped players array, including the offer-specific fields`() {
+        runBlocking {
+            server.enqueue(
+                MockResponse().setBody(
+                    """{"players":[{
+                        "id":1,"name":"Brugué","position":4,"secondaryPosition":null,
+                        "price":280000,"priceIncrement":10000,"points":5,
+                        "photoUrl":"https://cdn.biwenger.com/i/p/1.png",
+                        "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png",
+                        "amount":300000,"bidder":null
+                    }]}"""
+                )
+            )
+
+            val result = service.offers()
+
+            assertThat(result).isInstanceOf(Response.Success::class.java)
+            val offers = (result as Response.Success).body
+            assertThat(offers).hasSize(1)
+            val offer = offers?.first()
+            assertThat(offer?.name).isEqualTo("Brugué")
+            assertThat(offer?.price).isEqualTo(280000)
+            assertThat(offer?.amount).isEqualTo(300000)
+            assertThat(offer?.bidder).isNull()
+        }
+    }
+
+    @Test
+    fun `offers requests market_offers`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"players":[]}"""))
+
+            service.offers()
+
+            val request = server.takeRequest()
+            assertThat(request.path).isEqualTo("/market/offers")
+        }
+    }
+
+    @Test
+    fun `offers returns an Error on a non-2xx response`() {
+        runBlocking {
+            server.enqueue(MockResponse().setResponseCode(403))
+
+            val result = service.offers()
+
+            assertThat(result).isInstanceOf(Response.Error::class.java)
+            assertThat((result as Response.Error).code).isEqualTo(403)
+        }
+    }
 }

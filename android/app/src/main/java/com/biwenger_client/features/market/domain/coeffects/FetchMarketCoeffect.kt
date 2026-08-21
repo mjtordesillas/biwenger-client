@@ -3,6 +3,7 @@ package com.biwenger_client.features.market.domain.coeffects
 import com.biwenger_client.core.coeffects.Coeffect
 import com.biwenger_client.core.coeffects.CoeffectHandler
 import com.biwenger_client.features.market.domain.models.MarketListing
+import com.biwenger_client.features.market.domain.models.PlayerOffer
 import com.biwenger_client.features.market.infrastructure.MarketService
 import com.biwenger_client.infrastructure.network.Response
 
@@ -34,6 +35,21 @@ class FetchMyMarketListingsCoeffectHandler(
 ) : CoeffectHandler<FetchMyMarketListingsCoeffect, List<MarketListing>> {
     override suspend fun extract(coeffect: FetchMyMarketListingsCoeffect): List<MarketListing> =
         when (val result = marketService.myListings()) {
+            is Response.Success -> result.body ?: emptyList()
+            is Response.Error -> throw MarketFetchException(response = result)
+        }
+}
+
+// Standing offers on my squad players — same shape as the other two
+// market coeffects, against MarketService.offers() and its own state
+// path for the third (Offers) subtab.
+object FetchOffersCoeffect : Coeffect<List<PlayerOffer>>
+
+class FetchOffersCoeffectHandler(
+    private val marketService: MarketService
+) : CoeffectHandler<FetchOffersCoeffect, List<PlayerOffer>> {
+    override suspend fun extract(coeffect: FetchOffersCoeffect): List<PlayerOffer> =
+        when (val result = marketService.offers()) {
             is Response.Success -> result.body ?: emptyList()
             is Response.Error -> throw MarketFetchException(response = result)
         }
