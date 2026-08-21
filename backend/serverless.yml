@@ -58,6 +58,13 @@ functions:
           method: PUT
           path: /market/offers/{offerId}/accept
           private: true
+  unlistPlayer:
+    handler: src/index.unlistPlayer
+    events:
+      - http:
+          method: DELETE
+          path: /market/my-listings/{playerId}
+          private: true
   playerBids:
     handler: src/index.playerBids
     events:

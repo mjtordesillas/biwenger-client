@@ -103,6 +103,26 @@ export const createBiwengerClient = (dependencies = {}) => {
     if (!response.ok) throw new Error(`Biwenger accept offer failed: ${response.status}`)
   }
 
+  // Unlists one of the requester's own market listings. Verified against
+  // the live API on 2026-08-21 (captured from Biwenger's own web app via
+  // browser DevTools, then reproduced here); see docs/biwenger-api-notes.md
+  // § "My market listings — write (unlist)". Keyed on the player id via a
+  // query param, not a path segment or a separate sale id — a user can
+  // only have one active listing per player.
+  const unlistPlayerData = async ({ token, leagueId, userId, playerId }) => {
+    const response = await httpFetch(`${baseUrl}/market?player=${playerId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-League': String(leagueId),
+        'X-User': String(userId),
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+    })
+    if (!response.ok) throw new Error(`Biwenger unlist player failed: ${response.status}`)
+  }
+
   const getCatalogue = async () => {
     const response = await httpFetch(`${baseUrl}/competitions/la-liga/data?lang=es&score=5`, {
       headers: { Accept: 'application/json' },
@@ -264,6 +284,12 @@ export const createBiwengerClient = (dependencies = {}) => {
     const token = await login({ email, password })
     const { leagueId, userId } = await getAccount({ token })
     await acceptOfferData({ token, leagueId, userId, offerId })
+  }
+
+  const unlistPlayer = async ({ email, password, playerId }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    await unlistPlayerData({ token, leagueId, userId, playerId })
   }
 
   // My own outgoing bids on other managers' players — same `GET
@@ -433,6 +459,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     getOffersOnMyPlayers,
     rejectOffer,
     acceptOffer,
+    unlistPlayer,
     getMyBidsOnOtherPlayers,
     getLineup,
     saveLineup,

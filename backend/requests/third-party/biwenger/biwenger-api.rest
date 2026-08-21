@@ -77,6 +77,13 @@ Accept: application/json
   "status": "accepted"
 }
 
+### Unlist one of my own market listings — verified 2026-08-21; see docs/biwenger-api-notes.md
+DELETE {{baseUrl}}/market?player={{playerId}}
+Authorization: Bearer {{token}}
+X-League: {{leagueId}}
+X-User: {{userId}}
+Accept: application/json
+
 ### Player historical market value — see docs/biwenger-api-notes.md (trailing ~1 year, no auth)
 GET {{baseUrl}}/players/la-liga/{{playerId}}?fields=id,name,prices
 Accept: application/json

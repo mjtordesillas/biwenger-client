@@ -126,6 +126,23 @@ this is deliberately left unverified until there's a real offer worth
 actually accepting. Update this note with the real verification date
 once that happens.
 
+## My market listings — write (unlist)
+
+`DELETE https://biwenger.as.com/api/v2/market?player={playerId}`, same
+`Authorization`/`X-League`/`X-User`/`Accept` headers as the other writes,
+no request body. Captured live from Biwenger's own web app via browser
+DevTools and reproduced against the real API, verified empirically on
+2026-08-21 against a real listing (player `37817`). Keyed on the
+player's id via a query param — not a path segment, and not a separate
+sale id (the raw `sale` shape has no `id` of its own; a user can only
+have one active listing per player, so the player id alone is enough to
+address it).
+
+The captured browser request also carried `X-Lang: en` and `X-Version:
+631` headers, which no write here sends. Left out deliberately — every
+other write works without them — but worth checking first if unlisting
+ever starts failing in a way that looks like a missing-header rejection.
+
 ## Squad player status (owner lock, market listing, offers, fitness)
 
 Verified empirically (2026-08-18) against a real account/league, for
