@@ -123,6 +123,29 @@ export const createBiwengerClient = (dependencies = {}) => {
     if (!response.ok) throw new Error(`Biwenger unlist player failed: ${response.status}`)
   }
 
+  // Lists one of the requester's own squad players on the market.
+  // Verified against the live API on 2026-08-21 (captured from
+  // Biwenger's own web app via browser DevTools, then reproduced here);
+  // see docs/biwenger-api-notes.md § "My market listings — write
+  // (list)". The only reference-project hint (pablopb3/biwenger-api's
+  // SendPlayersToMarket) turned out wrong on both counts it guessed at
+  // — a different `type` value, and a hardcoded price that ignored the
+  // parameter it took in — so nothing from it carried over.
+  const listPlayerData = async ({ token, leagueId, userId, playerId, price }) => {
+    const response = await httpFetch(`${baseUrl}/market`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-League': String(leagueId),
+        'X-User': String(userId),
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ type: 'sell', player: playerId, price }),
+    })
+    if (!response.ok) throw new Error(`Biwenger list player failed: ${response.status}`)
+  }
+
   const getCatalogue = async () => {
     const response = await httpFetch(`${baseUrl}/competitions/la-liga/data?lang=es&score=5`, {
       headers: { Accept: 'application/json' },
@@ -290,6 +313,12 @@ export const createBiwengerClient = (dependencies = {}) => {
     const token = await login({ email, password })
     const { leagueId, userId } = await getAccount({ token })
     await unlistPlayerData({ token, leagueId, userId, playerId })
+  }
+
+  const listPlayer = async ({ email, password, playerId, price }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    await listPlayerData({ token, leagueId, userId, playerId, price })
   }
 
   // My own outgoing bids on other managers' players — same `GET
@@ -460,6 +489,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     rejectOffer,
     acceptOffer,
     unlistPlayer,
+    listPlayer,
     getMyBidsOnOtherPlayers,
     getLineup,
     saveLineup,

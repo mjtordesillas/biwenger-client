@@ -143,6 +143,24 @@ The captured browser request also carried `X-Lang: en` and `X-Version:
 other write works without them — but worth checking first if unlisting
 ever starts failing in a way that looks like a missing-header rejection.
 
+## My market listings — write (list)
+
+`POST https://biwenger.as.com/api/v2/market`, same
+`Authorization`/`X-League`/`X-User`/`Content-Type`/`Accept` headers as
+the other writes. Body: `{"type":"sell","player":<playerId>,"price":<price>}`.
+Captured live from Biwenger's own web app via browser DevTools and
+reproduced against the real API, verified empirically on 2026-08-21
+against a real listing (player `15396`, price `10250000` — whatever the
+real listing happened to ask; this app's own default of `35000000` is
+our choice, not Biwenger's).
+
+The only reference-project hint (pablopb3/biwenger-api's
+`SendPlayersToMarket`) turned out wrong on both things it guessed at: it
+used `"type":"team"` (the real value is `"sell"`), and it hardcoded the
+price to `"500"` while ignoring the `price` parameter it took in —
+another case of "not assumed correct, verified empirically" earning its
+keep.
+
 ## Squad player status (owner lock, market listing, offers, fitness)
 
 Verified empirically (2026-08-18) against a real account/league, for

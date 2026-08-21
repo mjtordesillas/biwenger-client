@@ -65,6 +65,13 @@ functions:
           method: DELETE
           path: /market/my-listings/{playerId}
           private: true
+  listPlayer:
+    handler: src/index.listPlayer
+    events:
+      - http:
+          method: POST
+          path: /market/my-listings/{playerId}
+          private: true
   playerBids:
     handler: src/index.playerBids
     events:

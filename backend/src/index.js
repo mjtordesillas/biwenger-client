@@ -5,6 +5,7 @@ import { createPlayerOffersApiHandler } from './player-offers-api-handler.js'
 import { createRejectPlayerOfferApiHandler } from './reject-player-offer-api-handler.js'
 import { createAcceptPlayerOfferApiHandler } from './accept-player-offer-api-handler.js'
 import { createUnlistPlayerApiHandler } from './unlist-player-api-handler.js'
+import { createListPlayerApiHandler } from './list-player-api-handler.js'
 import { createPlayerBidsApiHandler } from './player-bids-api-handler.js'
 import { createLineupApiHandler } from './lineup-api-handler.js'
 import { createSaveLineupApiHandler } from './save-lineup-api-handler.js'
@@ -21,6 +22,7 @@ export const playerOffers = createPlayerOffersApiHandler()
 export const rejectPlayerOffer = createRejectPlayerOfferApiHandler()
 export const acceptPlayerOffer = createAcceptPlayerOfferApiHandler()
 export const unlistPlayer = createUnlistPlayerApiHandler()
+export const listPlayer = createListPlayerApiHandler()
 export const playerBids = createPlayerBidsApiHandler()
 export const lineup = createLineupApiHandler()
 export const saveLineup = createSaveLineupApiHandler()
