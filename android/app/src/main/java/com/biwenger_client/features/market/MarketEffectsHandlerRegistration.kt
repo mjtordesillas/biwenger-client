@@ -5,6 +5,8 @@ import com.biwenger_client.features.market.domain.effects.AcceptOfferEffect
 import com.biwenger_client.features.market.domain.effects.AcceptOfferEffectHandler
 import com.biwenger_client.features.market.domain.effects.RejectOfferEffect
 import com.biwenger_client.features.market.domain.effects.RejectOfferEffectHandler
+import com.biwenger_client.features.market.domain.effects.UnlistPlayerEffect
+import com.biwenger_client.features.market.domain.effects.UnlistPlayerEffectHandler
 import com.biwenger_client.features.market.infrastructure.MarketService
 
 class MarketEffectsHandlerRegistration(
@@ -19,6 +21,10 @@ class MarketEffectsHandlerRegistration(
         registry.registerEffectHandler(
             effectClass = AcceptOfferEffect::class,
             handler = AcceptOfferEffectHandler(marketService = marketService, registry = registry)
+        )
+        registry.registerEffectHandler(
+            effectClass = UnlistPlayerEffect::class,
+            handler = UnlistPlayerEffectHandler(marketService = marketService, registry = registry)
         )
     }
 }

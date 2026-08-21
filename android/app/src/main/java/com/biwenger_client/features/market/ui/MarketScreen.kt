@@ -128,6 +128,7 @@ fun MarketScreen(
     val rejectingOffer by viewModel.rejectingOffer
     val offerToAccept by viewModel.offerToAccept
     val acceptingOffer by viewModel.acceptingOffer
+    val unlistingPlayerIds by viewModel.unlistingPlayerIds
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
@@ -144,6 +145,7 @@ fun MarketScreen(
         rejectingOffer = rejectingOffer,
         offerToAccept = offerToAccept,
         acceptingOffer = acceptingOffer,
+        unlistingPlayerIds = unlistingPlayerIds,
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
@@ -161,6 +163,7 @@ fun MarketScreen(
         onOfferAcceptanceOpened = viewModel::openOfferAcceptance,
         onOfferAcceptanceCancelled = viewModel::cancelOfferAcceptance,
         onOfferAccepted = viewModel::acceptOffer,
+        onUnlistTapped = viewModel::unlistPlayer,
     )
 }
 
@@ -174,6 +177,7 @@ private fun MarketScreen(
     rejectingOffer: Boolean,
     offerToAccept: PlayerOffer?,
     acceptingOffer: Boolean,
+    unlistingPlayerIds: Set<Int>,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
@@ -191,6 +195,7 @@ private fun MarketScreen(
     onOfferAcceptanceOpened: (PlayerOffer) -> Unit,
     onOfferAcceptanceCancelled: () -> Unit,
     onOfferAccepted: (PlayerOffer) -> Unit,
+    onUnlistTapped: (MarketListing) -> Unit,
 ) {
     val allListings = (players as? Loadable.Success)?.value.orEmpty()
     val allMyListings = (myListings as? Loadable.Success)?.value.orEmpty()
@@ -239,7 +244,9 @@ private fun MarketScreen(
                         MarketSubTab.MyListings -> MarketListingListForState(
                             listings = myListings,
                             emptyMessage = "Could not load your listings right now.",
-                            onPlayerTapped = onPlayerTapped
+                            onPlayerTapped = onPlayerTapped,
+                            onUnlistTapped = onUnlistTapped,
+                            unlistingPlayerIds = unlistingPlayerIds,
                         )
                         MarketSubTab.Offers -> PlayerOfferListForState(
                             offers = offers,
@@ -287,6 +294,8 @@ private fun BoxScope.MarketListingListForState(
     listings: Loadable<List<MarketListing>>,
     emptyMessage: String,
     onPlayerTapped: (Int) -> Unit,
+    onUnlistTapped: ((MarketListing) -> Unit)? = null,
+    unlistingPlayerIds: Set<Int> = emptySet(),
 ) {
     when (listings) {
         is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -296,7 +305,9 @@ private fun BoxScope.MarketListingListForState(
         )
         is Loadable.Success -> MarketListingList(
             listings = listings.value.sortedWith(MarketListingOrder),
-            onPlayerTapped = onPlayerTapped
+            onPlayerTapped = onPlayerTapped,
+            onUnlistTapped = onUnlistTapped,
+            unlistingPlayerIds = unlistingPlayerIds,
         )
     }
 }
@@ -419,35 +430,66 @@ private fun MarketSubTabButton(
 }
 
 @Composable
-private fun MarketListingList(listings: List<MarketListing>, onPlayerTapped: (Int) -> Unit) {
+private fun MarketListingList(
+    listings: List<MarketListing>,
+    onPlayerTapped: (Int) -> Unit,
+    onUnlistTapped: ((MarketListing) -> Unit)? = null,
+    unlistingPlayerIds: Set<Int> = emptySet(),
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(listings) { listing -> MarketListingRow(listing = listing, onClick = { onPlayerTapped(listing.id) }) }
+        items(listings) { listing ->
+            MarketListingRow(
+                listing = listing,
+                onClick = { onPlayerTapped(listing.id) },
+                onUnlist = onUnlistTapped?.let { { it(listing) } },
+                unlisting = listing.id in unlistingPlayerIds,
+            )
+        }
     }
 }
 
+// Only the My Listings tab passes onUnlist (Current Market shows other
+// managers'/free-agent listings, which can't be unlisted) — the same
+// Box + overlay pattern PlayerOfferRow uses, so the button can sit
+// bottom-end without disturbing the header/content/footer Column.
 @Composable
-private fun MarketListingRow(listing: MarketListing, onClick: () -> Unit) {
-    Column(
+private fun MarketListingRow(
+    listing: MarketListing,
+    onClick: () -> Unit,
+    onUnlist: (() -> Unit)? = null,
+    unlisting: Boolean = false,
+) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(NocturneRadius.md))
             .background(ColorSurface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        // Listing metadata (who's selling, how long it's live) — not
-        // about the player itself, hence its own row above the content.
-        MarketListingHeader(listing = listing)
-        // The player being sold and the asking price against its trend —
-        // the card's headline fact.
-        MarketListingContent(listing = listing)
-        // Supporting context (catalogue value + its own increment) that
-        // qualifies the content above rather than being the headline.
-        MarketListingFooter(listing = listing)
+        Column(modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp)) {
+            // Listing metadata (who's selling, how long it's live) — not
+            // about the player itself, hence its own row above the content.
+            MarketListingHeader(listing = listing)
+            // The player being sold and the asking price against its trend —
+            // the card's headline fact.
+            MarketListingContent(listing = listing)
+            // Supporting context (catalogue value + its own increment) that
+            // qualifies the content above rather than being the headline.
+            MarketListingFooter(listing = listing)
+        }
+        if (onUnlist != null) {
+            PlayerOfferActionButton(
+                icon = Icons.Default.Close,
+                tint = TrendDown,
+                contentDescription = "Unlist ${listing.name}",
+                onClick = onUnlist,
+                loading = unlisting,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(NocturneRadius.md),
+            )
+        }
     }
 }
 
@@ -620,16 +662,25 @@ private fun PlayerOfferActionButton(
     tint: Color,
     contentDescription: String,
     onClick: () -> Unit,
+    loading: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .size(24.dp)
             .clip(CircleShape)
             .background(tint.copy(alpha = 0.24f))
-            .clickable(onClick = onClick),
+            .clickable(enabled = !loading, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(14.dp))
+        // No-dialog actions (unlist) swap the glyph for a spinner on this
+        // same button while in flight, instead of a confirmation popup —
+        // dialog-gated actions (reject/accept) never pass loading = true.
+        if (loading) {
+            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = tint)
+        } else {
+            Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(14.dp))
+        }
     }
 }
 

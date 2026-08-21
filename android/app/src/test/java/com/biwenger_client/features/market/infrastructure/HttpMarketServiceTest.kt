@@ -236,6 +236,21 @@ class HttpMarketServiceTest {
     }
 
     @Test
+    fun `unlistPlayer DELETEs the my-listings endpoint, no body`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"status":200}"""))
+
+            val result = service.unlistPlayer(37817)
+
+            assertThat(result).isInstanceOf(Response.Success::class.java)
+            val request = server.takeRequest()
+            assertThat(request.method).isEqualTo("DELETE")
+            assertThat(request.path).isEqualTo("/market/my-listings/37817")
+            assertThat(request.body.size).isEqualTo(0)
+        }
+    }
+
+    @Test
     fun `bids parses the wrapped players array, including the bid-specific fields`() {
         runBlocking {
             server.enqueue(

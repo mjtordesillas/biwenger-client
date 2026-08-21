@@ -27,6 +27,8 @@ private data class RejectOfferResponseBody(val status: Int)
 // see backend's accept-player-offer-api-handler.js.
 private data class AcceptOfferRequest(val status: String = "accepted")
 private data class AcceptOfferResponseBody(val status: Int)
+// DELETE has no request body — see backend's unlist-player-api-handler.js.
+private data class UnlistPlayerResponseBody(val status: Int)
 
 class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
     private val httpClient: HttpClient = RetrofitHttpClient(baseUrl = baseUrl, apiKey = apiKey)
@@ -63,6 +65,12 @@ class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
 
     override suspend fun acceptOffer(offerId: Long): Response<Unit> =
         when (httpClient.put("market/offers/$offerId/accept", AcceptOfferRequest(), object : TypeToken<AcceptOfferResponseBody>() {})) {
+            is Response.Success -> Response.Success(Unit)
+            is Response.Error -> Response.Error(502, "upstream_error")
+        }
+
+    override suspend fun unlistPlayer(playerId: Int): Response<Unit> =
+        when (httpClient.delete("market/my-listings/$playerId", object : TypeToken<UnlistPlayerResponseBody>() {})) {
             is Response.Success -> Response.Success(Unit)
             is Response.Error -> Response.Error(502, "upstream_error")
         }
