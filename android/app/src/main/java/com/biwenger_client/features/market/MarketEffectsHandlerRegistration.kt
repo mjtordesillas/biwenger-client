@@ -1,0 +1,18 @@
+package com.biwenger_client.features.market
+
+import com.biwenger_client.core.mvi.Registry
+import com.biwenger_client.features.market.domain.effects.RejectOfferEffect
+import com.biwenger_client.features.market.domain.effects.RejectOfferEffectHandler
+import com.biwenger_client.features.market.infrastructure.MarketService
+
+class MarketEffectsHandlerRegistration(
+    private val registry: Registry,
+    private val marketService: MarketService,
+) {
+    fun register() {
+        registry.registerEffectHandler(
+            effectClass = RejectOfferEffect::class,
+            handler = RejectOfferEffectHandler(marketService = marketService, registry = registry)
+        )
+    }
+}

@@ -109,6 +109,16 @@ real API before trusting it).
   not part of "view the market", closer to a negotiation/recommendations
   feature.
 
+## Incoming offers — write
+
+`PUT https://biwenger.as.com/api/v2/offers/{offerId}` with the same
+`Authorization`, `X-League`, and `X-User` headers as `GET /market`, plus
+`Content-Type: application/json`. Body: `{"status":"rejected"}`.
+Verified empirically on 2026-08-21 against a real incoming offer
+(Moncayola, offer `3822815314`): the API returned 200 with
+`data.status: "rejected"`, and a follow-up `GET /market` no longer
+contained that offer. The offer id is the `id` from `data.offers[]`.
+
 ## Squad player status (owner lock, market listing, offers, fitness)
 
 Verified empirically (2026-08-18) against a real account/league, for

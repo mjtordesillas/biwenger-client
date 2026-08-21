@@ -92,8 +92,9 @@ object AppModule {
         database: Database,
         navigator: Navigator,
         lineupService: LineupService,
+        marketService: MarketService,
     ): EffectsHandlerRegistration {
-        return EffectsHandlerRegistration(registry = registry, database = database, navigator = navigator, lineupService = lineupService)
+        return EffectsHandlerRegistration(registry = registry, database = database, navigator = navigator, lineupService = lineupService, marketService = marketService)
     }
 
     @Provides

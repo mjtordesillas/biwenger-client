@@ -21,6 +21,8 @@ private data class PlayerOffersResponseBody(val players: List<PlayerOffer>)
 // Same wrapper key, different element type again — see biwenger-client's
 // src/player-bids-api-handler.js.
 private data class PlayerBidsResponseBody(val players: List<PlayerBid>)
+private data class RejectOfferRequest(val status: String = "rejected")
+private data class RejectOfferResponseBody(val status: Int)
 
 class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
     private val httpClient: HttpClient = RetrofitHttpClient(baseUrl = baseUrl, apiKey = apiKey)
@@ -47,5 +49,11 @@ class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
         when (val result = httpClient.get("market/my-bids", object : TypeToken<PlayerBidsResponseBody>() {})) {
             is Response.Success -> Response.Success(result.body?.players ?: emptyList())
             is Response.Error -> result
+        }
+
+    override suspend fun rejectOffer(offerId: Long): Response<Unit> =
+        when (httpClient.put("market/offers/$offerId", RejectOfferRequest(), object : TypeToken<RejectOfferResponseBody>() {})) {
+            is Response.Success -> Response.Success(Unit)
+            is Response.Error -> Response.Error(502, "upstream_error")
         }
 }

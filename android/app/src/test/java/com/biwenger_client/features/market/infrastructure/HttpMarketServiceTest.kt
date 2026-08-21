@@ -158,7 +158,7 @@ class HttpMarketServiceTest {
             server.enqueue(
                 MockResponse().setBody(
                     """{"players":[{
-                        "id":1,"name":"Brugué","position":4,"secondaryPosition":null,
+                        "offerId":99,"id":1,"name":"Brugué","position":4,"secondaryPosition":null,
                         "price":280000,"priceIncrement":10000,"points":5,
                         "photoUrl":"https://cdn.biwenger.com/i/p/1.png",
                         "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png",
@@ -174,6 +174,7 @@ class HttpMarketServiceTest {
             assertThat(offers).hasSize(1)
             val offer = offers?.first()
             assertThat(offer?.name).isEqualTo("Brugué")
+            assertThat(offer?.offerId).isEqualTo(99)
             assertThat(offer?.price).isEqualTo(280000)
             assertThat(offer?.amount).isEqualTo(300000)
             assertThat(offer?.bidder).isNull()
@@ -201,6 +202,21 @@ class HttpMarketServiceTest {
 
             assertThat(result).isInstanceOf(Response.Error::class.java)
             assertThat((result as Response.Error).code).isEqualTo(403)
+        }
+    }
+
+    @Test
+    fun `rejectOffer PUTs rejected status to the offer endpoint`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"status":200}"""))
+
+            val result = service.rejectOffer(3822815314)
+
+            assertThat(result).isInstanceOf(Response.Success::class.java)
+            val request = server.takeRequest()
+            assertThat(request.method).isEqualTo("PUT")
+            assertThat(request.path).isEqualTo("/market/offers/3822815314")
+            assertThat(request.body.readUtf8()).isEqualTo("""{"status":"rejected"}""")
         }
     }
 

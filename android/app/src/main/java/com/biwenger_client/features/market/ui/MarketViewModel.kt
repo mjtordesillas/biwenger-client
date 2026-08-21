@@ -15,6 +15,8 @@ import com.biwenger_client.features.market.domain.coeffects.FetchMarketCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListingsCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchBidsCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchOffersCoeffect
+import com.biwenger_client.features.market.domain.effects.OFFER_REJECTION_FINISHED_EVENT
+import com.biwenger_client.features.market.domain.effects.RejectOfferEffect
 import com.biwenger_client.features.market.domain.models.MarketListing
 import com.biwenger_client.features.market.domain.models.PlayerBid
 import com.biwenger_client.features.market.domain.models.PlayerOffer
@@ -60,6 +62,12 @@ class MarketViewModel @Inject constructor(
     private val _bids = mutableStateOf<Loadable<List<PlayerBid>>>(Loadable.Loading)
     val bids: State<Loadable<List<PlayerBid>>> = _bids
 
+    private val _offerToReject = mutableStateOf<PlayerOffer?>(null)
+    val offerToReject: State<PlayerOffer?> = _offerToReject
+
+    private val _rejectingOffer = mutableStateOf(false)
+    val rejectingOffer: State<Boolean> = _rejectingOffer
+
     private val _selectedPlayerId = mutableStateOf<Int?>(null)
     val selectedPlayerId: State<Int?> = _selectedPlayerId
 
@@ -91,6 +99,8 @@ class MarketViewModel @Inject constructor(
         store.subscribe<Loadable<List<PlayerBid>>?>(path = "market.bids") {
             it?.let { v -> _bids.value = v }
         }
+        store.subscribe<PlayerOffer?>(path = "market.offerToReject") { _offerToReject.value = it }
+        store.subscribe<Boolean?>(path = "market.rejectingOffer") { it?.let { v -> _rejectingOffer.value = v } }
         store.subscribe<Int?>(path = "market.selectedPlayerId") { _selectedPlayerId.value = it }
         store.subscribe<Loadable<PriceHistory>?>(path = "market.priceHistory") { _priceHistory.value = it }
         store.subscribe<Loadable<PerformanceHistory>?>(path = "market.performanceHistory") { _performanceHistory.value = it }
@@ -129,6 +139,14 @@ class MarketViewModel @Inject constructor(
             handler = ::handleMatchDayDetailsRequested
         )
         store.registerEventHandler(name = MATCH_DAY_DETAILS_CLOSED_EVENT, handler = ::handleMatchDayDetailsClosed)
+        store.registerEventHandler(name = OFFER_REJECTION_OPENED_EVENT, handler = ::handleOfferRejectionOpened)
+        store.registerEventHandler(name = OFFER_REJECTION_CANCELLED_EVENT, handler = ::handleOfferRejectionCancelled)
+        store.registerEventHandler(name = OFFER_REJECTION_REQUESTED_EVENT, handler = ::handleOfferRejectionRequested)
+        store.registerEventHandler(
+            name = OFFER_REJECTION_FINISHED_EVENT,
+            coeffects = listOf(offersCoeffect),
+            handler = ::handleOfferRejectionFinished
+        )
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -144,6 +162,10 @@ class MarketViewModel @Inject constructor(
         store.removeEventHandler(name = MATCH_DAY_TAPPED_EVENT, handler = ::handleMatchDayTapped)
         store.removeEventHandler(name = MATCH_DAY_DETAILS_REQUESTED_EVENT, handler = ::handleMatchDayDetailsRequested)
         store.removeEventHandler(name = MATCH_DAY_DETAILS_CLOSED_EVENT, handler = ::handleMatchDayDetailsClosed)
+        store.removeEventHandler(name = OFFER_REJECTION_OPENED_EVENT, handler = ::handleOfferRejectionOpened)
+        store.removeEventHandler(name = OFFER_REJECTION_CANCELLED_EVENT, handler = ::handleOfferRejectionCancelled)
+        store.removeEventHandler(name = OFFER_REJECTION_REQUESTED_EVENT, handler = ::handleOfferRejectionRequested)
+        store.removeEventHandler(name = OFFER_REJECTION_FINISHED_EVENT, handler = ::handleOfferRejectionFinished)
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -233,6 +255,27 @@ class MarketViewModel @Inject constructor(
             UpdateState(path = "market.matchDayDetails", value = null),
         )
 
+    fun handleOfferRejectionOpened(event: Event<PlayerOffer>): List<Effect> =
+        listOf(UpdateState(path = "market.offerToReject", value = requireNotNull(event.payload)))
+
+    fun handleOfferRejectionCancelled(event: Event<Unit>): List<Effect> =
+        listOf(UpdateState(path = "market.offerToReject", value = null))
+
+    fun handleOfferRejectionRequested(event: Event<PlayerOffer>): List<Effect> {
+        val offer = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "market.rejectingOffer", value = true),
+            RejectOfferEffect(offerId = offer.offerId),
+        )
+    }
+
+    fun handleOfferRejectionFinished(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
+        listOf(
+            UpdateState(path = "market.offerToReject", value = null),
+            UpdateState(path = "market.rejectingOffer", value = false),
+            UpdateState(path = "market.offers", value = coeffects.load(coeffect = offersCoeffect)),
+        )
+
     fun playerTapped(playerId: Int) =
         store.dispatch(event = event(name = PLAYER_TAPPED_EVENT, payload = playerId))
 
@@ -258,6 +301,15 @@ class MarketViewModel @Inject constructor(
     fun matchDayDetailsClosed() =
         store.dispatch(event = event(name = MATCH_DAY_DETAILS_CLOSED_EVENT))
 
+    fun openOfferRejection(offer: PlayerOffer) =
+        store.dispatch(event = event(name = OFFER_REJECTION_OPENED_EVENT, payload = offer))
+
+    fun cancelOfferRejection() =
+        store.dispatch(event = event(name = OFFER_REJECTION_CANCELLED_EVENT))
+
+    fun rejectOffer(offer: PlayerOffer) =
+        store.dispatch(event = event(name = OFFER_REJECTION_REQUESTED_EVENT, payload = offer))
+
     companion object {
         const val ON_LOAD_EVENT = "market.on-load"
         const val PLAYER_TAPPED_EVENT = "market.player-tapped"
@@ -268,5 +320,8 @@ class MarketViewModel @Inject constructor(
         const val MATCH_DAY_TAPPED_EVENT = "market.match-day-tapped"
         const val MATCH_DAY_DETAILS_REQUESTED_EVENT = "market.match-day-details-requested"
         const val MATCH_DAY_DETAILS_CLOSED_EVENT = "market.match-day-details-closed"
+        const val OFFER_REJECTION_OPENED_EVENT = "market.offer-rejection-opened"
+        const val OFFER_REJECTION_CANCELLED_EVENT = "market.offer-rejection-cancelled"
+        const val OFFER_REJECTION_REQUESTED_EVENT = "market.offer-rejection-requested"
     }
 }

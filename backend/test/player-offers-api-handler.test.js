@@ -10,7 +10,7 @@ test('returns a 200 JSON body with the offers on my players, shaped via toPlayer
   const handler = createPlayerOffersApiHandler({
     biwengerClient: fakeBiwengerClient([
       {
-        offer: { amount: 300000, until: 1787115600, from: null, to: { id: 42 }, requestedPlayers: [1], status: 'waiting', type: 'purchase' },
+        offer: { id: 99, amount: 300000, until: 1787115600, from: null, to: { id: 42 }, requestedPlayers: [1], status: 'waiting', type: 'purchase' },
         player: { id: 1, name: 'Brugué', teamID: 87, position: 4, price: 280000, priceIncrement: 10000, points: 5 },
       },
     ]),
@@ -23,6 +23,7 @@ test('returns a 200 JSON body with the offers on my players, shaped via toPlayer
   assert.equal(response.headers['Content-Type'], 'application/json; charset=utf-8')
   assert.deepEqual(JSON.parse(response.body), {
     players: [{
+      offerId: 99,
       id: 1,
       name: 'Brugué',
       position: 4,

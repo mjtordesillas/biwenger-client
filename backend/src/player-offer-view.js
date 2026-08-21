@@ -8,6 +8,7 @@ import { toPlayerView } from './player-view.js'
 // toPlayerView's `price` already is the one number that matters here,
 // next to `amount`.
 export const toPlayerOfferView = ({ offer, player }) => ({
+  offerId: offer.id,
   ...toPlayerView(player),
   amount: offer.amount,
   until: offer.until,

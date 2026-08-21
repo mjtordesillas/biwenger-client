@@ -65,6 +65,23 @@ export const createBiwengerClient = (dependencies = {}) => {
     return data
   }
 
+  // Rejects a received purchase offer. Verified against the live API on
+  // 2026-08-21; see docs/biwenger-api-notes.md § "Incoming offers — write".
+  const rejectOfferData = async ({ token, leagueId, userId, offerId }) => {
+    const response = await httpFetch(`${baseUrl}/offers/${offerId}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-League': String(leagueId),
+        'X-User': String(userId),
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ status: 'rejected' }),
+    })
+    if (!response.ok) throw new Error(`Biwenger reject offer failed: ${response.status}`)
+  }
+
   const getCatalogue = async () => {
     const response = await httpFetch(`${baseUrl}/competitions/la-liga/data?lang=es&score=5`, {
       headers: { Accept: 'application/json' },
@@ -214,6 +231,12 @@ export const createBiwengerClient = (dependencies = {}) => {
           })
           .filter(Boolean)
       )
+  }
+
+  const rejectOffer = async ({ email, password, offerId }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    await rejectOfferData({ token, leagueId, userId, offerId })
   }
 
   // My own outgoing bids on other managers' players — same `GET
@@ -381,6 +404,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     getCurrentMarket,
     getMyMarketListings,
     getOffersOnMyPlayers,
+    rejectOffer,
     getMyBidsOnOtherPlayers,
     getLineup,
     saveLineup,

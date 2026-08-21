@@ -3,6 +3,7 @@ package com.biwenger_client.helpers.builders
 import com.biwenger_client.features.market.domain.models.PlayerOffer
 
 fun aPlayerOffer(
+    offerId: Long = 10,
     id: Int = 1,
     name: String = "Brugué",
     position: Int = 4,
@@ -16,6 +17,7 @@ fun aPlayerOffer(
     until: Long = 1787115600,
     bidder: String? = null,
 ) = PlayerOffer(
+    offerId = offerId,
     id = id,
     name = name,
     position = position,

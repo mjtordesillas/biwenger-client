@@ -11,6 +11,7 @@ import com.biwenger_client.domain.models.Player
 // src/player-offer-view.js: `null` in every sample observed so far).
 // Field names match that response shape.
 data class PlayerOffer(
+    val offerId: Long,
     val id: Int,
     val name: String,
     val position: Int,

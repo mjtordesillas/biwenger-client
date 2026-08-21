@@ -16,16 +16,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Gavel
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -108,6 +114,8 @@ fun MarketScreen(
     val myListings by viewModel.myListings
     val offers by viewModel.offers
     val bids by viewModel.bids
+    val offerToReject by viewModel.offerToReject
+    val rejectingOffer by viewModel.rejectingOffer
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
@@ -120,6 +128,8 @@ fun MarketScreen(
         myListings = myListings,
         offers = offers,
         bids = bids,
+        offerToReject = offerToReject,
+        rejectingOffer = rejectingOffer,
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
@@ -131,6 +141,9 @@ fun MarketScreen(
         onSheetDismissed = viewModel::sheetClosed,
         onMatchDayTapped = viewModel::matchDayTapped,
         onMatchDayDetailsDismissed = viewModel::matchDayDetailsClosed,
+        onOfferRejectionOpened = viewModel::openOfferRejection,
+        onOfferRejectionCancelled = viewModel::cancelOfferRejection,
+        onOfferRejected = viewModel::rejectOffer,
     )
 }
 
@@ -140,6 +153,8 @@ private fun MarketScreen(
     myListings: Loadable<List<MarketListing>>,
     offers: Loadable<List<PlayerOffer>>,
     bids: Loadable<List<PlayerBid>>,
+    offerToReject: PlayerOffer?,
+    rejectingOffer: Boolean,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
@@ -151,6 +166,9 @@ private fun MarketScreen(
     onSheetDismissed: () -> Unit,
     onMatchDayTapped: (Int, Int, String) -> Unit,
     onMatchDayDetailsDismissed: () -> Unit,
+    onOfferRejectionOpened: (PlayerOffer) -> Unit,
+    onOfferRejectionCancelled: () -> Unit,
+    onOfferRejected: (PlayerOffer) -> Unit,
 ) {
     val allListings = (players as? Loadable.Success)?.value.orEmpty()
     val allMyListings = (myListings as? Loadable.Success)?.value.orEmpty()
@@ -185,6 +203,7 @@ private fun MarketScreen(
         // same reasoning as SquadScreen's selectedSubTab.
         var selectedSubTab by remember { mutableStateOf(MarketSubTab.CurrentMarket) }
 
+        Box(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize()) {
             MarketSubTabRow(selected = selectedSubTab, onSelect = { selectedSubTab = it })
 
@@ -203,7 +222,8 @@ private fun MarketScreen(
                     MarketSubTab.Offers -> PlayerOfferListForState(
                         offers = offers,
                         emptyMessage = "Could not load your offers right now.",
-                        onPlayerTapped = onPlayerTapped
+                        onPlayerTapped = onPlayerTapped,
+                        onRejectTapped = onOfferRejectionOpened,
                     )
                     MarketSubTab.Bids -> PlayerBidListForState(
                         bids = bids,
@@ -212,6 +232,15 @@ private fun MarketScreen(
                     )
                 }
             }
+        }
+        offerToReject?.let { offer ->
+            RejectOfferDialog(
+                offer = offer,
+                rejecting = rejectingOffer,
+                onCancel = onOfferRejectionCancelled,
+                onReject = { onOfferRejected(offer) },
+            )
+        }
         }
     }
 }
@@ -240,6 +269,7 @@ private fun BoxScope.PlayerOfferListForState(
     offers: Loadable<List<PlayerOffer>>,
     emptyMessage: String,
     onPlayerTapped: (Int) -> Unit,
+    onRejectTapped: (PlayerOffer) -> Unit,
 ) {
     when (offers) {
         is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -249,7 +279,8 @@ private fun BoxScope.PlayerOfferListForState(
         )
         is Loadable.Success -> PlayerOfferList(
             offers = offers.value.sortedWith(PlayerOfferOrder),
-            onPlayerTapped = onPlayerTapped
+            onPlayerTapped = onPlayerTapped,
+            onRejectTapped = onRejectTapped,
         )
     }
 }
@@ -478,13 +509,23 @@ private fun MarketListingFooter(listing: MarketListing) {
 private fun sellerLabel(seller: String?): String = seller ?: "Free agent"
 
 @Composable
-private fun PlayerOfferList(offers: List<PlayerOffer>, onPlayerTapped: (Int) -> Unit) {
+private fun PlayerOfferList(
+    offers: List<PlayerOffer>,
+    onPlayerTapped: (Int) -> Unit,
+    onRejectTapped: (PlayerOffer) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(offers) { offer -> PlayerOfferRow(offer = offer, onClick = { onPlayerTapped(offer.id) }) }
+        items(offers) { offer ->
+            PlayerOfferRow(
+                offer = offer,
+                onClick = { onPlayerTapped(offer.id) },
+                onReject = { onRejectTapped(offer) },
+            )
+        }
     }
 }
 
@@ -492,19 +533,79 @@ private fun PlayerOfferList(offers: List<PlayerOffer>, onPlayerTapped: (Int) -> 
 // that differ for an offer: no expiry (an offer doesn't have one, unlike
 // a listing), amount instead of an asking price.
 @Composable
-private fun PlayerOfferRow(offer: PlayerOffer, onClick: () -> Unit) {
-    Column(
+private fun PlayerOfferRow(offer: PlayerOffer, onClick: () -> Unit, onReject: () -> Unit) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(NocturneRadius.md))
             .background(ColorSurface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        PlayerOfferHeader(offer = offer)
-        PlayerOfferContent(offer = offer)
-        PlayerOfferFooter(offer = offer)
+        Column(modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp)) {
+            PlayerOfferHeader(offer = offer)
+            PlayerOfferContent(offer = offer)
+            PlayerOfferFooter(offer = offer)
+        }
+        IconButton(
+            onClick = onReject,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(6.dp)
+                .size(32.dp)
+                .background(MaterialTheme.colorScheme.error, CircleShape)
+        ) {
+            Icon(Icons.Default.Close, contentDescription = "Reject ${offer.name}", tint = MaterialTheme.colorScheme.onError)
+        }
     }
+}
+
+@Composable
+private fun RejectOfferDialog(
+    offer: PlayerOffer,
+    rejecting: Boolean,
+    onCancel: () -> Unit,
+    onReject: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { if (!rejecting) onCancel() },
+        title = { Text("Reject offer?") },
+        text = {
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PlayerAvatarWithPoints(
+                        photoUrl = offer.photoUrl,
+                        teamCrestUrl = offer.teamCrestUrl,
+                        contentDescription = offer.name,
+                        points = offer.points,
+                    )
+                    Text(offer.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 12.dp))
+                }
+                Text("Market value: ${formatPrice(offer.price)}", modifier = Modifier.padding(top = 16.dp))
+                Text("Offer: ${formatPrice(offer.amount)}", modifier = Modifier.padding(top = 8.dp))
+                val (icon, color) = priceTrend(offer.amount - offer.price)
+                Text(
+                    "$icon ${formatPriceChange(offer.amount - offer.price)}",
+                    color = color,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel, enabled = !rejecting) { Text("Cancel", color = Neutral500) }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onReject,
+                enabled = !rejecting,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) {
+                if (rejecting) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Reject")
+                }
+            }
+        },
+    )
 }
 
 @Composable

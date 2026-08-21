@@ -53,6 +53,18 @@ X-League: {{leagueId}}
 X-User: {{userId}}
 Accept: application/json
 
+### Reject an incoming offer — verified 2026-08-21; see docs/biwenger-api-notes.md
+PUT {{baseUrl}}/offers/{{offerId}}
+Authorization: Bearer {{token}}
+X-League: {{leagueId}}
+X-User: {{userId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "status": "rejected"
+}
+
 ### Player historical market value — see docs/biwenger-api-notes.md (trailing ~1 year, no auth)
 GET {{baseUrl}}/players/la-liga/{{playerId}}?fields=id,name,prices
 Accept: application/json

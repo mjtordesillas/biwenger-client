@@ -11,12 +11,15 @@ import com.biwenger_client.core.state.UpdateState
 import com.biwenger_client.core.state.UpdateStateHandler
 import com.biwenger_client.features.lineup.LineupEffectsHandlerRegistration
 import com.biwenger_client.features.lineup.infrastructure.LineupService
+import com.biwenger_client.features.market.MarketEffectsHandlerRegistration
+import com.biwenger_client.features.market.infrastructure.MarketService
 
 class EffectsHandlerRegistration(
     private val registry: Registry,
     private val database: Database,
     private val navigator: Navigator,
     private val lineupService: LineupService,
+    private val marketService: MarketService,
 ) {
     fun register() {
         registry.registerEffectHandler(
@@ -35,5 +38,6 @@ class EffectsHandlerRegistration(
             registry = registry,
             lineupService = lineupService,
         ).register()
+        MarketEffectsHandlerRegistration(registry = registry, marketService = marketService).register()
     }
 }
