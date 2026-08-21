@@ -77,11 +77,13 @@ val MarketListingOrder =
         .thenByDescending { it.position }
         .thenByDescending { it.marketValue }
 
-// Highest offer first — the most actionable one (best to accept) leads;
-// no expiry to sort by here, unlike listings.
+// Same reasoning as MarketListingOrder: expiry ascending first (soonest
+// to lapse is most actionable), then position and offer amount both
+// descending.
 val PlayerOfferOrder =
-    compareByDescending<PlayerOffer> { it.amount }
+    compareBy<PlayerOffer> { it.until }
         .thenByDescending { it.position }
+        .thenByDescending { it.amount }
 
 // Slice 1 shipped list-only (name/position/price); this fills in the
 // three fields deferred then — expiry, seller, and market value — since
@@ -460,14 +462,34 @@ private fun PlayerOfferRow(offer: PlayerOffer, onClick: () -> Unit) {
 
 @Composable
 private fun PlayerOfferHeader(offer: PlayerOffer) {
-    Text(
-        text = bidderLabel(offer.bidder),
-        fontSize = 13.sp,
-        color = Neutral500,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.fillMaxWidth()
-    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "From: ${bidderLabel(offer.bidder)}",
+            fontSize = 13.sp,
+            color = Neutral500,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            // Same "Expires <relative time>" shape as MarketListingHeader.
+            text = buildAnnotatedString {
+                append("Expires ")
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                    append(formatRelativeTime(offer.until))
+                }
+            },
+            fontSize = 13.sp,
+            color = Neutral500,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = 8.dp)
+        )
+    }
 }
 
 @Composable
@@ -515,4 +537,4 @@ private fun PlayerOfferFooter(offer: PlayerOffer) {
     }
 }
 
-private fun bidderLabel(bidder: String?): String = bidder ?: "Unknown bidder"
+private fun bidderLabel(bidder: String?): String = bidder ?: "the Market"

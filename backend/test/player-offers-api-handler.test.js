@@ -10,7 +10,7 @@ test('returns a 200 JSON body with the offers on my players, shaped via toPlayer
   const handler = createPlayerOffersApiHandler({
     biwengerClient: fakeBiwengerClient([
       {
-        offer: { amount: 300000, from: null, to: { id: 42 }, requestedPlayers: [1], status: 'waiting', type: 'purchase' },
+        offer: { amount: 300000, until: 1787115600, from: null, to: { id: 42 }, requestedPlayers: [1], status: 'waiting', type: 'purchase' },
         player: { id: 1, name: 'Brugué', teamID: 87, position: 4, price: 280000, priceIncrement: 10000, points: 5 },
       },
     ]),
@@ -33,6 +33,7 @@ test('returns a 200 JSON body with the offers on my players, shaped via toPlayer
       photoUrl: 'https://cdn.biwenger.com/i/p/1.png',
       teamCrestUrl: 'https://cdn.biwenger.com/i/t/87.png',
       amount: 300000,
+      until: 1787115600,
       bidder: null,
     }],
   })

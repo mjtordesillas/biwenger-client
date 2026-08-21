@@ -5,8 +5,9 @@ import com.biwenger_client.domain.models.Player
 // A standing offer on one of my squad players. Unlike MarketListing,
 // there's no separate asking-price/market-value split here — `price` is
 // just the catalogue's own value, same field the shared Player model
-// carries, next to `amount` (what's being offered) and `bidder` (who's
-// offering, when identifiable — see biwenger-client's
+// carries, next to `amount` (what's being offered), `until` (when the
+// offer expires, unix seconds — same shape as a listing's `until`), and
+// `bidder` (who's offering, when identifiable — see biwenger-client's
 // src/player-offer-view.js: `null` in every sample observed so far).
 // Field names match that response shape.
 data class PlayerOffer(
@@ -20,6 +21,7 @@ data class PlayerOffer(
     val photoUrl: String,
     val teamCrestUrl: String,
     val amount: Long,
+    val until: Long,
     val bidder: String?,
 ) {
     // For reusing the shared player-detail sheet (price/performance

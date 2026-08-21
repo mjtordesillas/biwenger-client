@@ -162,7 +162,7 @@ class HttpMarketServiceTest {
                         "price":280000,"priceIncrement":10000,"points":5,
                         "photoUrl":"https://cdn.biwenger.com/i/p/1.png",
                         "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png",
-                        "amount":300000,"bidder":null
+                        "amount":300000,"until":1787115600,"bidder":null
                     }]}"""
                 )
             )

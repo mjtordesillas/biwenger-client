@@ -13,6 +13,7 @@ fun aPlayerOffer(
     photoUrl: String = "https://cdn.biwenger.com/i/p/$id.png",
     teamCrestUrl: String = "https://cdn.biwenger.com/i/t/1.png",
     amount: Long = 300000,
+    until: Long = 1787115600,
     bidder: String? = null,
 ) = PlayerOffer(
     id = id,
@@ -25,5 +26,6 @@ fun aPlayerOffer(
     photoUrl = photoUrl,
     teamCrestUrl = teamCrestUrl,
     amount = amount,
+    until = until,
     bidder = bidder,
 )

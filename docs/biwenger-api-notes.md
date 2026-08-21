@@ -136,7 +136,8 @@ Verified empirically (2026-08-18) against a real account/league, for
   relevant here): each entry has `requestedPlayers: [playerId, ...]`,
   `to: {id, name, icon}` (whoever's receiving the offer), `from` (`null`
   in every sample seen — the offering party wasn't identifiable from
-  this field), `amount`, `status` (`"waiting"` in every sample), `type:
+  this field), `amount`, `created`/`until` (unix seconds, same shape as a
+  sale's `date`/`until`), `status` (`"waiting"` in every sample), `type:
   "purchase"`. An offer on one of my players has `to.id` equal to my own
   user id and my player's id in `requestedPlayers`.
 - **Fitness status** — the catalogue endpoint's per-player `status` field
