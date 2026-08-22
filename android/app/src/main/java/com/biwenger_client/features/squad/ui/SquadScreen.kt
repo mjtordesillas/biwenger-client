@@ -25,9 +25,11 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -105,9 +107,11 @@ fun SquadScreen(
         onSheetDismissed = viewModel::sheetClosed,
         onMatchDayTapped = viewModel::matchDayTapped,
         onMatchDayDetailsDismissed = viewModel::matchDayDetailsClosed,
+        onRefresh = viewModel::refresh,
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SquadScreen(
     players: Loadable<List<SquadPlayer>>,
@@ -124,6 +128,7 @@ private fun SquadScreen(
     onSheetDismissed: () -> Unit,
     onMatchDayTapped: (Int, Int, String) -> Unit,
     onMatchDayDetailsDismissed: () -> Unit,
+    onRefresh: () -> Unit,
 ) {
     val allPlayers = (players as? Loadable.Success)?.value.orEmpty()
     val filteredPlayers = allPlayers
@@ -160,7 +165,17 @@ private fun SquadScreen(
                     SquadSubTab.Players -> {
                         PositionFilterRow(selectedPosition = selectedPosition, onPositionSelected = onPositionSelected)
 
-                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        // isRefreshing mirrors the same Loading state the
+                        // switch below already reacts to — see
+                        // docs/backlog/done/refresh-screen.md: pulling
+                        // blanks the screen back to the same full-screen
+                        // spinner first load shows, not an in-place
+                        // spinner over the still-stale list.
+                        PullToRefreshBox(
+                            isRefreshing = players is Loadable.Loading,
+                            onRefresh = onRefresh,
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                        ) {
                             when (players) {
                                 is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                                 is Loadable.Failed -> Text(

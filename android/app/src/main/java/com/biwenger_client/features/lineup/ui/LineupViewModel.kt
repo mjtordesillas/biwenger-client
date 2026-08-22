@@ -85,6 +85,7 @@ class LineupViewModel @Inject constructor(
             coeffects = listOf(lineupCoeffect),
             handler = ::handleFormationChanged
         )
+        store.registerEventHandler(name = REFRESH_REQUESTED_EVENT, handler = ::handleRefreshRequested)
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -100,6 +101,7 @@ class LineupViewModel @Inject constructor(
         store.removeEventHandler(name = SLOT_PICKER_CLOSED_EVENT, handler = ::handleSlotPickerClosed)
         store.removeEventHandler(name = SLOT_FILLED_EVENT, handler = ::handleSlotFilled)
         store.removeEventHandler(name = FORMATION_CHANGED_EVENT, handler = ::handleFormationChanged)
+        store.removeEventHandler(name = REFRESH_REQUESTED_EVENT, handler = ::handleRefreshRequested)
     }
 
     // Benches a starter with no replacement — see
@@ -134,8 +136,22 @@ class LineupViewModel @Inject constructor(
         store.dispatch(event = event(name = FORMATION_CHANGED_EVENT, payload = formation))
     }
 
+    fun refresh() {
+        store.dispatch(event = event(name = REFRESH_REQUESTED_EVENT))
+    }
+
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
         listOf(UpdateState(path = "lineup.lineup", value = coeffects.load(coeffect = lineupCoeffect)))
+
+    // Same two-step Loading-then-DispatchEvent pattern as
+    // SquadViewModel's handleRefreshRequested — blanks back to Loading
+    // before re-triggering ON_LOAD_EVENT, so pull-to-refresh shows the
+    // same full-screen spinner first load does.
+    fun handleRefreshRequested(event: Event<Unit>): List<Effect> =
+        listOf(
+            UpdateState(path = "lineup.lineup", value = Loadable.Loading),
+            DispatchEvent(event = event(name = ON_LOAD_EVENT)),
+        )
 
     // Re-fetches the lineup (via the same coeffect handleOnLoad uses)
     // rather than trusting the ViewModel's already-displayed state, so
@@ -262,5 +278,6 @@ class LineupViewModel @Inject constructor(
         const val SLOT_PICKER_CLOSED_EVENT = "lineup.slot-picker-closed"
         const val SLOT_FILLED_EVENT = "lineup.slot-filled"
         const val FORMATION_CHANGED_EVENT = "lineup.formation-changed"
+        const val REFRESH_REQUESTED_EVENT = "lineup.refresh-requested"
     }
 }

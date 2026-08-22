@@ -250,6 +250,7 @@ class MarketViewModel @Inject constructor(
             coeffects = listOf(bidsCoeffect),
             handler = ::handleBidFinished
         )
+        store.registerEventHandler(name = REFRESH_REQUESTED_EVENT, handler = ::handleRefreshRequested)
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -287,6 +288,7 @@ class MarketViewModel @Inject constructor(
         store.removeEventHandler(name = BID_CANCELLED_EVENT, handler = ::handleBidCancelled)
         store.removeEventHandler(name = BID_REQUESTED_EVENT, handler = ::handleBidRequested)
         store.removeEventHandler(name = PLACE_BID_FINISHED_EVENT, handler = ::handleBidFinished)
+        store.removeEventHandler(name = REFRESH_REQUESTED_EVENT, handler = ::handleRefreshRequested)
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -295,6 +297,20 @@ class MarketViewModel @Inject constructor(
             UpdateState(path = "market.myListings", value = coeffects.load(coeffect = myMarketListingsCoeffect)),
             UpdateState(path = "market.offers", value = coeffects.load(coeffect = offersCoeffect)),
             UpdateState(path = "market.bids", value = coeffects.load(coeffect = bidsCoeffect)),
+        )
+
+    // Same two-step Loading-then-DispatchEvent pattern as SquadViewModel/
+    // LineupViewModel's handleRefreshRequested, just across all four
+    // subtabs at once — ON_LOAD_EVENT already reloads all of them
+    // together (same as the initial screen open), so a pull-to-refresh
+    // on any one subtab refreshes the other three underneath it too.
+    fun handleRefreshRequested(event: Event<Unit>): List<Effect> =
+        listOf(
+            UpdateState(path = "market.players", value = Loadable.Loading),
+            UpdateState(path = "market.myListings", value = Loadable.Loading),
+            UpdateState(path = "market.offers", value = Loadable.Loading),
+            UpdateState(path = "market.bids", value = Loadable.Loading),
+            DispatchEvent(event = event(name = ON_LOAD_EVENT)),
         )
 
     fun handlePlayerTapped(event: Event<Int>): List<Effect> {
@@ -604,6 +620,9 @@ class MarketViewModel @Inject constructor(
     fun placeBid(listing: MarketListing, amount: Long) =
         store.dispatch(event = event(name = BID_REQUESTED_EVENT, payload = PlaceBidRequest(listing = listing, amount = amount)))
 
+    fun refresh() =
+        store.dispatch(event = event(name = REFRESH_REQUESTED_EVENT))
+
     companion object {
         const val ON_LOAD_EVENT = "market.on-load"
         const val PLAYER_TAPPED_EVENT = "market.player-tapped"
@@ -629,5 +648,6 @@ class MarketViewModel @Inject constructor(
         const val BID_OPENED_EVENT = "market.bid-opened"
         const val BID_CANCELLED_EVENT = "market.bid-cancelled"
         const val BID_REQUESTED_EVENT = "market.bid-requested"
+        const val REFRESH_REQUESTED_EVENT = "market.refresh-requested"
     }
 }

@@ -100,6 +100,7 @@ class SquadViewModel @Inject constructor(
             handler = ::handleMatchDayDetailsRequested
         )
         store.registerEventHandler(name = MATCH_DAY_DETAILS_CLOSED_EVENT, handler = ::handleMatchDayDetailsClosed)
+        store.registerEventHandler(name = REFRESH_REQUESTED_EVENT, handler = ::handleRefreshRequested)
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -116,6 +117,7 @@ class SquadViewModel @Inject constructor(
         store.removeEventHandler(name = MATCH_DAY_TAPPED_EVENT, handler = ::handleMatchDayTapped)
         store.removeEventHandler(name = MATCH_DAY_DETAILS_REQUESTED_EVENT, handler = ::handleMatchDayDetailsRequested)
         store.removeEventHandler(name = MATCH_DAY_DETAILS_CLOSED_EVENT, handler = ::handleMatchDayDetailsClosed)
+        store.removeEventHandler(name = REFRESH_REQUESTED_EVENT, handler = ::handleRefreshRequested)
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -203,6 +205,17 @@ class SquadViewModel @Inject constructor(
             UpdateState(path = "squad.matchDayDetails", value = null),
         )
 
+    // Blanks the list back to Loading before re-triggering ON_LOAD_EVENT
+    // — same two-step Loading-then-DispatchEvent pattern
+    // handlePerformanceSeasonChanged already uses — so pull-to-refresh
+    // shows the same full-screen spinner first load does, rather than an
+    // in-place spinner over the still-stale list.
+    fun handleRefreshRequested(event: Event<Unit>): List<Effect> =
+        listOf(
+            UpdateState(path = "squad.players", value = Loadable.Loading),
+            DispatchEvent(event = event(name = ON_LOAD_EVENT)),
+        )
+
     fun positionFilterChanged(position: Int?) =
         store.dispatch(event = event(name = POSITION_FILTER_CHANGED_EVENT, payload = position))
 
@@ -231,6 +244,9 @@ class SquadViewModel @Inject constructor(
     fun matchDayDetailsClosed() =
         store.dispatch(event = event(name = MATCH_DAY_DETAILS_CLOSED_EVENT))
 
+    fun refresh() =
+        store.dispatch(event = event(name = REFRESH_REQUESTED_EVENT))
+
     companion object {
         const val ON_LOAD_EVENT = "squad.on-load"
         const val POSITION_FILTER_CHANGED_EVENT = "squad.position-filter-changed"
@@ -242,5 +258,6 @@ class SquadViewModel @Inject constructor(
         const val MATCH_DAY_TAPPED_EVENT = "squad.match-day-tapped"
         const val MATCH_DAY_DETAILS_REQUESTED_EVENT = "squad.match-day-details-requested"
         const val MATCH_DAY_DETAILS_CLOSED_EVENT = "squad.match-day-details-closed"
+        const val REFRESH_REQUESTED_EVENT = "squad.refresh-requested"
     }
 }

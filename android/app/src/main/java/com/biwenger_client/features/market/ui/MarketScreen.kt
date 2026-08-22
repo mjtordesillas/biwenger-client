@@ -31,10 +31,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -196,9 +198,11 @@ fun MarketScreen(
         onBidOpened = viewModel::openBid,
         onBidCancelled = viewModel::cancelBid,
         onBidConfirmed = viewModel::placeBid,
+        onRefresh = viewModel::refresh,
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MarketScreen(
     players: Loadable<List<MarketListing>>,
@@ -242,6 +246,7 @@ private fun MarketScreen(
     onBidOpened: (MarketListing) -> Unit,
     onBidCancelled: () -> Unit,
     onBidConfirmed: (MarketListing, Long) -> Unit,
+    onRefresh: () -> Unit,
 ) {
     val allListings = (players as? Loadable.Success)?.value.orEmpty()
     val allMyListings = (myListings as? Loadable.Success)?.value.orEmpty()
@@ -281,13 +286,26 @@ private fun MarketScreen(
                 MarketSubTabRow(selected = selectedSubTab, onSelect = { selectedSubTab = it })
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth().padding(top = 8.dp)) {
+                    // Each subtab wraps its own list in PullToRefreshBox
+                    // (isRefreshing off that subtab's own Loadable) rather
+                    // than the shared outer Box doing it once — the four
+                    // subtabs' data loads together (onRefresh reloads all
+                    // of them, see MarketViewModel.handleRefreshRequested)
+                    // but only the one actually visible should show the
+                    // pull affordance/blank-to-spinner behavior.
                     when (selectedSubTab) {
-                        MarketSubTab.CurrentMarket -> MarketListingListForState(
-                            listings = players,
-                            emptyMessage = "Could not load the market right now.",
-                            onPlayerTapped = onPlayerTapped,
-                            onBidTapped = onBidOpened,
-                        )
+                        MarketSubTab.CurrentMarket -> PullToRefreshBox(
+                            isRefreshing = players is Loadable.Loading,
+                            onRefresh = onRefresh,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            MarketListingListForState(
+                                listings = players,
+                                emptyMessage = "Could not load the market right now.",
+                                onPlayerTapped = onPlayerTapped,
+                                onBidTapped = onBidOpened,
+                            )
+                        }
                         MarketSubTab.MyListings -> Column(modifier = Modifier.fillMaxSize()) {
                             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                                 // Top-left, mirroring "List player"'s
@@ -330,7 +348,11 @@ private fun MarketScreen(
                                     Text("List player")
                                 }
                             }
-                            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            PullToRefreshBox(
+                                isRefreshing = myListings is Loadable.Loading,
+                                onRefresh = onRefresh,
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                            ) {
                                 MarketListingListForState(
                                     listings = myListings,
                                     emptyMessage = "Could not load your listings right now.",
@@ -340,20 +362,32 @@ private fun MarketScreen(
                                 )
                             }
                         }
-                        MarketSubTab.Offers -> PlayerOfferListForState(
-                            offers = offers,
-                            emptyMessage = "Could not load your offers right now.",
-                            onPlayerTapped = onPlayerTapped,
-                            onRejectTapped = onOfferRejectionOpened,
-                            onAcceptTapped = onOfferAcceptanceOpened,
-                        )
-                        MarketSubTab.Bids -> PlayerBidListForState(
-                            bids = bids,
-                            emptyMessage = "Could not load your bids right now.",
-                            onPlayerTapped = onPlayerTapped,
-                            onRemoveTapped = onRemoveBidTapped,
-                            removingBidIds = removingBidIds,
-                        )
+                        MarketSubTab.Offers -> PullToRefreshBox(
+                            isRefreshing = offers is Loadable.Loading,
+                            onRefresh = onRefresh,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            PlayerOfferListForState(
+                                offers = offers,
+                                emptyMessage = "Could not load your offers right now.",
+                                onPlayerTapped = onPlayerTapped,
+                                onRejectTapped = onOfferRejectionOpened,
+                                onAcceptTapped = onOfferAcceptanceOpened,
+                            )
+                        }
+                        MarketSubTab.Bids -> PullToRefreshBox(
+                            isRefreshing = bids is Loadable.Loading,
+                            onRefresh = onRefresh,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            PlayerBidListForState(
+                                bids = bids,
+                                emptyMessage = "Could not load your bids right now.",
+                                onPlayerTapped = onPlayerTapped,
+                                onRemoveTapped = onRemoveBidTapped,
+                                removingBidIds = removingBidIds,
+                            )
+                        }
                     }
                 }
             }

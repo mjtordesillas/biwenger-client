@@ -24,10 +24,12 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -89,9 +91,11 @@ fun LineupScreen(
         onFillSlot = viewModel::fillSlot,
         onClosePicker = viewModel::closeSlotPicker,
         onChangeFormation = viewModel::changeFormation,
+        onRefresh = viewModel::refresh,
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LineupScreen(
     lineup: Loadable<Lineup>,
@@ -103,8 +107,17 @@ private fun LineupScreen(
     onFillSlot: (Int, Int) -> Unit,
     onClosePicker: () -> Unit,
     onChangeFormation: (String) -> Unit,
+    onRefresh: () -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxSize()) {
+    // isRefreshing mirrors the same Loading state the content switch
+    // below already reacts to — see docs/backlog/done/refresh-screen.md:
+    // pulling blanks the screen back to the same full-screen spinner
+    // first load shows, not an in-place spinner over stale content.
+    PullToRefreshBox(
+        isRefreshing = lineup is Loadable.Loading,
+        onRefresh = onRefresh,
+        modifier = Modifier.fillMaxSize(),
+    ) {
         when (lineup) {
             is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             is Loadable.Failed -> Text(
