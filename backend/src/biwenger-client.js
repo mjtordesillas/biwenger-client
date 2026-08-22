@@ -143,6 +143,30 @@ export const createBiwengerClient = (dependencies = {}) => {
     if (!response.ok) throw new Error(`Biwenger unlist player failed: ${response.status}`)
   }
 
+  // Removes one of the requester's own outgoing bids. Verified against
+  // the live API on 2026-08-22 (captured from Biwenger's own web app via
+  // browser DevTools, then reproduced here); see
+  // docs/biwenger-api-notes.md § "My outgoing bids — write (remove)".
+  // Same path shape as rejectOfferData/acceptOfferData (an outgoing bid
+  // is an `offers/{id}` entry too, per getMyBidsOnOtherPlayers), but
+  // DELETE with no body rather than a PUT status change — the two
+  // sides of an offer aren't symmetric here. A 204 has no body, so
+  // unlike rejectOfferData/acceptOfferData this never calls
+  // response.json() — same reasoning as unlistPlayerData.
+  const removeBidData = async ({ token, leagueId, userId, offerId }) => {
+    const response = await httpFetch(`${baseUrl}/offers/${offerId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-League': String(leagueId),
+        'X-User': String(userId),
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+    })
+    if (!response.ok) throw new Error(`Biwenger remove bid failed: ${response.status}`)
+  }
+
   // Lists one of the requester's own squad players on the market.
   // Verified against the live API on 2026-08-21 (captured from
   // Biwenger's own web app via browser DevTools, then reproduced here);
@@ -372,6 +396,12 @@ export const createBiwengerClient = (dependencies = {}) => {
     await listPlayerData({ token, leagueId, userId, playerId, price })
   }
 
+  const removeBid = async ({ email, password, offerId }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    await removeBidData({ token, leagueId, userId, offerId })
+  }
+
   // My own outgoing bids on other managers' players — same `GET
   // /market` response as getOffersOnMyPlayers, but `data.offers[]`
   // filtered to `offer.from?.id === userId` instead of
@@ -543,6 +573,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     listPlayer,
     cycleListings,
     getMyBidsOnOtherPlayers,
+    removeBid,
     getLineup,
     saveLineup,
     getPlayerPrices,

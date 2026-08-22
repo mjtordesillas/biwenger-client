@@ -10,7 +10,7 @@ test('returns a 200 JSON body with my outgoing bids, shaped via toPlayerBidView,
   const handler = createPlayerBidsApiHandler({
     biwengerClient: fakeBiwengerClient([
       {
-        offer: { amount: 150000, until: 1787461200, from: { id: 42, name: 'Me' }, to: null, requestedPlayers: [1], status: 'waiting', type: 'purchase' },
+        offer: { id: 4273101594, amount: 150000, until: 1787461200, from: { id: 42, name: 'Me' }, to: null, requestedPlayers: [1], status: 'waiting', type: 'purchase' },
         sale: { date: 1787288871, until: 1787461200, price: 150000, player: { id: 1 }, user: null },
         player: { id: 1, name: 'Brugué', teamID: 87, position: 4, price: 280000, priceIncrement: 10000, points: 5 },
       },
@@ -24,6 +24,7 @@ test('returns a 200 JSON body with my outgoing bids, shaped via toPlayerBidView,
   assert.equal(response.headers['Content-Type'], 'application/json; charset=utf-8')
   assert.deepEqual(JSON.parse(response.body), {
     players: [{
+      offerId: 4273101594,
       id: 1,
       name: 'Brugué',
       position: 4,

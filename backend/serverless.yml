@@ -86,6 +86,13 @@ functions:
           method: GET
           path: /market/my-bids
           private: true
+  removeBid:
+    handler: src/index.removeBid
+    events:
+      - http:
+          method: DELETE
+          path: /market/my-bids/{offerId}
+          private: true
   lineup:
     handler: src/index.lineup
     events:

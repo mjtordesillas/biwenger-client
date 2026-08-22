@@ -8,6 +8,7 @@ import { createUnlistPlayerApiHandler } from './unlist-player-api-handler.js'
 import { createListPlayerApiHandler } from './list-player-api-handler.js'
 import { createCycleListingsApiHandler } from './cycle-listings-api-handler.js'
 import { createPlayerBidsApiHandler } from './player-bids-api-handler.js'
+import { createRemoveBidApiHandler } from './remove-bid-api-handler.js'
 import { createLineupApiHandler } from './lineup-api-handler.js'
 import { createSaveLineupApiHandler } from './save-lineup-api-handler.js'
 import { createPriceHistoryApiHandler } from './price-history-api-handler.js'
@@ -26,6 +27,7 @@ export const unlistPlayer = createUnlistPlayerApiHandler()
 export const listPlayer = createListPlayerApiHandler()
 export const cycleListings = createCycleListingsApiHandler()
 export const playerBids = createPlayerBidsApiHandler()
+export const removeBid = createRemoveBidApiHandler()
 export const lineup = createLineupApiHandler()
 export const saveLineup = createSaveLineupApiHandler()
 export const priceHistory = createPriceHistoryApiHandler()

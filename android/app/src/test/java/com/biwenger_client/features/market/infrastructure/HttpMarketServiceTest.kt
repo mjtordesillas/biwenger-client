@@ -286,7 +286,7 @@ class HttpMarketServiceTest {
             server.enqueue(
                 MockResponse().setBody(
                     """{"players":[{
-                        "id":1,"name":"Brugué","position":4,"secondaryPosition":null,
+                        "offerId":4273101594,"id":1,"name":"Brugué","position":4,"secondaryPosition":null,
                         "price":150000,"marketValue":200000,"priceIncrement":-5000,"points":2,
                         "photoUrl":"https://cdn.biwenger.com/i/p/1.png",
                         "teamCrestUrl":"https://cdn.biwenger.com/i/t/87.png",
@@ -301,6 +301,7 @@ class HttpMarketServiceTest {
             val bids = (result as Response.Success).body
             assertThat(bids).hasSize(1)
             val bid = bids?.first()
+            assertThat(bid?.offerId).isEqualTo(4273101594)
             assertThat(bid?.name).isEqualTo("Brugué")
             assertThat(bid?.price).isEqualTo(150000)
             assertThat(bid?.marketValue).isEqualTo(200000)
@@ -318,6 +319,21 @@ class HttpMarketServiceTest {
 
             val request = server.takeRequest()
             assertThat(request.path).isEqualTo("/market/my-bids")
+        }
+    }
+
+    @Test
+    fun `removeBid DELETEs the my-bids endpoint, no body`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"status":200}"""))
+
+            val result = service.removeBid(4273101594)
+
+            assertThat(result).isInstanceOf(Response.Success::class.java)
+            val request = server.takeRequest()
+            assertThat(request.method).isEqualTo("DELETE")
+            assertThat(request.path).isEqualTo("/market/my-bids/4273101594")
+            assertThat(request.body.size).isEqualTo(0)
         }
     }
 

@@ -23,6 +23,8 @@ import com.biwenger_client.features.market.domain.effects.ListPlayerEffect
 import com.biwenger_client.features.market.domain.effects.OFFER_ACCEPTANCE_FINISHED_EVENT
 import com.biwenger_client.features.market.domain.effects.OFFER_REJECTION_FINISHED_EVENT
 import com.biwenger_client.features.market.domain.effects.RejectOfferEffect
+import com.biwenger_client.features.market.domain.effects.REMOVE_BID_FINISHED_EVENT
+import com.biwenger_client.features.market.domain.effects.RemoveBidEffect
 import com.biwenger_client.features.market.domain.effects.UNLIST_PLAYER_FINISHED_EVENT
 import com.biwenger_client.features.market.domain.effects.UnlistPlayerEffect
 import com.biwenger_client.features.market.domain.models.MarketListing
@@ -97,6 +99,9 @@ class MarketViewModel @Inject constructor(
     private val _cyclingListings = mutableStateOf(false)
     val cyclingListings: State<Boolean> = _cyclingListings
 
+    private val _removingBidIds = mutableStateOf<Set<Long>>(emptySet())
+    val removingBidIds: State<Set<Long>> = _removingBidIds
+
     private val _selectedPlayerId = mutableStateOf<Int?>(null)
     val selectedPlayerId: State<Int?> = _selectedPlayerId
 
@@ -136,6 +141,7 @@ class MarketViewModel @Inject constructor(
         store.subscribe<Loadable<List<SquadPlayer>>?>(path = "market.listPlayerSquad") { _listPlayerSquad.value = it }
         store.subscribe<Set<Int>?>(path = "market.listingPlayerIds") { it?.let { v -> _listingPlayerIds.value = v } }
         store.subscribe<Boolean?>(path = "market.cyclingListings") { it?.let { v -> _cyclingListings.value = v } }
+        store.subscribe<Set<Long>?>(path = "market.removingBidIds") { it?.let { v -> _removingBidIds.value = v } }
         store.subscribe<Int?>(path = "market.selectedPlayerId") { _selectedPlayerId.value = it }
         store.subscribe<Loadable<PriceHistory>?>(path = "market.priceHistory") { _priceHistory.value = it }
         store.subscribe<Loadable<PerformanceHistory>?>(path = "market.performanceHistory") { _performanceHistory.value = it }
@@ -214,6 +220,12 @@ class MarketViewModel @Inject constructor(
             coeffects = listOf(myMarketListingsCoeffect),
             handler = ::handleCycleListingsFinished
         )
+        store.registerEventHandler(name = REMOVE_BID_REQUESTED_EVENT, handler = ::handleRemoveBidRequested)
+        store.registerEventHandler(
+            name = REMOVE_BID_FINISHED_EVENT,
+            coeffects = listOf(bidsCoeffect),
+            handler = ::handleRemoveBidFinished
+        )
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -245,6 +257,8 @@ class MarketViewModel @Inject constructor(
         store.removeEventHandler(name = LIST_PLAYER_FINISHED_EVENT, handler = ::handleListPlayerFinished)
         store.removeEventHandler(name = CYCLE_LISTINGS_REQUESTED_EVENT, handler = ::handleCycleListingsRequested)
         store.removeEventHandler(name = CYCLE_LISTINGS_FINISHED_EVENT, handler = ::handleCycleListingsFinished)
+        store.removeEventHandler(name = REMOVE_BID_REQUESTED_EVENT, handler = ::handleRemoveBidRequested)
+        store.removeEventHandler(name = REMOVE_BID_FINISHED_EVENT, handler = ::handleRemoveBidFinished)
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -446,6 +460,24 @@ class MarketViewModel @Inject constructor(
             UpdateState(path = "market.myListings", value = coeffects.load(coeffect = myMarketListingsCoeffect)),
         )
 
+    // Same set-of-in-flight-ids reasoning as handleUnlistPlayerRequested
+    // — no confirmation dialog gates this one either (per the backlog).
+    fun handleRemoveBidRequested(event: Event<Long>): List<Effect> {
+        val offerId = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "market.removingBidIds", value = _removingBidIds.value + offerId),
+            RemoveBidEffect(offerId = offerId),
+        )
+    }
+
+    fun handleRemoveBidFinished(event: Event<Long>, coeffects: Coeffects): List<Effect> {
+        val offerId = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "market.removingBidIds", value = _removingBidIds.value - offerId),
+            UpdateState(path = "market.bids", value = coeffects.load(coeffect = bidsCoeffect)),
+        )
+    }
+
     fun playerTapped(playerId: Int) =
         store.dispatch(event = event(name = PLAYER_TAPPED_EVENT, payload = playerId))
 
@@ -504,6 +536,9 @@ class MarketViewModel @Inject constructor(
     fun cycleListings() =
         store.dispatch(event = event(name = CYCLE_LISTINGS_REQUESTED_EVENT))
 
+    fun removeBid(bid: PlayerBid) =
+        store.dispatch(event = event(name = REMOVE_BID_REQUESTED_EVENT, payload = bid.offerId))
+
     companion object {
         const val ON_LOAD_EVENT = "market.on-load"
         const val PLAYER_TAPPED_EVENT = "market.player-tapped"
@@ -525,5 +560,6 @@ class MarketViewModel @Inject constructor(
         const val LIST_PLAYER_POPUP_CLOSED_EVENT = "market.list-player-popup-closed"
         const val LIST_PLAYER_REQUESTED_EVENT = "market.list-player-requested"
         const val CYCLE_LISTINGS_REQUESTED_EVENT = "market.cycle-listings-requested"
+        const val REMOVE_BID_REQUESTED_EVENT = "market.remove-bid-requested"
     }
 }

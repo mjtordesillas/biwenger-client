@@ -9,6 +9,8 @@ import com.biwenger_client.features.market.domain.effects.ListPlayerEffect
 import com.biwenger_client.features.market.domain.effects.ListPlayerEffectHandler
 import com.biwenger_client.features.market.domain.effects.RejectOfferEffect
 import com.biwenger_client.features.market.domain.effects.RejectOfferEffectHandler
+import com.biwenger_client.features.market.domain.effects.RemoveBidEffect
+import com.biwenger_client.features.market.domain.effects.RemoveBidEffectHandler
 import com.biwenger_client.features.market.domain.effects.UnlistPlayerEffect
 import com.biwenger_client.features.market.domain.effects.UnlistPlayerEffectHandler
 import com.biwenger_client.features.market.infrastructure.MarketService
@@ -37,6 +39,10 @@ class MarketEffectsHandlerRegistration(
         registry.registerEffectHandler(
             effectClass = CycleListingsEffect::class,
             handler = CycleListingsEffectHandler(marketService = marketService, registry = registry)
+        )
+        registry.registerEffectHandler(
+            effectClass = RemoveBidEffect::class,
+            handler = RemoveBidEffectHandler(marketService = marketService, registry = registry)
         )
     }
 }

@@ -15,4 +15,5 @@ interface MarketService {
     suspend fun unlistPlayer(playerId: Int): Response<Unit>
     suspend fun listPlayer(playerId: Int): Response<Unit>
     suspend fun cycleListings(): Response<Unit>
+    suspend fun removeBid(offerId: Long): Response<Unit>
 }

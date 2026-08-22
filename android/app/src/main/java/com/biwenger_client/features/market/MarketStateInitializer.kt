@@ -24,6 +24,7 @@ class MarketStateInitializer : StateInitializer {
         "market.listPlayerSquad" to null as Loadable<List<SquadPlayer>>?,
         "market.listingPlayerIds" to emptySet<Int>(),
         "market.cyclingListings" to false,
+        "market.removingBidIds" to emptySet<Long>(),
         "market.selectedPlayerId" to null as Int?,
         "market.priceHistory" to null as Loadable<PriceHistory>?,
         "market.performanceHistory" to null as Loadable<PerformanceHistory>?,

@@ -39,6 +39,12 @@ private data class ListPlayerResponseBody(val status: Int)
 // updates the UI), so it's parsed but discarded into Unit like the
 // other writes.
 private data class CycleListingsResponseBody(val unlisted: List<Int> = emptyList(), val listed: List<Int> = emptyList())
+// DELETE has no request body, same as unlist — see backend's
+// remove-bid-api-handler.js. The real upstream call returns 204 (see
+// docs/biwenger-api-notes.md § "My outgoing bids — write (remove)"),
+// but the backend's own private write proxy always echoes `{}`/200,
+// same as every other write here — nothing to parse either way.
+private data class RemoveBidResponseBody(val status: Int)
 
 class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
     private val httpClient: HttpClient = RetrofitHttpClient(baseUrl = baseUrl, apiKey = apiKey)
@@ -93,6 +99,12 @@ class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
 
     override suspend fun cycleListings(): Response<Unit> =
         when (httpClient.post("market/cycle-listings", object : TypeToken<CycleListingsResponseBody>() {})) {
+            is Response.Success -> Response.Success(Unit)
+            is Response.Error -> Response.Error(502, "upstream_error")
+        }
+
+    override suspend fun removeBid(offerId: Long): Response<Unit> =
+        when (httpClient.delete("market/my-bids/$offerId", object : TypeToken<RemoveBidResponseBody>() {})) {
             is Response.Success -> Response.Success(Unit)
             is Response.Error -> Response.Error(502, "upstream_error")
         }

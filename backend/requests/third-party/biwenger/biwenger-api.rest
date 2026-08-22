@@ -84,6 +84,14 @@ X-League: {{leagueId}}
 X-User: {{userId}}
 Accept: application/json
 
+### Remove one of my own outgoing bids — verified 2026-08-22; see docs/biwenger-api-notes.md
+DELETE {{baseUrl}}/offers/{{offerId}}
+Authorization: Bearer {{token}}
+X-League: {{leagueId}}
+X-User: {{userId}}
+Content-Type: application/json
+Accept: application/json
+
 ### List one of my own squad players on the market — verified 2026-08-21; see docs/biwenger-api-notes.md
 POST {{baseUrl}}/market
 Authorization: Bearer {{token}}

@@ -143,6 +143,28 @@ The captured browser request also carried `X-Lang: en` and `X-Version:
 other write works without them — but worth checking first if unlisting
 ever starts failing in a way that looks like a missing-header rejection.
 
+## My outgoing bids — write (remove)
+
+`DELETE https://biwenger.as.com/api/v2/offers/{offerId}`, same
+`Authorization`/`X-League`/`X-User`/`Content-Type`/`Accept` headers as
+the other writes, no request body. Captured live from Biwenger's own web
+app via browser DevTools and reproduced against the real API, verified
+empirically on 2026-08-22 against a real outgoing bid (offer
+`4273101594`): the API returned **204 No Content**, and the bid
+disappeared from a follow-up `GET /market`'s `data.offers[]` and from
+Biwenger's own Bids UI.
+
+Same path shape as "Incoming offers — write" above (an outgoing bid is
+an `offers/{id}` entry too, confirmed by `getMyBidsOnOtherPlayers`'s
+`offer.id`) but a different verb/body — a `DELETE` with nothing, not a
+`PUT` with a `{"status": ...}` change. The backlog note that flagged
+this as unverified ("removing my own outgoing bid may differ from
+rejecting an incoming one") was right to be cautious: the two write
+shapes aren't the same, even though both read sides share one
+`data.offers[]` array. The 204 has no body — unlike reject/accept's 200
+with an echoed `data.status`, there's nothing to parse here to confirm
+the new state; the follow-up `GET`/UI check is what confirmed it.
+
 ## My market listings — write (list)
 
 `POST https://biwenger.as.com/api/v2/market`, same

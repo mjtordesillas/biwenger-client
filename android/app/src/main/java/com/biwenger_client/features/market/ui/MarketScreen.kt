@@ -139,6 +139,7 @@ fun MarketScreen(
     val listPlayerSquad by viewModel.listPlayerSquad
     val listingPlayerIds by viewModel.listingPlayerIds
     val cyclingListings by viewModel.cyclingListings
+    val removingBidIds by viewModel.removingBidIds
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
@@ -159,6 +160,7 @@ fun MarketScreen(
         listPlayerSquad = listPlayerSquad,
         listingPlayerIds = listingPlayerIds,
         cyclingListings = cyclingListings,
+        removingBidIds = removingBidIds,
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
@@ -181,6 +183,7 @@ fun MarketScreen(
         onListPlayerPopupDismissed = viewModel::closeListPlayerPopup,
         onListTapped = viewModel::listPlayer,
         onCycleTapped = viewModel::cycleListings,
+        onRemoveBidTapped = viewModel::removeBid,
     )
 }
 
@@ -198,6 +201,7 @@ private fun MarketScreen(
     listPlayerSquad: Loadable<List<SquadPlayer>>?,
     listingPlayerIds: Set<Int>,
     cyclingListings: Boolean,
+    removingBidIds: Set<Long>,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
@@ -220,6 +224,7 @@ private fun MarketScreen(
     onListPlayerPopupDismissed: () -> Unit,
     onListTapped: (Int) -> Unit,
     onCycleTapped: () -> Unit,
+    onRemoveBidTapped: (PlayerBid) -> Unit,
 ) {
     val allListings = (players as? Loadable.Success)?.value.orEmpty()
     val allMyListings = (myListings as? Loadable.Success)?.value.orEmpty()
@@ -327,7 +332,9 @@ private fun MarketScreen(
                         MarketSubTab.Bids -> PlayerBidListForState(
                             bids = bids,
                             emptyMessage = "Could not load your bids right now.",
-                            onPlayerTapped = onPlayerTapped
+                            onPlayerTapped = onPlayerTapped,
+                            onRemoveTapped = onRemoveBidTapped,
+                            removingBidIds = removingBidIds,
                         )
                     }
                 }
@@ -418,6 +425,8 @@ private fun BoxScope.PlayerBidListForState(
     bids: Loadable<List<PlayerBid>>,
     emptyMessage: String,
     onPlayerTapped: (Int) -> Unit,
+    onRemoveTapped: (PlayerBid) -> Unit,
+    removingBidIds: Set<Long>,
 ) {
     when (bids) {
         is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -427,7 +436,9 @@ private fun BoxScope.PlayerBidListForState(
         )
         is Loadable.Success -> PlayerBidList(
             bids = bids.value.sortedWith(PlayerBidOrder),
-            onPlayerTapped = onPlayerTapped
+            onPlayerTapped = onPlayerTapped,
+            onRemoveTapped = onRemoveTapped,
+            removingBidIds = removingBidIds,
         )
     }
 }
@@ -973,33 +984,55 @@ private fun PlayerOfferFooter(offer: PlayerOffer) {
 private fun bidderLabel(bidder: String?): String = bidder ?: "the Market"
 
 @Composable
-private fun PlayerBidList(bids: List<PlayerBid>, onPlayerTapped: (Int) -> Unit) {
+private fun PlayerBidList(
+    bids: List<PlayerBid>,
+    onPlayerTapped: (Int) -> Unit,
+    onRemoveTapped: (PlayerBid) -> Unit,
+    removingBidIds: Set<Long>,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(bids) { bid -> PlayerBidRow(bid = bid, onClick = { onPlayerTapped(bid.id) }) }
+        items(bids) { bid ->
+            PlayerBidRow(
+                bid = bid,
+                onClick = { onPlayerTapped(bid.id) },
+                onRemove = { onRemoveTapped(bid) },
+                removing = bid.offerId in removingBidIds,
+            )
+        }
     }
 }
 
 // Same header/footer shape as MarketListingRow (owner/expiry header,
 // market-value footer) — a bid's player has both, same as a listing's.
 // The content differs: three numbers instead of one, since a bid has an
-// asking price *and* my own offer against it, not just one price.
+// asking price *and* my own offer against it, not just one price. Same
+// Box + overlay pattern as MarketListingRow's onUnlist button — no
+// confirmation dialog gates it either, per the backlog.
 @Composable
-private fun PlayerBidRow(bid: PlayerBid, onClick: () -> Unit) {
-    Column(
+private fun PlayerBidRow(bid: PlayerBid, onClick: () -> Unit, onRemove: () -> Unit, removing: Boolean) {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(NocturneRadius.md))
             .background(ColorSurface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
-        PlayerBidHeader(bid = bid)
-        PlayerBidContent(bid = bid)
-        PlayerBidFooter(bid = bid)
+        Column(modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp)) {
+            PlayerBidHeader(bid = bid)
+            PlayerBidContent(bid = bid)
+            PlayerBidFooter(bid = bid)
+        }
+        PlayerOfferActionButton(
+            icon = Icons.Default.Close,
+            tint = TrendDown,
+            contentDescription = "Remove bid on ${bid.name}",
+            onClick = onRemove,
+            loading = removing,
+            modifier = Modifier.align(Alignment.BottomEnd).padding(NocturneRadius.md),
+        )
     }
 }
 

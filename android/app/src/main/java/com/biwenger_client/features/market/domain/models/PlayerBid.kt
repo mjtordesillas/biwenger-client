@@ -10,6 +10,7 @@ import com.biwenger_client.domain.models.Player
 // shape stands for a different fact about a player. Field names match
 // biwenger-client's src/player-bid-view.js response shape.
 data class PlayerBid(
+    val offerId: Long,
     val id: Int,
     val name: String,
     val position: Int,
