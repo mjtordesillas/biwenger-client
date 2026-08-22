@@ -1,5 +1,25 @@
 const BASE_URL = 'https://biwenger.as.com/api/v2'
 
+// Fixed asking price for every listing this app creates — no price
+// entry in the UI, shared by listPlayerData (via
+// list-player-api-handler.js) and cycleListings, which both need the
+// same fixed value.
+export const DEFAULT_LISTING_PRICE = 35_000_000
+
+// Same rules as the Android popup's (now-removed) client-side version:
+// no-standing-offer candidates first, falling back to with-offer ones
+// only to fill remaining slots, capped at maxListings. No real
+// listing-history API exists (checked, same RAT as list/unlist), so
+// there's no true "least recently listed" ranking — ties just keep
+// squad-response order. Exported for direct narrow-unit testing, per
+// docs/ways-of-working/testing-strategy.md.
+export const selectPlayersToList = (squadTuples, maxListings = 5) => {
+  const eligible = squadTuples.filter(({ owner, inMarket }) => !inMarket && owner.lockedUntil == null)
+  const withoutOffer = eligible.filter(({ offerAmount }) => offerAmount == null)
+  const withOffer = eligible.filter(({ offerAmount }) => offerAmount != null)
+  return [...withoutOffer, ...withOffer].slice(0, maxListings).map(({ player }) => player.id)
+}
+
 // Talks to Biwenger's unofficial v2 API. See docs/rat.md and
 // docs/adrs/001-unofficial-biwenger-v2-api-over-browser-automation.md for
 // why these endpoints/headers, and docs/coding-conventions/factory-functions.md
@@ -165,39 +185,15 @@ export const createBiwengerClient = (dependencies = {}) => {
     return Number(`${yy}${mm}${dd}`)
   }
 
-  // Log in, resolve league/user, fetch the owned players (with their
-  // `owner` data), join against the catalogue for name/position/price/
-  // status, and cross-reference the market for "is this one of mine
-  // that's currently listed" / "what's the standing offer on it, if any"
-  // — see docs/biwenger-api-notes.md § "Squad player status".
-  // Returns {player, owner, inMarket, offerAmount, draftedPrice} tuples
-  // rather than a merged object, same reasoning as getCurrentMarket's
-  // {sale, player} — squad-player-view.js does the shaping.
-  const getMySquad = async ({ email, password }) => {
-    const token = await login({ email, password })
-    const { leagueId, userId } = await getAccount({ token })
-    const [squadEntries, catalogue, { sales, offers }] = await Promise.all([
-      getSquadEntries({ token, leagueId, userId }),
-      getCatalogue(),
-      getMarketData({ token, leagueId, userId }),
-    ])
-
-    // Draft-owned players (owner.price absent — never bought) don't
-    // carry their market value at draft time anywhere in the squad or
-    // market responses; the only place it exists is each player's own
-    // price history, keyed by day.
-    const draftedEntries = squadEntries.filter(({ owner }) => owner.price == null)
-    const draftedPriceById = new Map(
-      await Promise.all(
-        draftedEntries.map(async ({ id, owner }) => {
-          const prices = await getPlayerPrices({ playerId: id })
-          const entry = prices.find(([yymmdd]) => yymmdd === yymmddFromUnixSeconds(owner.date))
-          return [id, entry?.[1] ?? null]
-        })
-      )
-    )
-
-    return squadEntries
+  // Joins squad entries against the catalogue and cross-references the
+  // market for "is this one of mine that's currently listed" / "what's
+  // the standing offer on it, if any" — see docs/biwenger-api-notes.md
+  // § "Squad player status". Returns {player, owner, inMarket,
+  // offerAmount} tuples rather than a merged object, same reasoning as
+  // getCurrentMarket's {sale, player}. Shared by getMySquad (which adds
+  // draftedPrice on top) and cycleListings (which doesn't need it).
+  const buildSquadTuples = ({ squadEntries, catalogue, sales, offers, userId }) =>
+    squadEntries
       .map(({ id, owner }) => {
         const player = catalogue[String(id)]
         if (!player) return null
@@ -206,15 +202,70 @@ export const createBiwengerClient = (dependencies = {}) => {
         // with more than one standing offer at once; not disambiguated
         // further without a concrete case that needs it.
         const offer = offers.find((offer) => offer.to?.id === userId && offer.requestedPlayers?.includes(id))
-        return {
-          player,
-          owner,
-          inMarket,
-          offerAmount: offer?.amount ?? null,
-          draftedPrice: draftedPriceById.get(id) ?? null,
-        }
+        return { player, owner, inMarket, offerAmount: offer?.amount ?? null }
       })
       .filter(Boolean)
+
+  // Log in, resolve league/user, fetch the owned players (with their
+  // `owner` data), and join via buildSquadTuples, then add draftedPrice
+  // on top — squad-player-view.js does the final shaping.
+  const getMySquad = async ({ email, password }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    const [squadEntries, catalogue, { sales, offers }] = await Promise.all([
+      getSquadEntries({ token, leagueId, userId }),
+      getCatalogue(),
+      getMarketData({ token, leagueId, userId }),
+    ])
+    const tuples = buildSquadTuples({ squadEntries, catalogue, sales, offers, userId })
+
+    // Draft-owned players (owner.price absent — never bought) don't
+    // carry their market value at draft time anywhere in the squad or
+    // market responses; the only place it exists is each player's own
+    // price history, keyed by day.
+    const draftedEntries = tuples.filter(({ owner }) => owner.price == null)
+    const draftedPriceById = new Map(
+      await Promise.all(
+        draftedEntries.map(async ({ player, owner }) => {
+          const prices = await getPlayerPrices({ playerId: player.id })
+          const entry = prices.find(([yymmdd]) => yymmdd === yymmddFromUnixSeconds(owner.date))
+          return [player.id, entry?.[1] ?? null]
+        })
+      )
+    )
+
+    return tuples.map((tuple) => ({ ...tuple, draftedPrice: draftedPriceById.get(tuple.player.id) ?? null }))
+  }
+
+  // Unlists everything currently on the market and lists up to 5 new
+  // candidates in their place, in one authenticated session — see
+  // docs/backlog/done/cycle-player-listings.md. The squad/market
+  // snapshot is taken once, before any write below runs, so the
+  // outgoing listings (still `inMarket: true` in that snapshot) are
+  // automatically excluded from selectPlayersToList — no special-casing
+  // needed to avoid immediately re-listing what this same call just
+  // pulled. Writes fire in parallel via allSettled (not .all) — one
+  // failing shouldn't abort the rest of the batch, since unlist and list
+  // don't depend on each other's completion.
+  const cycleListings = async ({ email, password }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    const [squadEntries, catalogue, { sales, offers }] = await Promise.all([
+      getSquadEntries({ token, leagueId, userId }),
+      getCatalogue(),
+      getMarketData({ token, leagueId, userId }),
+    ])
+    const squadTuples = buildSquadTuples({ squadEntries, catalogue, sales, offers, userId })
+
+    const unlisted = sales.filter((sale) => sale.user?.id === userId).map((sale) => sale.player.id)
+    const listed = selectPlayersToList(squadTuples)
+
+    await Promise.allSettled([
+      ...unlisted.map((playerId) => unlistPlayerData({ token, leagueId, userId, playerId })),
+      ...listed.map((playerId) => listPlayerData({ token, leagueId, userId, playerId, price: DEFAULT_LISTING_PRICE })),
+    ])
+
+    return { unlisted, listed }
   }
 
   // Shared by getCurrentMarket and getMyMarketListings: joins a
@@ -490,6 +541,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     acceptOffer,
     unlistPlayer,
     listPlayer,
+    cycleListings,
     getMyBidsOnOtherPlayers,
     getLineup,
     saveLineup,

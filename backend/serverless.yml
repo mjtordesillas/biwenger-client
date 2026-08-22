@@ -72,6 +72,13 @@ functions:
           method: POST
           path: /market/my-listings/{playerId}
           private: true
+  cycleListings:
+    handler: src/index.cycleListings
+    events:
+      - http:
+          method: POST
+          path: /market/cycle-listings
+          private: true
   playerBids:
     handler: src/index.playerBids
     events:

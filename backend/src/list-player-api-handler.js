@@ -1,10 +1,9 @@
-import { createBiwengerClient } from './biwenger-client.js'
+import { createBiwengerClient, DEFAULT_LISTING_PRICE } from './biwenger-client.js'
 
-// Fixed asking price for every listing this app creates — no price
-// entry in the UI, matching the backlog. Kept server-side, not
-// client-supplied, so the write's shape stays fixed regardless of the
-// caller.
-const DEFAULT_LISTING_PRICE = 35_000_000
+// The fixed asking price (no price entry in the UI) is applied
+// server-side, not client-supplied, so the write's shape stays fixed
+// regardless of the caller — see DEFAULT_LISTING_PRICE in
+// biwenger-client.js, shared with cycleListings.
 
 // Private write proxy for POST /market/my-listings/{playerId}. Upstream
 // details are deliberately collapsed so a response can never disclose
