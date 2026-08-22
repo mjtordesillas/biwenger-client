@@ -338,6 +338,21 @@ class HttpMarketServiceTest {
     }
 
     @Test
+    fun `placeBid POSTs the amount to the my-bids endpoint`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"status":200}"""))
+
+            val result = service.placeBid(24956, 150000)
+
+            assertThat(result).isInstanceOf(Response.Success::class.java)
+            val request = server.takeRequest()
+            assertThat(request.method).isEqualTo("POST")
+            assertThat(request.path).isEqualTo("/market/my-bids/24956")
+            assertThat(request.body.readUtf8()).isEqualTo("""{"amount":150000}""")
+        }
+    }
+
+    @Test
     fun `bids returns an Error on a non-2xx response`() {
         runBlocking {
             server.enqueue(MockResponse().setResponseCode(403))

@@ -22,6 +22,8 @@ import com.biwenger_client.features.market.domain.effects.LIST_PLAYER_FINISHED_E
 import com.biwenger_client.features.market.domain.effects.ListPlayerEffect
 import com.biwenger_client.features.market.domain.effects.OFFER_ACCEPTANCE_FINISHED_EVENT
 import com.biwenger_client.features.market.domain.effects.OFFER_REJECTION_FINISHED_EVENT
+import com.biwenger_client.features.market.domain.effects.PLACE_BID_FINISHED_EVENT
+import com.biwenger_client.features.market.domain.effects.PlaceBidEffect
 import com.biwenger_client.features.market.domain.effects.RejectOfferEffect
 import com.biwenger_client.features.market.domain.effects.REMOVE_BID_FINISHED_EVENT
 import com.biwenger_client.features.market.domain.effects.RemoveBidEffect
@@ -52,6 +54,12 @@ import javax.inject.Inject
 // registered globally on the Registry (registration isn't per-feature),
 // so no re-registration is needed here, just referencing the same
 // coeffect classes.
+// Event payload for BID_REQUESTED_EVENT — the listing being bid on plus
+// the amount entered in the dialog. Market-only, unlike
+// PerformanceHistoryRequest/MatchDayDetailsRequest (ui/PlayerDetailScreen.kt),
+// which are shared with Squad.
+data class PlaceBidRequest(val listing: MarketListing, val amount: Long)
+
 @HiltViewModel
 class MarketViewModel @Inject constructor(
     private val store: Store
@@ -102,6 +110,12 @@ class MarketViewModel @Inject constructor(
     private val _removingBidIds = mutableStateOf<Set<Long>>(emptySet())
     val removingBidIds: State<Set<Long>> = _removingBidIds
 
+    private val _listingToBid = mutableStateOf<MarketListing?>(null)
+    val listingToBid: State<MarketListing?> = _listingToBid
+
+    private val _placingBid = mutableStateOf(false)
+    val placingBid: State<Boolean> = _placingBid
+
     private val _selectedPlayerId = mutableStateOf<Int?>(null)
     val selectedPlayerId: State<Int?> = _selectedPlayerId
 
@@ -142,6 +156,8 @@ class MarketViewModel @Inject constructor(
         store.subscribe<Set<Int>?>(path = "market.listingPlayerIds") { it?.let { v -> _listingPlayerIds.value = v } }
         store.subscribe<Boolean?>(path = "market.cyclingListings") { it?.let { v -> _cyclingListings.value = v } }
         store.subscribe<Set<Long>?>(path = "market.removingBidIds") { it?.let { v -> _removingBidIds.value = v } }
+        store.subscribe<MarketListing?>(path = "market.listingToBid") { _listingToBid.value = it }
+        store.subscribe<Boolean?>(path = "market.placingBid") { it?.let { v -> _placingBid.value = v } }
         store.subscribe<Int?>(path = "market.selectedPlayerId") { _selectedPlayerId.value = it }
         store.subscribe<Loadable<PriceHistory>?>(path = "market.priceHistory") { _priceHistory.value = it }
         store.subscribe<Loadable<PerformanceHistory>?>(path = "market.performanceHistory") { _performanceHistory.value = it }
@@ -226,6 +242,14 @@ class MarketViewModel @Inject constructor(
             coeffects = listOf(bidsCoeffect),
             handler = ::handleRemoveBidFinished
         )
+        store.registerEventHandler(name = BID_OPENED_EVENT, handler = ::handleBidOpened)
+        store.registerEventHandler(name = BID_CANCELLED_EVENT, handler = ::handleBidCancelled)
+        store.registerEventHandler(name = BID_REQUESTED_EVENT, handler = ::handleBidRequested)
+        store.registerEventHandler(
+            name = PLACE_BID_FINISHED_EVENT,
+            coeffects = listOf(bidsCoeffect),
+            handler = ::handleBidFinished
+        )
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -259,6 +283,10 @@ class MarketViewModel @Inject constructor(
         store.removeEventHandler(name = CYCLE_LISTINGS_FINISHED_EVENT, handler = ::handleCycleListingsFinished)
         store.removeEventHandler(name = REMOVE_BID_REQUESTED_EVENT, handler = ::handleRemoveBidRequested)
         store.removeEventHandler(name = REMOVE_BID_FINISHED_EVENT, handler = ::handleRemoveBidFinished)
+        store.removeEventHandler(name = BID_OPENED_EVENT, handler = ::handleBidOpened)
+        store.removeEventHandler(name = BID_CANCELLED_EVENT, handler = ::handleBidCancelled)
+        store.removeEventHandler(name = BID_REQUESTED_EVENT, handler = ::handleBidRequested)
+        store.removeEventHandler(name = PLACE_BID_FINISHED_EVENT, handler = ::handleBidFinished)
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -478,6 +506,34 @@ class MarketViewModel @Inject constructor(
         )
     }
 
+    // Placing a bid commits real money in-game — unlike unlist/remove-bid,
+    // this goes through a confirmation dialog (per AGENT.md's "no
+    // automated bidding without explicit confirmation"), same pattern as
+    // offer accept/reject. The bid amount itself is entered as free text
+    // in the dialog composable's own local state, not routed through the
+    // Registry — only the final validated amount becomes an event
+    // payload, on confirm.
+    fun handleBidOpened(event: Event<MarketListing>): List<Effect> =
+        listOf(UpdateState(path = "market.listingToBid", value = requireNotNull(event.payload)))
+
+    fun handleBidCancelled(event: Event<Unit>): List<Effect> =
+        listOf(UpdateState(path = "market.listingToBid", value = null))
+
+    fun handleBidRequested(event: Event<PlaceBidRequest>): List<Effect> {
+        val request = requireNotNull(event.payload)
+        return listOf(
+            UpdateState(path = "market.placingBid", value = true),
+            PlaceBidEffect(playerId = request.listing.id, amount = request.amount),
+        )
+    }
+
+    fun handleBidFinished(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
+        listOf(
+            UpdateState(path = "market.listingToBid", value = null),
+            UpdateState(path = "market.placingBid", value = false),
+            UpdateState(path = "market.bids", value = coeffects.load(coeffect = bidsCoeffect)),
+        )
+
     fun playerTapped(playerId: Int) =
         store.dispatch(event = event(name = PLAYER_TAPPED_EVENT, payload = playerId))
 
@@ -539,6 +595,15 @@ class MarketViewModel @Inject constructor(
     fun removeBid(bid: PlayerBid) =
         store.dispatch(event = event(name = REMOVE_BID_REQUESTED_EVENT, payload = bid.offerId))
 
+    fun openBid(listing: MarketListing) =
+        store.dispatch(event = event(name = BID_OPENED_EVENT, payload = listing))
+
+    fun cancelBid() =
+        store.dispatch(event = event(name = BID_CANCELLED_EVENT))
+
+    fun placeBid(listing: MarketListing, amount: Long) =
+        store.dispatch(event = event(name = BID_REQUESTED_EVENT, payload = PlaceBidRequest(listing = listing, amount = amount)))
+
     companion object {
         const val ON_LOAD_EVENT = "market.on-load"
         const val PLAYER_TAPPED_EVENT = "market.player-tapped"
@@ -561,5 +626,8 @@ class MarketViewModel @Inject constructor(
         const val LIST_PLAYER_REQUESTED_EVENT = "market.list-player-requested"
         const val CYCLE_LISTINGS_REQUESTED_EVENT = "market.cycle-listings-requested"
         const val REMOVE_BID_REQUESTED_EVENT = "market.remove-bid-requested"
+        const val BID_OPENED_EVENT = "market.bid-opened"
+        const val BID_CANCELLED_EVENT = "market.bid-cancelled"
+        const val BID_REQUESTED_EVENT = "market.bid-requested"
     }
 }

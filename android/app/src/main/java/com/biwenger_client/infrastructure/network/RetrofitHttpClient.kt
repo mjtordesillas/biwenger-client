@@ -46,6 +46,12 @@ class RetrofitHttpClient(
         return convertResponse(response, typeToken.type)
     }
 
+    override suspend fun <T> post(url: String, body: Any, typeToken: TypeToken<T>): Response<T> {
+        val requestBody = gson.toJson(body).toRequestBody("application/json".toMediaType())
+        val response = retrofitClient.post(baseUrl + url, requestBody)
+        return convertResponse(response, typeToken.type)
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun <T> convertResponse(response: RetrofitResponse<ResponseBody>, type: Type): Response<T> {
         if (!response.isSuccessful) {
@@ -71,6 +77,9 @@ class RetrofitHttpClient(
 
         @POST
         suspend fun post(@Url url: String): RetrofitResponse<ResponseBody>
+
+        @POST
+        suspend fun post(@Url url: String, @Body body: RequestBody): RetrofitResponse<ResponseBody>
     }
 
     companion object {

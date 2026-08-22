@@ -93,6 +93,13 @@ functions:
           method: DELETE
           path: /market/my-bids/{offerId}
           private: true
+  placeBid:
+    handler: src/index.placeBid
+    events:
+      - http:
+          method: POST
+          path: /market/my-bids/{playerId}
+          private: true
   lineup:
     handler: src/index.lineup
     events:

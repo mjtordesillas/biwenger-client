@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -32,6 +33,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -140,6 +143,8 @@ fun MarketScreen(
     val listingPlayerIds by viewModel.listingPlayerIds
     val cyclingListings by viewModel.cyclingListings
     val removingBidIds by viewModel.removingBidIds
+    val listingToBid by viewModel.listingToBid
+    val placingBid by viewModel.placingBid
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
@@ -161,6 +166,8 @@ fun MarketScreen(
         listingPlayerIds = listingPlayerIds,
         cyclingListings = cyclingListings,
         removingBidIds = removingBidIds,
+        listingToBid = listingToBid,
+        placingBid = placingBid,
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
@@ -184,6 +191,9 @@ fun MarketScreen(
         onListTapped = viewModel::listPlayer,
         onCycleTapped = viewModel::cycleListings,
         onRemoveBidTapped = viewModel::removeBid,
+        onBidOpened = viewModel::openBid,
+        onBidCancelled = viewModel::cancelBid,
+        onBidConfirmed = viewModel::placeBid,
     )
 }
 
@@ -202,6 +212,8 @@ private fun MarketScreen(
     listingPlayerIds: Set<Int>,
     cyclingListings: Boolean,
     removingBidIds: Set<Long>,
+    listingToBid: MarketListing?,
+    placingBid: Boolean,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
@@ -225,6 +237,9 @@ private fun MarketScreen(
     onListTapped: (Int) -> Unit,
     onCycleTapped: () -> Unit,
     onRemoveBidTapped: (PlayerBid) -> Unit,
+    onBidOpened: (MarketListing) -> Unit,
+    onBidCancelled: () -> Unit,
+    onBidConfirmed: (MarketListing, Long) -> Unit,
 ) {
     val allListings = (players as? Loadable.Success)?.value.orEmpty()
     val allMyListings = (myListings as? Loadable.Success)?.value.orEmpty()
@@ -268,7 +283,8 @@ private fun MarketScreen(
                         MarketSubTab.CurrentMarket -> MarketListingListForState(
                             listings = players,
                             emptyMessage = "Could not load the market right now.",
-                            onPlayerTapped = onPlayerTapped
+                            onPlayerTapped = onPlayerTapped,
+                            onBidTapped = onBidOpened,
                         )
                         MarketSubTab.MyListings -> Column(modifier = Modifier.fillMaxSize()) {
                             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
@@ -370,6 +386,14 @@ private fun MarketScreen(
                     onListTapped = onListTapped,
                 )
             }
+            listingToBid?.let { listing ->
+                PlaceBidDialog(
+                    listing = listing,
+                    inFlight = placingBid,
+                    onCancel = onBidCancelled,
+                    onConfirm = { amount -> onBidConfirmed(listing, amount) },
+                )
+            }
         }
     }
 }
@@ -381,6 +405,7 @@ private fun BoxScope.MarketListingListForState(
     onPlayerTapped: (Int) -> Unit,
     onUnlistTapped: ((MarketListing) -> Unit)? = null,
     unlistingPlayerIds: Set<Int> = emptySet(),
+    onBidTapped: ((MarketListing) -> Unit)? = null,
 ) {
     when (listings) {
         is Loadable.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -393,6 +418,7 @@ private fun BoxScope.MarketListingListForState(
             onPlayerTapped = onPlayerTapped,
             onUnlistTapped = onUnlistTapped,
             unlistingPlayerIds = unlistingPlayerIds,
+            onBidTapped = onBidTapped,
         )
     }
 }
@@ -524,6 +550,7 @@ private fun MarketListingList(
     onPlayerTapped: (Int) -> Unit,
     onUnlistTapped: ((MarketListing) -> Unit)? = null,
     unlistingPlayerIds: Set<Int> = emptySet(),
+    onBidTapped: ((MarketListing) -> Unit)? = null,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -536,21 +563,27 @@ private fun MarketListingList(
                 onClick = { onPlayerTapped(listing.id) },
                 onUnlist = onUnlistTapped?.let { { it(listing) } },
                 unlisting = listing.id in unlistingPlayerIds,
+                onBid = onBidTapped?.let { { it(listing) } },
             )
         }
     }
 }
 
-// Only the My Listings tab passes onUnlist (Current Market shows other
-// managers'/free-agent listings, which can't be unlisted) — the same
-// Box + overlay pattern PlayerOfferRow uses, so the button can sit
-// bottom-end without disturbing the header/content/footer Column.
+// My Listings passes onUnlist, Current Market passes onBid instead
+// (never both — a listing is either mine to unlist or someone else's to
+// bid on) — the same Box + overlay pattern PlayerOfferRow uses, so the
+// button can sit bottom-end without disturbing the header/content/
+// footer Column. onBid only opens the confirmation dialog (per
+// AGENT.md's "no automated bidding without explicit confirmation"), so
+// unlike onUnlist it takes no in-flight flag of its own — the spinner
+// lives on the dialog's own confirm button instead.
 @Composable
 private fun MarketListingRow(
     listing: MarketListing,
     onClick: () -> Unit,
     onUnlist: (() -> Unit)? = null,
     unlisting: Boolean = false,
+    onBid: (() -> Unit)? = null,
 ) {
     Box(
         modifier = Modifier
@@ -576,6 +609,15 @@ private fun MarketListingRow(
                 contentDescription = "Unlist ${listing.name}",
                 onClick = onUnlist,
                 loading = unlisting,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(NocturneRadius.md),
+            )
+        }
+        if (onBid != null) {
+            PlayerOfferActionButton(
+                icon = Icons.Default.Gavel,
+                tint = AcceptGreen,
+                contentDescription = "Place bid on ${listing.name}",
+                onClick = onBid,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(NocturneRadius.md),
             )
         }
@@ -876,6 +918,118 @@ private fun PlayerOfferConfirmationDialog(
                         )
                     } else {
                         Text(actionLabel)
+                    }
+                }
+            }
+        },
+    )
+}
+
+// Same shape as PlayerOfferConfirmationDialog (player card, label/value
+// rows, Cancel/action button row) plus an editable amount field — the
+// one dialog in the app that takes free-text input, since a bid amount
+// isn't a fixed/server-decided number like a listing's price is. The
+// amount itself lives in this composable's own remember{} state, not
+// the Registry — only the final validated Long becomes onConfirm's
+// payload, same reasoning MarketScreen's own selectedSubTab uses for
+// ephemeral view-only state.
+@Composable
+private fun PlaceBidDialog(
+    listing: MarketListing,
+    inFlight: Boolean,
+    onCancel: () -> Unit,
+    onConfirm: (Long) -> Unit,
+) {
+    var amountText by remember(listing.id) { mutableStateOf(listing.price.toString()) }
+    val amount = amountText.toLongOrNull()
+    val amountValid = amount != null && amount > 0
+
+    AlertDialog(
+        onDismissRequest = { if (!inFlight) onCancel() },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(fraction = 0.9f),
+        title = { Text("Place bid?") },
+        text = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(NocturneRadius.md))
+                    .background(ColorSurface)
+                    .padding(32.dp),
+            ) {
+                PlayerAvatarWithPoints(
+                    photoUrl = listing.photoUrl,
+                    teamCrestUrl = listing.teamCrestUrl,
+                    contentDescription = listing.name,
+                    points = listing.points,
+                )
+                Text(
+                    listing.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                Column(modifier = Modifier.fillMaxWidth().padding(top = 20.dp)) {
+                    PlayerOfferDialogRow(label = "Asking price", value = formatPrice(listing.price))
+                    PlayerOfferDialogRow(
+                        label = "Market value",
+                        value = formatPrice(listing.marketValue),
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                }
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it.filter(Char::isDigit) },
+                    label = { Text("Your bid") },
+                    singleLine = true,
+                    enabled = !inFlight,
+                    isError = amountText.isNotEmpty() && !amountValid,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+                )
+                if (amountValid) {
+                    val (icon, color) = priceTrend(amount - listing.marketValue)
+                    PlayerOfferDialogRow(
+                        label = "Difference",
+                        value = "$icon ${formatPriceChange(amount - listing.marketValue)}",
+                        valueColor = color,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                }
+            }
+        },
+        // Same forced-row Cancel/action layout as
+        // PlayerOfferConfirmationDialog, for the same 90%-width reason.
+        confirmButton = {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onCancel,
+                    enabled = !inFlight,
+                    shape = RoundedCornerShape(percent = 50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    ),
+                ) {
+                    Text("Cancel")
+                }
+                Button(
+                    onClick = { amount?.let(onConfirm) },
+                    enabled = !inFlight && amountValid,
+                    shape = RoundedCornerShape(percent = 50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = AcceptGreen.copy(alpha = 0.24f),
+                        contentColor = AcceptGreen,
+                    ),
+                ) {
+                    if (inFlight) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = AcceptGreen,
+                        )
+                    } else {
+                        Text("Bid")
                     }
                 }
             }

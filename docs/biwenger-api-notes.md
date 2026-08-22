@@ -165,6 +165,32 @@ shapes aren't the same, even though both read sides share one
 with an echoed `data.status`, there's nothing to parse here to confirm
 the new state; the follow-up `GET`/UI check is what confirmed it.
 
+## My outgoing bids — write (place)
+
+`POST https://biwenger.as.com/api/v2/offers`, same
+`Authorization`/`X-League`/`X-User`/`Content-Type`/`Accept` headers as
+the other writes. Body: `{"to":null,"type":"purchase","amount":<amount>,"requestedPlayers":[<playerId>]}`.
+Captured live from Biwenger's own web app via browser DevTools and
+reproduced against the real API, verified empirically on 2026-08-22
+against a real free-agent listing (player `24956`, bid `150000`): the
+API returned 200 with the created offer echoed back —
+`{"fromID":14256124,"type":"purchase","amount":150000,"created":1787379200,"status":"waiting","toID":0,"id":2730528977,"until":1787461200}`.
+
+- `to: null` in the request regardless of whether the target listing is
+  a free agent or a manager's clause-buy — matches
+  `getMyBidsOnOtherPlayers`' read-side finding that `to`/`from` on an
+  offer only ever identify the requester, never the other party, and
+  mine is always the `from` side on an outgoing bid (`toID: 0` in the
+  response is the server's placeholder for that same "no counterparty"
+  case, not a real user id).
+- The response's `id` (`2730528977` here) is the same offer id
+  `remove-a-bid`'s `DELETE /offers/{offerId}` would need to retract this
+  bid later.
+- Same base resource (`POST`/`GET`/`DELETE` on `offers`) as reject/
+  accept/remove above, but a `POST` to the collection rather than a verb
+  on one existing entry — the third and last write shape this resource
+  has turned out to need.
+
 ## My market listings — write (list)
 
 `POST https://biwenger.as.com/api/v2/market`, same

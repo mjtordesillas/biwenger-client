@@ -84,6 +84,21 @@ X-League: {{leagueId}}
 X-User: {{userId}}
 Accept: application/json
 
+### Place a bid on another manager's/free agent's listed player — verified 2026-08-22; see docs/biwenger-api-notes.md
+POST {{baseUrl}}/offers
+Authorization: Bearer {{token}}
+X-League: {{leagueId}}
+X-User: {{userId}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "to": null,
+  "type": "purchase",
+  "amount": 150000,
+  "requestedPlayers": [{{playerId}}]
+}
+
 ### Remove one of my own outgoing bids — verified 2026-08-22; see docs/biwenger-api-notes.md
 DELETE {{baseUrl}}/offers/{{offerId}}
 Authorization: Bearer {{token}}

@@ -45,6 +45,11 @@ private data class CycleListingsResponseBody(val unlisted: List<Int> = emptyList
 // but the backend's own private write proxy always echoes `{}`/200,
 // same as every other write here — nothing to parse either way.
 private data class RemoveBidResponseBody(val status: Int)
+// Request/response shape for placing a bid — see backend's
+// place-bid-api-handler.js. Unlike the other writes, this POST does
+// carry a body: the amount is user-entered, not fixed server-side.
+private data class PlaceBidRequest(val amount: Long)
+private data class PlaceBidResponseBody(val status: Int)
 
 class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
     private val httpClient: HttpClient = RetrofitHttpClient(baseUrl = baseUrl, apiKey = apiKey)
@@ -105,6 +110,18 @@ class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
 
     override suspend fun removeBid(offerId: Long): Response<Unit> =
         when (httpClient.delete("market/my-bids/$offerId", object : TypeToken<RemoveBidResponseBody>() {})) {
+            is Response.Success -> Response.Success(Unit)
+            is Response.Error -> Response.Error(502, "upstream_error")
+        }
+
+    override suspend fun placeBid(playerId: Int, amount: Long): Response<Unit> =
+        when (
+            httpClient.post(
+                "market/my-bids/$playerId",
+                PlaceBidRequest(amount = amount),
+                object : TypeToken<PlaceBidResponseBody>() {}
+            )
+        ) {
             is Response.Success -> Response.Success(Unit)
             is Response.Error -> Response.Error(502, "upstream_error")
         }

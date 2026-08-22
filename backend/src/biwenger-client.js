@@ -167,6 +167,29 @@ export const createBiwengerClient = (dependencies = {}) => {
     if (!response.ok) throw new Error(`Biwenger remove bid failed: ${response.status}`)
   }
 
+  // Places a bid on another manager's (or a free agent's) listed
+  // player. Verified against the live API on 2026-08-22 (captured from
+  // Biwenger's own web app via browser DevTools, then reproduced here);
+  // see docs/biwenger-api-notes.md § "My outgoing bids — write
+  // (place)". `to: null` regardless of the target being a free-agent or
+  // manager clause-buy listing — see getMyBidsOnOtherPlayers' notes:
+  // `to`/`from` on an offer only ever identify the requester, never the
+  // other party, and mine is always the `from` side on an outgoing bid.
+  const placeBidData = async ({ token, leagueId, userId, playerId, amount }) => {
+    const response = await httpFetch(`${baseUrl}/offers`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'X-League': String(leagueId),
+        'X-User': String(userId),
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ to: null, type: 'purchase', amount, requestedPlayers: [playerId] }),
+    })
+    if (!response.ok) throw new Error(`Biwenger place bid failed: ${response.status}`)
+  }
+
   // Lists one of the requester's own squad players on the market.
   // Verified against the live API on 2026-08-21 (captured from
   // Biwenger's own web app via browser DevTools, then reproduced here);
@@ -402,6 +425,12 @@ export const createBiwengerClient = (dependencies = {}) => {
     await removeBidData({ token, leagueId, userId, offerId })
   }
 
+  const placeBid = async ({ email, password, playerId, amount }) => {
+    const token = await login({ email, password })
+    const { leagueId, userId } = await getAccount({ token })
+    await placeBidData({ token, leagueId, userId, playerId, amount })
+  }
+
   // My own outgoing bids on other managers' players — same `GET
   // /market` response as getOffersOnMyPlayers, but `data.offers[]`
   // filtered to `offer.from?.id === userId` instead of
@@ -574,6 +603,7 @@ export const createBiwengerClient = (dependencies = {}) => {
     cycleListings,
     getMyBidsOnOtherPlayers,
     removeBid,
+    placeBid,
     getLineup,
     saveLineup,
     getPlayerPrices,
