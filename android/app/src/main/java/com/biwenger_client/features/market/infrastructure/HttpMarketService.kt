@@ -32,6 +32,13 @@ private data class UnlistPlayerResponseBody(val status: Int)
 // POST has no request body either — the fixed listing price is applied
 // server-side, see backend's list-player-api-handler.js.
 private data class ListPlayerResponseBody(val status: Int)
+// No request body — the whole selection happens server-side now, see
+// backend's cycle-listings-api-handler.js. The response carries which
+// ids were unlisted/listed, but the client doesn't need it (the my-
+// listings reload after CYCLE_LISTINGS_FINISHED_EVENT is what actually
+// updates the UI), so it's parsed but discarded into Unit like the
+// other writes.
+private data class CycleListingsResponseBody(val unlisted: List<Int> = emptyList(), val listed: List<Int> = emptyList())
 
 class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
     private val httpClient: HttpClient = RetrofitHttpClient(baseUrl = baseUrl, apiKey = apiKey)
@@ -80,6 +87,12 @@ class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
 
     override suspend fun listPlayer(playerId: Int): Response<Unit> =
         when (httpClient.post("market/my-listings/$playerId", object : TypeToken<ListPlayerResponseBody>() {})) {
+            is Response.Success -> Response.Success(Unit)
+            is Response.Error -> Response.Error(502, "upstream_error")
+        }
+
+    override suspend fun cycleListings(): Response<Unit> =
+        when (httpClient.post("market/cycle-listings", object : TypeToken<CycleListingsResponseBody>() {})) {
             is Response.Success -> Response.Success(Unit)
             is Response.Error -> Response.Error(502, "upstream_error")
         }

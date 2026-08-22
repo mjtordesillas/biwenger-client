@@ -266,6 +266,21 @@ class HttpMarketServiceTest {
     }
 
     @Test
+    fun `cycleListings POSTs the cycle-listings endpoint, no body`() {
+        runBlocking {
+            server.enqueue(MockResponse().setBody("""{"unlisted":[10],"listed":[30,20]}"""))
+
+            val result = service.cycleListings()
+
+            assertThat(result).isInstanceOf(Response.Success::class.java)
+            val request = server.takeRequest()
+            assertThat(request.method).isEqualTo("POST")
+            assertThat(request.path).isEqualTo("/market/cycle-listings")
+            assertThat(request.body.size).isEqualTo(0)
+        }
+    }
+
+    @Test
     fun `bids parses the wrapped players array, including the bid-specific fields`() {
         runBlocking {
             server.enqueue(

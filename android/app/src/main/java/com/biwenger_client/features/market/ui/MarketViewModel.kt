@@ -16,6 +16,8 @@ import com.biwenger_client.features.market.domain.coeffects.FetchMyMarketListing
 import com.biwenger_client.features.market.domain.coeffects.FetchBidsCoeffect
 import com.biwenger_client.features.market.domain.coeffects.FetchOffersCoeffect
 import com.biwenger_client.features.market.domain.effects.AcceptOfferEffect
+import com.biwenger_client.features.market.domain.effects.CYCLE_LISTINGS_FINISHED_EVENT
+import com.biwenger_client.features.market.domain.effects.CycleListingsEffect
 import com.biwenger_client.features.market.domain.effects.LIST_PLAYER_FINISHED_EVENT
 import com.biwenger_client.features.market.domain.effects.ListPlayerEffect
 import com.biwenger_client.features.market.domain.effects.OFFER_ACCEPTANCE_FINISHED_EVENT
@@ -92,6 +94,9 @@ class MarketViewModel @Inject constructor(
     private val _listingPlayerIds = mutableStateOf<Set<Int>>(emptySet())
     val listingPlayerIds: State<Set<Int>> = _listingPlayerIds
 
+    private val _cyclingListings = mutableStateOf(false)
+    val cyclingListings: State<Boolean> = _cyclingListings
+
     private val _selectedPlayerId = mutableStateOf<Int?>(null)
     val selectedPlayerId: State<Int?> = _selectedPlayerId
 
@@ -130,6 +135,7 @@ class MarketViewModel @Inject constructor(
         store.subscribe<Set<Int>?>(path = "market.unlistingPlayerIds") { it?.let { v -> _unlistingPlayerIds.value = v } }
         store.subscribe<Loadable<List<SquadPlayer>>?>(path = "market.listPlayerSquad") { _listPlayerSquad.value = it }
         store.subscribe<Set<Int>?>(path = "market.listingPlayerIds") { it?.let { v -> _listingPlayerIds.value = v } }
+        store.subscribe<Boolean?>(path = "market.cyclingListings") { it?.let { v -> _cyclingListings.value = v } }
         store.subscribe<Int?>(path = "market.selectedPlayerId") { _selectedPlayerId.value = it }
         store.subscribe<Loadable<PriceHistory>?>(path = "market.priceHistory") { _priceHistory.value = it }
         store.subscribe<Loadable<PerformanceHistory>?>(path = "market.performanceHistory") { _performanceHistory.value = it }
@@ -202,6 +208,12 @@ class MarketViewModel @Inject constructor(
             coeffects = listOf(myMarketListingsCoeffect, squadCoeffect),
             handler = ::handleListPlayerFinished
         )
+        store.registerEventHandler(name = CYCLE_LISTINGS_REQUESTED_EVENT, handler = ::handleCycleListingsRequested)
+        store.registerEventHandler(
+            name = CYCLE_LISTINGS_FINISHED_EVENT,
+            coeffects = listOf(myMarketListingsCoeffect),
+            handler = ::handleCycleListingsFinished
+        )
 
         store.dispatch(event = event(name = ON_LOAD_EVENT))
     }
@@ -231,6 +243,8 @@ class MarketViewModel @Inject constructor(
         store.removeEventHandler(name = LIST_PLAYER_POPUP_CLOSED_EVENT, handler = ::handleListPlayerPopupClosed)
         store.removeEventHandler(name = LIST_PLAYER_REQUESTED_EVENT, handler = ::handleListPlayerRequested)
         store.removeEventHandler(name = LIST_PLAYER_FINISHED_EVENT, handler = ::handleListPlayerFinished)
+        store.removeEventHandler(name = CYCLE_LISTINGS_REQUESTED_EVENT, handler = ::handleCycleListingsRequested)
+        store.removeEventHandler(name = CYCLE_LISTINGS_FINISHED_EVENT, handler = ::handleCycleListingsFinished)
     }
 
     fun handleOnLoad(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
@@ -414,6 +428,24 @@ class MarketViewModel @Inject constructor(
         )
     }
 
+    // Unlists everything currently listed and lists up to 5 new
+    // candidates in their place — no confirmation dialog, same direct
+    // pattern as a single list/unlist tap. The selection itself now
+    // lives server-side (docs/biwenger-api-notes.md's cycle-listings
+    // endpoint) — one HTTP call, not up to 10 independently-authenticated
+    // ones.
+    fun handleCycleListingsRequested(event: Event<Unit>): List<Effect> =
+        listOf(
+            UpdateState(path = "market.cyclingListings", value = true),
+            CycleListingsEffect,
+        )
+
+    fun handleCycleListingsFinished(event: Event<Unit>, coeffects: Coeffects): List<Effect> =
+        listOf(
+            UpdateState(path = "market.cyclingListings", value = false),
+            UpdateState(path = "market.myListings", value = coeffects.load(coeffect = myMarketListingsCoeffect)),
+        )
+
     fun playerTapped(playerId: Int) =
         store.dispatch(event = event(name = PLAYER_TAPPED_EVENT, payload = playerId))
 
@@ -469,6 +501,9 @@ class MarketViewModel @Inject constructor(
     fun listPlayer(playerId: Int) =
         store.dispatch(event = event(name = LIST_PLAYER_REQUESTED_EVENT, payload = playerId))
 
+    fun cycleListings() =
+        store.dispatch(event = event(name = CYCLE_LISTINGS_REQUESTED_EVENT))
+
     companion object {
         const val ON_LOAD_EVENT = "market.on-load"
         const val PLAYER_TAPPED_EVENT = "market.player-tapped"
@@ -489,5 +524,6 @@ class MarketViewModel @Inject constructor(
         const val LIST_PLAYER_POPUP_OPENED_EVENT = "market.list-player-popup-opened"
         const val LIST_PLAYER_POPUP_CLOSED_EVENT = "market.list-player-popup-closed"
         const val LIST_PLAYER_REQUESTED_EVENT = "market.list-player-requested"
+        const val CYCLE_LISTINGS_REQUESTED_EVENT = "market.cycle-listings-requested"
     }
 }

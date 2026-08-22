@@ -138,6 +138,7 @@ fun MarketScreen(
     val unlistingPlayerIds by viewModel.unlistingPlayerIds
     val listPlayerSquad by viewModel.listPlayerSquad
     val listingPlayerIds by viewModel.listingPlayerIds
+    val cyclingListings by viewModel.cyclingListings
     val selectedPlayerId by viewModel.selectedPlayerId
     val priceHistory by viewModel.priceHistory
     val performanceHistory by viewModel.performanceHistory
@@ -157,6 +158,7 @@ fun MarketScreen(
         unlistingPlayerIds = unlistingPlayerIds,
         listPlayerSquad = listPlayerSquad,
         listingPlayerIds = listingPlayerIds,
+        cyclingListings = cyclingListings,
         selectedPlayerId = selectedPlayerId,
         priceHistory = priceHistory,
         performanceHistory = performanceHistory,
@@ -178,6 +180,7 @@ fun MarketScreen(
         onListPlayerPopupOpened = viewModel::openListPlayerPopup,
         onListPlayerPopupDismissed = viewModel::closeListPlayerPopup,
         onListTapped = viewModel::listPlayer,
+        onCycleTapped = viewModel::cycleListings,
     )
 }
 
@@ -194,6 +197,7 @@ private fun MarketScreen(
     unlistingPlayerIds: Set<Int>,
     listPlayerSquad: Loadable<List<SquadPlayer>>?,
     listingPlayerIds: Set<Int>,
+    cyclingListings: Boolean,
     selectedPlayerId: Int?,
     priceHistory: Loadable<PriceHistory>?,
     performanceHistory: Loadable<PerformanceHistory>?,
@@ -215,6 +219,7 @@ private fun MarketScreen(
     onListPlayerPopupOpened: () -> Unit,
     onListPlayerPopupDismissed: () -> Unit,
     onListTapped: (Int) -> Unit,
+    onCycleTapped: () -> Unit,
 ) {
     val allListings = (players as? Loadable.Success)?.value.orEmpty()
     val allMyListings = (myListings as? Loadable.Success)?.value.orEmpty()
@@ -262,14 +267,37 @@ private fun MarketScreen(
                         )
                         MarketSubTab.MyListings -> Column(modifier = Modifier.fillMaxSize()) {
                             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+                                // Top-left, mirroring "List player"'s
+                                // top-right placement — same
+                                // tinted-background/full-opacity-text pill
+                                // treatment throughout this screen. The
+                                // whole batch is now one backend call
+                                // (docs/backlog/done/cycle-player-listings.md),
+                                // so cyclingListings is a single flag, not
+                                // a set of ids to track.
+                                Button(
+                                    onClick = onCycleTapped,
+                                    enabled = !cyclingListings,
+                                    shape = RoundedCornerShape(percent = 50),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
+                                        contentColor = MaterialTheme.colorScheme.primary,
+                                    ),
+                                ) {
+                                    if (cyclingListings) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                        )
+                                    } else {
+                                        Text("Cycle listings")
+                                    }
+                                }
                                 Spacer(modifier = Modifier.weight(1f))
-                                // Same tinted-background/full-opacity-text
-                                // pill treatment as the confirmation
-                                // dialogs' Cancel button, purple for the
-                                // same general-purpose reasoning.
                                 Button(
                                     onClick = onListPlayerPopupOpened,
-                                    enabled = allMyListings.size < MAX_LISTINGS,
+                                    enabled = allMyListings.size < MAX_LISTINGS && !cyclingListings,
                                     shape = RoundedCornerShape(percent = 50),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f),
