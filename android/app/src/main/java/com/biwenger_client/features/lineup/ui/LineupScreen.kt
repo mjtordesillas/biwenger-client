@@ -60,6 +60,7 @@ import com.biwenger_client.ui.FootballPitch
 import com.biwenger_client.ui.PlayerAvatarWithPoints
 import com.biwenger_client.ui.PositionColors
 import com.biwenger_client.ui.PositionTag
+import com.biwenger_client.ui.theme.ColorBg
 import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.Neutral900
 import com.biwenger_client.ui.theme.NocturneRadius
@@ -275,6 +276,9 @@ private fun SlotOptionsDialog(
         onDismissRequest = { if (!saving) onDismiss() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.fillMaxWidth(fraction = 0.95f),
+        // Same app-background token every popup uses — see
+        // docs/backlog/done/consistent-popup-background.md.
+        containerColor = ColorBg,
         title = { Text(if (occupied) "Replace ${player.name}" else "Fill this slot") },
         text = {
             when {

@@ -869,6 +869,9 @@ private fun PlayerOfferConfirmationDialog(
         // the available width instead.
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.fillMaxWidth(fraction = 0.9f),
+        // Same app-background token every popup uses — see
+        // docs/backlog/done/consistent-popup-background.md.
+        containerColor = ColorBg,
         title = { Text(title) },
         text = {
             val (icon, color) = priceTrend(offer.amount - offer.price)
