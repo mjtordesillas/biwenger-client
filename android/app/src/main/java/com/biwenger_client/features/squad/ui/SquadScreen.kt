@@ -25,11 +25,9 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +51,7 @@ import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.PriceHistory
 import com.biwenger_client.features.squad.domain.models.SquadPlayer
+import com.biwenger_client.ui.AppPullToRefreshBox
 import com.biwenger_client.ui.FilterChip
 import com.biwenger_client.ui.FootballPitch
 import com.biwenger_client.ui.MatchDayDetailsScreen
@@ -111,7 +110,6 @@ fun SquadScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SquadScreen(
     players: Loadable<List<SquadPlayer>>,
@@ -171,7 +169,7 @@ private fun SquadScreen(
                         // blanks the screen back to the same full-screen
                         // spinner first load shows, not an in-place
                         // spinner over the still-stale list.
-                        PullToRefreshBox(
+                        AppPullToRefreshBox(
                             isRefreshing = players is Loadable.Loading,
                             onRefresh = onRefresh,
                             modifier = Modifier.weight(1f).fillMaxWidth(),

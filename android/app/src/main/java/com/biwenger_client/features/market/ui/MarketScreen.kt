@@ -31,12 +31,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +68,7 @@ import com.biwenger_client.features.squad.domain.models.MatchDayDetails
 import com.biwenger_client.features.squad.domain.models.PerformanceHistory
 import com.biwenger_client.features.squad.domain.models.PriceHistory
 import com.biwenger_client.features.squad.domain.models.SquadPlayer
+import com.biwenger_client.ui.AppPullToRefreshBox
 import com.biwenger_client.ui.MatchDayDetailsScreen
 import com.biwenger_client.ui.PlayerAvatarOverlayOffsetY
 import com.biwenger_client.ui.PlayerAvatarWithPoints
@@ -202,7 +201,6 @@ fun MarketScreen(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MarketScreen(
     players: Loadable<List<MarketListing>>,
@@ -294,7 +292,7 @@ private fun MarketScreen(
                     // but only the one actually visible should show the
                     // pull affordance/blank-to-spinner behavior.
                     when (selectedSubTab) {
-                        MarketSubTab.CurrentMarket -> PullToRefreshBox(
+                        MarketSubTab.CurrentMarket -> AppPullToRefreshBox(
                             isRefreshing = players is Loadable.Loading,
                             onRefresh = onRefresh,
                             modifier = Modifier.fillMaxSize(),
@@ -348,7 +346,7 @@ private fun MarketScreen(
                                     Text("List player")
                                 }
                             }
-                            PullToRefreshBox(
+                            AppPullToRefreshBox(
                                 isRefreshing = myListings is Loadable.Loading,
                                 onRefresh = onRefresh,
                                 modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -362,7 +360,7 @@ private fun MarketScreen(
                                 )
                             }
                         }
-                        MarketSubTab.Offers -> PullToRefreshBox(
+                        MarketSubTab.Offers -> AppPullToRefreshBox(
                             isRefreshing = offers is Loadable.Loading,
                             onRefresh = onRefresh,
                             modifier = Modifier.fillMaxSize(),
@@ -375,7 +373,7 @@ private fun MarketScreen(
                                 onAcceptTapped = onOfferAcceptanceOpened,
                             )
                         }
-                        MarketSubTab.Bids -> PullToRefreshBox(
+                        MarketSubTab.Bids -> AppPullToRefreshBox(
                             isRefreshing = bids is Loadable.Loading,
                             onRefresh = onRefresh,
                             modifier = Modifier.fillMaxSize(),
