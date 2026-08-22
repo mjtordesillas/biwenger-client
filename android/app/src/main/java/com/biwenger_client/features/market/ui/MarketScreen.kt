@@ -85,6 +85,8 @@ import com.biwenger_client.ui.theme.ColorSurface
 import com.biwenger_client.ui.theme.ColorText
 import com.biwenger_client.ui.theme.Neutral500
 import com.biwenger_client.ui.theme.NocturneRadius
+import java.text.NumberFormat
+import java.util.Locale
 
 // Local to this screen, same as SquadSubTab — nothing outside Market
 // depends on which subtab is showing.
@@ -925,6 +927,14 @@ private fun PlayerOfferConfirmationDialog(
     )
 }
 
+// "."-grouped digits, no currency symbol (that's the text field's own
+// suffix) and no decimals — a bid amount is always a whole number of
+// euros. Local to this dialog: formatPrice (ui/PlayerList.kt) is for
+// display-only amounts and always includes the € symbol, which doesn't
+// fit an editable field's needs.
+private fun formatAmountInput(amount: Long): String =
+    NumberFormat.getNumberInstance(Locale("es", "ES")).apply { maximumFractionDigits = 0 }.format(amount)
+
 // Same shape as PlayerOfferConfirmationDialog (player card, label/value
 // rows, Cancel/action button row) plus an editable amount field — the
 // one dialog in the app that takes free-text input, since a bid amount
@@ -940,14 +950,21 @@ private fun PlaceBidDialog(
     onCancel: () -> Unit,
     onConfirm: (Long) -> Unit,
 ) {
-    var amountText by remember(listing.id) { mutableStateOf(listing.price.toString()) }
-    val amount = amountText.toLongOrNull()
+    // Free agent (no seller): the asking price is the system's own,
+    // meaningful starting point. A manager's clause-buy always asks
+    // exactly the clause value (see biwenger-api-notes.md's "League
+    // transfer market" note), which isn't a useful bidding anchor, so
+    // default to the catalogue's market value instead.
+    val defaultAmount = if (listing.seller == null) listing.price else listing.marketValue
+    var amountText by remember(listing.id) { mutableStateOf(formatAmountInput(defaultAmount)) }
+    val amount = amountText.replace(".", "").toLongOrNull()
     val amountValid = amount != null && amount > 0
 
     AlertDialog(
         onDismissRequest = { if (!inFlight) onCancel() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
         modifier = Modifier.fillMaxWidth(fraction = 0.9f),
+        containerColor = ColorBg,
         title = { Text("Place bid?") },
         text = {
             Column(
@@ -979,12 +996,24 @@ private fun PlaceBidDialog(
                 }
                 OutlinedTextField(
                     value = amountText,
-                    onValueChange = { amountText = it.filter(Char::isDigit) },
+                    // Reformatted on every keystroke rather than tracking
+                    // the raw digits separately — the field only ever
+                    // shows the "."-grouped number (never the currency
+                    // symbol, which lives in the suffix below instead),
+                    // so re-deriving it from the digits typed so far is
+                    // simpler than maintaining two representations in
+                    // sync. Cursor always lands at the end, which is fine
+                    // for a plain positive-amount field.
+                    onValueChange = { input ->
+                        val digits = input.filter(Char::isDigit)
+                        amountText = if (digits.isEmpty()) "" else formatAmountInput(digits.toLong())
+                    },
                     label = { Text("Your bid") },
                     singleLine = true,
                     enabled = !inFlight,
                     isError = amountText.isNotEmpty() && !amountValid,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    suffix = { Text("€") },
                     modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
                 )
                 if (amountValid) {

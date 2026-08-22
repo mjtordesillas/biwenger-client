@@ -98,7 +98,7 @@ functions:
     events:
       - http:
           method: POST
-          path: /market/my-bids/{playerId}
+          path: /market/my-bids
           private: true
   lineup:
     handler: src/index.lineup

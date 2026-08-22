@@ -48,7 +48,11 @@ private data class RemoveBidResponseBody(val status: Int)
 // Request/response shape for placing a bid — see backend's
 // place-bid-api-handler.js. Unlike the other writes, this POST does
 // carry a body: the amount is user-entered, not fixed server-side.
-private data class PlaceBidRequest(val amount: Long)
+// playerId travels in the body too, not the URL — API Gateway rejects
+// two sibling resources under the same parent with differently-named
+// path variables, and DELETE market/my-bids/{offerId} (removeBid)
+// already claims that slot.
+private data class PlaceBidRequest(val playerId: Int, val amount: Long)
 private data class PlaceBidResponseBody(val status: Int)
 
 class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
@@ -117,8 +121,8 @@ class HttpMarketService(baseUrl: String, apiKey: String) : MarketService {
     override suspend fun placeBid(playerId: Int, amount: Long): Response<Unit> =
         when (
             httpClient.post(
-                "market/my-bids/$playerId",
-                PlaceBidRequest(amount = amount),
+                "market/my-bids",
+                PlaceBidRequest(playerId = playerId, amount = amount),
                 object : TypeToken<PlaceBidResponseBody>() {}
             )
         ) {

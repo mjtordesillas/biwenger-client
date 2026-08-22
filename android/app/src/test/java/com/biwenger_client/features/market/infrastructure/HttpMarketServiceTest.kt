@@ -338,7 +338,7 @@ class HttpMarketServiceTest {
     }
 
     @Test
-    fun `placeBid POSTs the amount to the my-bids endpoint`() {
+    fun `placeBid POSTs the playerId and amount to the my-bids endpoint`() {
         runBlocking {
             server.enqueue(MockResponse().setBody("""{"status":200}"""))
 
@@ -347,8 +347,8 @@ class HttpMarketServiceTest {
             assertThat(result).isInstanceOf(Response.Success::class.java)
             val request = server.takeRequest()
             assertThat(request.method).isEqualTo("POST")
-            assertThat(request.path).isEqualTo("/market/my-bids/24956")
-            assertThat(request.body.readUtf8()).isEqualTo("""{"amount":150000}""")
+            assertThat(request.path).isEqualTo("/market/my-bids")
+            assertThat(request.body.readUtf8()).isEqualTo("""{"playerId":24956,"amount":150000}""")
         }
     }
 

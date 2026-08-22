@@ -14,12 +14,20 @@ pattern. The bid amount is the app's first free-text input: an
 editable field in the dialog, defaulted to the listing's asking price.
 
 **Backend**: `placeBidData()`/`placeBid()` (`biwenger-client.js`), new
-`place-bid-api-handler.js`, wired to `POST /market/my-bids/{playerId}`
-with a `{"amount": <amount>}` body — same `offers` resource
-reject/accept/remove-bid already write to, this time a `POST` to the
-collection rather than a verb on one existing entry. Same
-collapsed-upstream-error shape as the other writes, covering a
-malformed body the same way `save-lineup-api-handler.js` does.
+`place-bid-api-handler.js`, wired to `POST /market/my-bids` with a
+`{"playerId": <playerId>, "amount": <amount>}` body — same `offers`
+resource reject/accept/remove-bid already write to, this time a `POST`
+to the collection rather than a verb on one existing entry. `playerId`
+travels in the body rather than as a path segment (unlike list/unlist)
+because API Gateway rejects two sibling resources under the same parent
+with differently-named path variables: `DELETE
+/market/my-bids/{offerId}` (remove-bid) already claims that slot, so
+the initial `POST /market/my-bids/{playerId}` shape failed to deploy
+(`ApiGatewayResourceMarketMyDashbidsPlayeridVar` — "a sibling
+({offerId}) of this resource already has a variable path part"),
+caught by CI on the first push. Same collapsed-upstream-error shape as
+the other writes, covering a malformed body the same way
+`save-lineup-api-handler.js` does.
 
 **Android**: `HttpClient`/`RetrofitHttpClient` gained a body-carrying
 `post` overload (every POST before this only needed the no-body one —
